@@ -1,3 +1,0 @@
-/work2/08335/jms26/frontera/jots/build/CMakeFiles/jots.dir
-/work2/08335/jms26/frontera/jots/build/CMakeFiles/edit_cache.dir
-/work2/08335/jms26/frontera/jots/build/CMakeFiles/rebuild_cache.dir
