@@ -1,4 +1,0 @@
-// Define global variables here
-
-#define jots_VERSION_MAJOR @jots_VERSION_MAJOR@
-#define jots_VERSION_MINOR @jots_VERSION_MINOR@
