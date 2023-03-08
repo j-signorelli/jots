@@ -47,4 +47,13 @@ Note that presently, JOTS requires that preCICE and MFEM headers are included an
 
 ## Configuring Simulations
 
-JOTS ca
+JOTS receives an input file .ini file. It follows a super simple format:
+
+
+
+
+### Coding Plan (to be removed):
+
+To keep as object-oriented and as conventionally-followed as possible, will set up operator class separately with .cpp and .hpp file (good practice)
+
+Will keep JOTS as the main solver loop thing. Will likely set up an input file parser class. And maybe a restart file outputter and inputter class too. Then can easily implement additional thermal conductivity models and all that. 

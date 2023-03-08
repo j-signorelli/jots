@@ -17,14 +17,20 @@ message(STATUS "Found preCICE config: TRUE")
 find_package(MFEM REQUIRED CONFIG)
 message(STATUS "Found MFEM config: TRUE")
 
-
 # Pass the version to the .hpp.in file --> .hpp file in build directory
-configure_file(jots/include/global_vars.hpp.in  global_vars.hpp)
+configure_file(global_vars.hpp.in  global_vars.hpp)
+
+
+# Add src directory (creates jotsLib)
+add_subdirectory(src)
 
 # Create executable
-add_executable(jots jots/src/jots.cpp)
+add_executable(jots jots_main.cpp)
 target_link_libraries(jots PRIVATE precice::precice)
-target_link_libraries(jots PRIVATE mfem)
+target_link_libraries(jots PRIVATE mfem) # See the MFEMConfig.cmake file as this is name of library
+target_link_libraries(jots PRIVATE jotsLib)
 
 # Include the include file made above from the build directory
-target_include_directories(jots PUBLIC "${PROJECT_BINARY_DIRECTORY}/include")
+# Also include jotsLib files (replicating Step2 tutorial for cmake)
+target_include_directories(jots PUBLIC "${PROJECT_BINARY_DIRECTORY}"
+					src)
