@@ -31,17 +31,13 @@ Config::Config(const char* input_file) : m_input_file(input_file)
     // TODO Later -- first testing
 
     // Read BoundaryConditions
-    // NOTE: Need to think about preCICE BC
-    //          What BC to start out with? (depends on coupling scheme)
-    //          Isothermal or not???
-    int bc_count = property_tree.count("BoundaryConditions") / 2;
-
+    int bc_count = property_tree.get_child("BoundaryConditions").size()/2;
     for (int i = 0; i < bc_count; i++)
     {
         // Insert type and value
-        const BOUNDARY_CONDITION type = Boundary_Condition_Map.at(property_tree.get<string>("BoundaryConditions.Boundary_" + to_string(i+1)  + "_Type"));
-        const double value =  property_tree.get<double>("BoundaryConditions.Boundary_" + to_string(i+1)  + "_Value");
-        m_boundary_conditions.insert(make_pair(i+1, tuple<BOUNDARY_CONDITION, double>(type, value)));
+        BOUNDARY_CONDITION type = Boundary_Condition_Map.at(property_tree.get<string>("BoundaryConditions.Boundary_" + to_string(i+1)  + "_Type"));
+        double value =  property_tree.get<double>("BoundaryConditions.Boundary_" + to_string(i+1)  + "_Value");
+        m_boundary_conditions[i+1] = make_tuple(type, value);
     }
 
     // Read TimeIntegration
@@ -54,4 +50,29 @@ Config::Config(const char* input_file) : m_input_file(input_file)
     m_vis_freq = property_tree.get<int>("Output.Visualization_Freq");
 
 
+}
+
+string Config::ToString() const
+{
+    string s = "";
+    s += "Mesh File: " + m_mesh_file + "\n";
+    s += "FE Order: " + to_string(m_fe_order) + "\n";
+    s += "Serial Refine: " + to_string(m_serial_refine) + "\n";
+    s += "Parallel Refine: " + to_string(m_parallel_refine) + "\n";
+    s += "Kappa: " + to_string(m_kappa) + "\n";
+    
+    for (int i = 0; i < m_boundary_conditions.size(); i++)
+    {
+        //auto& test = m_boundary_conditions[i+1]
+        int type = static_cast<int>(get<0>(m_boundary_conditions.at(i+1))); //.at is used here instead of [] as [] is non const, while this fxn is meant to be const
+        double value = get<1>(m_boundary_conditions.at(i+1));
+        s += "Boundary " + to_string(i+1) + " Type, Value: " + to_string(type) + ", " + to_string(value) + "\n";
+    }
+    s += "Time Scheme: " + to_string(static_cast<int>(m_time_scheme)) + "\n";
+    s += "dt: " + to_string(m_dt) + "\n";
+    s += "tf: " + to_string(m_tf) + "\n";
+    s += "Restart Freq: " + to_string(m_restart_freq) + "\n";
+    s += "Visualization Freq: " + to_string(m_vis_freq) + "\n";
+
+    return s;
 }

@@ -88,6 +88,8 @@ class Config
             return m_dt;
         }
 
+        string ToString() const;
+
 
     protected:
 

@@ -94,6 +94,8 @@ int main(int argc, char *argv[])
    // Create Config of user's inputs
    Config user_input(input_file);
 
+   cout << user_input.ToString() << endl;
+   
    if (myid == 0)
    {
       cout << "Config File Parsed Successfully!" << endl;
