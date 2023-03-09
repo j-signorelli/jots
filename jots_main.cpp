@@ -1,10 +1,10 @@
 
-#include "mfem/mfem.hpp"
-#include "precice/SolverInterface.hpp"
+#include <mfem/mfem.hpp>
+#include <precice/SolverInterface.hpp>
 
-#include "global_vars.hpp"
-#include "conduction_operator.hpp"
-#include "config_file.hpp"
+#include <global_vars.hpp>
+#include <conduction_operator.hpp>
+#include <config_file.hpp>
 using namespace mfem;
 using namespace precice;
 using namespace std;

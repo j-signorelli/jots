@@ -17,6 +17,10 @@ message(STATUS "Found preCICE config: TRUE")
 find_package(MFEM REQUIRED CONFIG)
 message(STATUS "Found MFEM config: TRUE")
 
+# Get Boost
+find_package(MFEM REQUIRED CONFIG)
+message(STATUS "Found MFEM config: TRUE")
+
 # Pass the version to the .hpp.in file --> .hpp file in build directory
 configure_file(global_vars.hpp.in  global_vars.hpp)
 

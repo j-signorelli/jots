@@ -1,4 +1,4 @@
-#include "option_structure.hpp"
+#include <string>
 
 class Config
 {
@@ -17,27 +17,27 @@ class Config
     public:
         Config(string in_file);
 
-        char* GetMeshFile()
+        const char* GetMeshFile()
         {
             return mesh_file;
         }
 
-        int GetFEOrder()
+        const int GetFEOrder()
         {
             return fe_order;
         }
 
-        int GetTimeIntegration()
+        const int GetTimeIntegration()
         {
             return time_integration;
         }
         
-        double GetFinalTime()
+        const double GetFinalTime()
         {
             return tf;
         }
 
-        double Getdt()
+        const double Getdt()
         {
             return dt;
         }
