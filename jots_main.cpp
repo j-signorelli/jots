@@ -57,6 +57,7 @@ int main(int argc, char *argv[])
 
    // 2. Parse command-line options.
    const char *input_file = "../config_template.ini";
+   /*
    int ser_ref_levels = 2;
    int par_ref_levels = 1;
    int order = 2;
@@ -65,6 +66,7 @@ int main(int argc, char *argv[])
    double dt = 1.0e-2;
    double alpha = 1.0e-2;
    double kappa = 0.5;
+   */
    bool visualization = true;
    bool visit = false;
    int vis_steps = 5;
@@ -96,6 +98,117 @@ int main(int argc, char *argv[])
    {
       cout << "Config File Parsed Successfully!" << endl;
    }
+
+   // 3. Read the serial mesh from the given mesh file on all processors. We can
+   //    handle triangular, quadrilateral, tetrahedral and hexahedral meshes
+   //    with the same code.
+   Mesh *mesh = new Mesh(user_input.GetMeshFile().c_str(), 1);//pass one to generate edges
+   int dim = mesh->Dimension();
+
+
+   // 4. Define the ODE solver used for time integration. Several implicit
+   //    singly diagonal implicit Runge-Kutta (SDIRK) methods, as well as
+   //    explicit Runge-Kutta methods are available.
+   ODESolver *ode_solver;
+   switch (user_input.GetTimeScheme())
+   {
+      case TIME_SCHEME::EULER_IMPLICIT:
+         ode_solver = new BackwardEulerSolver;
+         break;
+      case TIME_SCHEME::EULER_EXPLICIT:
+         ode_solver = new ForwardEulerSolver;
+         break;
+      case TIME_SCHEME::RK4:
+         ode_solver = new RK4Solver;
+         break;
+      default:
+         cout << "Unknown ODE solver type" << '\n';
+         delete mesh;
+         return 3;
+   }
+
+
+   // 5. Refine the mesh in serial to increase the resolution.
+   for (int lev = 0; lev < user_input.GetSerialRefine(); lev++)
+   {
+      mesh->UniformRefinement();
+   }
+
+
+   // 6. Define a parallel mesh by a partitioning of the serial mesh. Refine
+   //    this mesh further in parallel to increase the resolution. Once the
+   //    parallel mesh is defined, the serial mesh can be deleted.
+   ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
+   delete mesh;
+   for (int lev = 0; lev < user_input.GetParallelRefine(); lev++)
+   {
+      pmesh->UniformRefinement();
+   }
+
+
+   // 7. Define the vector finite element space representing the current and the
+   //    initial temperature
+
+   // If fe_order is set to -1, then use isoparametric space
+   //TODO: Ex 11p, understand this better.
+   FiniteElementCollection *fe_coll;
+   if (user_input.GetFEOrder() > 1)
+      fe_coll = new H1_FECollection(user_input.GetFEOrder(), dim);
+   else
+      fe_coll = pmesh->GetNodes()->OwnFEC();
+
+   ParFiniteElementSpace fespace(pmesh, fe_coll);
+
+   HYPRE_BigInt fe_size = fespace.GlobalTrueVSize();
+   if (myid == 0)
+   {
+      cout << "Number of temperature unknowns: " << fe_size << endl;
+   }
+
+   // Create GridFunction (Vector associated with this FE space)
+   ParGridFunction T_gf(&fespace);
+
+   // 8. Set the initial conditions for T.
+   // if NOT using restart file
+   double t_0;
+
+   if (!user_input.UsesRestart())
+   {  
+      //Create constant coefficient of initial temperature
+      ConstantCoefficient T_0(user_input.GetInitialTemp());
+
+      // Project that coefficient onto the GridFunction
+      T_gf.ProjectCoefficient(T_0);
+
+      t_0 = 0.0;
+   }
+   else //else ARE using restart file
+   {
+      //TODO:
+      return 0;
+   }
+
+   // 9. Set the boundary conditions
+   for (int i = 0; i < user_input.GetBCs().size(); i++)
+   {
+      // Set the Dirichlet (isothermal) BCs
+
+      // Set the Neumann (heat flux) BCs
+
+   }
+
+
+   
+
+   // Get the true DOFs - if all boundaries are Neumann, then all must be solved for
+   // So: Must specify BCs above (Somehow!)
+   Vector u;
+   T_gf.GetTrueDofs(u);
+
+   // ^ TODO
+
+
+
    /*
    args.AddOption(&ser_ref_levels, "-rs", "--refine-serial",
                   "Number of times to refine the mesh uniformly in serial.");
@@ -206,6 +319,8 @@ int main(int argc, char *argv[])
    u_gf.ProjectCoefficient(u_0);
    Vector u;
    u_gf.GetTrueDofs(u);
+
+
 
    // 9. Initialize the conduction operator and the VisIt visualization.
    ConductionOperator oper(fespace, alpha, kappa, u);

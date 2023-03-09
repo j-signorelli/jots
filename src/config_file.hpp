@@ -1,26 +1,35 @@
-#include <string>
+#include "option_structure.hpp"
+
 #include <iostream>
 using namespace std;
 
 class Config
 {
     private:
-        string m_input_file;
-
-        string m_mesh_file;
-        int m_fe_order;
-        int m_serial_refine;
-        int m_parallel_refine;
         
-        double m_kappa;
+        string m_input_file;            /*!< \brief Input file to parse */
 
-        int m_time_scheme;
-        double m_tf;
-        double m_dt;
-
-        int m_restart_freq;
-        int m_vis_freq;
+        string m_mesh_file;             /*!< \brief Mesh file to read in */
+        int m_fe_order;                 /*!< \brief FE Order (solution mapping order, not necessarily same as geometric mapping order from mesh file) */
+        int m_serial_refine;            /*!< \brief Number of times to refine mesh before parallel decomposition */
+        int m_parallel_refine;          /*!< \brief Number of times to refine mesh after parallel decomposition  */
         
+        double m_kappa;                 /*!< \brief Thermal diffusivity of material */
+
+        bool m_use_restart;             /*!< \brief Boolean indicating if restart file should be loaded up as initial condition */
+        string m_restart_file;          /*!< \brief Restart file to load + use; only read if m_use_restart is true */
+        double m_initial_temp;          /*!< \brief Initial temperature field to set; only used if m_use_restart is false */
+
+        map<int, tuple<BOUNDARY_CONDITION, double>> m_boundary_conditions; /*!< \brief Map where key = boundary attribute, value = (BC type, value) */
+
+        TIME_SCHEME m_time_scheme;      /*!< \brief Time integration scheme to use */
+        double m_tf;                    /*!< \brief Final time to run to */
+        double m_dt;                    /*!< \brief Delta time, timestep */
+
+        int m_restart_freq;             /*!< \brief Frequency to output restart files (iterations per output) */
+        int m_vis_freq;                 /*!< \brief Frequency to output Paraview files (iterations per output) */
+        
+    
     public:
         Config(const char* input_file);
 
@@ -34,7 +43,37 @@ class Config
             return m_fe_order;
         }
 
-        int GetTimeIntegration() const
+        int GetSerialRefine() const
+        {
+            return m_serial_refine;
+        }
+
+        int GetParallelRefine() const
+        {
+            return m_parallel_refine;
+        }
+
+        double GetKappa() const
+        {
+            return m_kappa;
+        }
+
+        bool UsesRestart() const
+        {
+            return m_use_restart;
+        }
+
+        double GetInitialTemp() const
+        {
+            return m_initial_temp;
+        } 
+
+        map<int, tuple<BOUNDARY_CONDITION, double>> GetBCs() const
+        {
+            return m_boundary_conditions;
+        }
+
+        TIME_SCHEME GetTimeScheme() const
         {
             return m_time_scheme;
         }
@@ -49,10 +88,6 @@ class Config
             return m_dt;
         }
 
-        double GetKappa() const
-        {
-            return m_kappa;
-        }
 
     protected:
 
