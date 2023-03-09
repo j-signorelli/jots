@@ -1,46 +1,57 @@
 #include <string>
+#include <iostream>
 using namespace std;
 
 class Config
 {
     private:
-        string input_file;
-        char* mesh_file;
-        int fe_order;
-        int time_integration;
-        double tf;
-        double dt;
-        double kappa;
-        double alpha;
-        int output_restart_freq;
-        int output_vis_freq;
+        string m_input_file;
+
+        string m_mesh_file;
+        int m_fe_order;
+        int m_serial_refine;
+        int m_parallel_refine;
+        
+        double m_kappa;
+
+        int m_time_scheme;
+        double m_tf;
+        double m_dt;
+
+        int m_restart_freq;
+        int m_vis_freq;
         
     public:
-        Config(string in_file);
+        Config(const char* input_file);
 
-        const char* GetMeshFile()
+        string GetMeshFile() const 
         {
-            return mesh_file;
+            return m_mesh_file;
         }
 
-        const int GetFEOrder()
+        int GetFEOrder() const
         {
-            return fe_order;
+            return m_fe_order;
         }
 
-        const int GetTimeIntegration()
+        int GetTimeIntegration() const
         {
-            return time_integration;
+            return m_time_scheme;
         }
         
-        const double GetFinalTime()
+        double GetFinalTime() const
         {
-            return tf;
+            return m_tf;
         }
 
-        const double Getdt()
+        double Getdt() const
         {
-            return dt;
+            return m_dt;
+        }
+
+        double GetKappa() const
+        {
+            return m_kappa;
         }
 
     protected:

@@ -36,8 +36,11 @@
 #include "mfem/mfem.hpp"
 #include "precice/SolverInterface.hpp"
 #include "conduction_operator.hpp"
+#include "config_file.hpp"
 #include <fstream>
 #include <iostream>
+
+#include <typeinfo>
 
 using namespace std;
 using namespace mfem;
@@ -53,7 +56,7 @@ int main(int argc, char *argv[])
    Hypre::Init();
 
    // 2. Parse command-line options.
-   const char *mesh_file = "../data/star.mesh";
+   const char *input_file = "../config_template.ini";
    int ser_ref_levels = 2;
    int par_ref_levels = 1;
    int order = 2;
@@ -71,8 +74,29 @@ int main(int argc, char *argv[])
    cout.precision(precision);
 
    OptionsParser args(argc, argv);
-   args.AddOption(&mesh_file, "-m", "--mesh",
-                  "Mesh file to use.");
+   args.AddOption(&input_file, "-i", "--input",
+                  "Input file to use.");
+
+   args.Parse();
+   if (!args.Good())
+   {
+      args.PrintUsage(cout);
+      return 1;
+   }
+
+   if (myid == 0)
+   {
+      args.PrintOptions(cout);
+   }
+
+   // Create Config of user's inputs
+   Config user_input(input_file);
+
+   if (myid == 0)
+   {
+      cout << "Config File Parsed Successfully!" << endl;
+   }
+   /*
    args.AddOption(&ser_ref_levels, "-rs", "--refine-serial",
                   "Number of times to refine the mesh uniformly in serial.");
    args.AddOption(&par_ref_levels, "-rp", "--refine-parallel",
@@ -331,6 +355,7 @@ int main(int argc, char *argv[])
    // 12. Free the used memory.
    delete ode_solver;
    delete pmesh;
+   */
 
    return 0;
 }
