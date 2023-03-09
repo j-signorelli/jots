@@ -1,0 +1,2 @@
+/opt/apps/gcc/9.1.0/bin/ar qc libjotsLib.a CMakeFiles/jotsLib.dir/conduction_operator.cpp.o CMakeFiles/jotsLib.dir/config_file.cpp.o
+/opt/apps/gcc/9.1.0/bin/ranlib libjotsLib.a
