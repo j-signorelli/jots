@@ -1,11 +1,10 @@
-#pragma once
 
 #include "mfem/mfem.hpp"
 #include "precice/SolverInterface.hpp"
 
 #include "global_vars.hpp"
 #include "conduction_operator.hpp"
-
+#include "config_file.hpp"
 using namespace mfem;
 using namespace precice;
 using namespace std;
@@ -30,27 +29,29 @@ int main(int argc, char *argv[])
    int myid = Mpi::WorldRank();
    Hypre::Init();
 
-   // 2. Parse command-line options.
-   const char *mesh_file = "../data/star.mesh";
-   int ser_ref_levels = 2;
-   int par_ref_levels = 1;
-   int order = 2;
-   int ode_solver_type = 3;
-   double t_final = 0.5;
-   double dt = 1.0e-2;
-   double alpha = 1.0e-2;
-   double kappa = 0.5;
-   bool visualization = true;
-   bool visit = false;
-   int vis_steps = 5;
-   bool adios2 = false;
+   // 2. Parse input file set in command line
+   OptionsParser args(argc, argv);
+   char *input_file = "";
 
    int precision = 8;
    cout.precision(precision);
 
    OptionsParser args(argc, argv);
-   args.AddOption(&mesh_file, "-m", "--mesh",
-                  "Mesh file to use.");
+   args.AddOption(&input_file, "-i", "--input","JOTS input file.", true);
+   
+
+	args.Parse();
+   if (!args.Good())
+   {
+      args.PrintUsage(cout);
+      return 1;
+   }
+
+   if (myid == 0)
+   {
+      args.PrintOptions(cout);
+   }
+   /*
    args.AddOption(&ser_ref_levels, "-rs", "--refine-serial",
                   "Number of times to refine the mesh uniformly in serial.");
    args.AddOption(&par_ref_levels, "-rp", "--refine-parallel",
@@ -79,22 +80,16 @@ int main(int argc, char *argv[])
    args.AddOption(&adios2, "-adios2", "--adios2-streams", "-no-adios2",
                   "--no-adios2-streams",
                   "Save data using adios2 streams.");
-   args.Parse();
-   if (!args.Good())
-   {
-      args.PrintUsage(cout);
-      return 1;
-   }
+   */
 
-   if (myid == 0)
-   {
-      args.PrintOptions(cout);
-   }
+   // Create Config option with all settings
+   string input_file_string(input_file)
+   Config user_config(input_file);
 
    // 3. Read the serial mesh from the given mesh file on all processors. We can
    //    handle triangular, quadrilateral, tetrahedral and hexahedral meshes
    //    with the same code.
-   Mesh *mesh = new Mesh(mesh_file, 1, 1);
+   Mesh *mesh = new Mesh(user_config.GetMeshFile(),1,1)//mesh_file, 1, 1);
    int dim = mesh->Dimension();
 
    // 4. Define the ODE solver used for time integration. Several implicit
