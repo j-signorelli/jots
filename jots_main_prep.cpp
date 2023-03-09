@@ -1,49 +1,26 @@
-//                       MFEM Example 16 - Parallel Version
-//
-// Compile with: make ex16p
-//
-// Sample runs:  mpirun -np 4 ex16p
-//               mpirun -np 4 ex16p -m ../data/inline-tri.mesh
-//               mpirun -np 4 ex16p -m ../data/disc-nurbs.mesh -tf 2
-//               mpirun -np 4 ex16p -s 1 -a 0.0 -k 1.0
-//               mpirun -np 4 ex16p -s 2 -a 1.0 -k 0.0
-//               mpirun -np 8 ex16p -s 3 -a 0.5 -k 0.5 -o 4
-//               mpirun -np 4 ex16p -s 14 -dt 1.0e-4 -tf 4.0e-2 -vs 40
-//               mpirun -np 16 ex16p -m ../data/fichera-q2.mesh
-//               mpirun -np 16 ex16p -m ../data/fichera-mixed.mesh
-//               mpirun -np 16 ex16p -m ../data/escher-p2.mesh
-//               mpirun -np 8 ex16p -m ../data/beam-tet.mesh -tf 10 -dt 0.1
-//               mpirun -np 4 ex16p -m ../data/amr-quad.mesh -o 4 -rs 0 -rp 0
-//               mpirun -np 4 ex16p -m ../data/amr-hex.mesh -o 2 -rs 0 -rp 0
-//
-// Description:  This example solves a time dependent nonlinear heat equation
-//               problem of the form du/dt = C(u), with a non-linear diffusion
-//               operator C(u) = \nabla \cdot (\kappa + \alpha u) \nabla u.
-//
-//               The example demonstrates the use of nonlinear operators (the
-//               class ConductionOperator defining C(u)), as well as their
-//               implicit time integration. Note that implementing the method
-//               ConductionOperator::ImplicitSolve is the only requirement for
-//               high-order implicit (SDIRK) time integration. In this example,
-//               the diffusion operator is linearized by evaluating with the
-//               lagged solution from the previous timestep, so there is only
-//               a linear solve. Optional saving with ADIOS2
-//               (adios2.readthedocs.io) is also illustrated.
-//
-//               We recommend viewing examples 2, 9 and 10 before viewing this
-//               example.
 
-#include "mfem/mfem.hpp"
-#include "precice/SolverInterface.hpp"
-#include "conduction_operator.hpp"
-#include <fstream>
-#include <iostream>
+#include <mfem/mfem.hpp>
+#include <precice/SolverInterface.hpp>
 
-using namespace std;
+#include <global_vars.hpp>
+#include <conduction_operator.hpp>
+#include <config_file.hpp>
 using namespace mfem;
+using namespace precice;
+using namespace std;
 
-double InitialTemperature(const Vector &x);
 
+double InitialTemperature(const Vector &x)
+{
+   if (x.Norml2() < 0.5)
+   {
+      return 2.0;
+   }
+   else
+   {
+      return 1.0;
+   }
+}
 int main(int argc, char *argv[])
 {
    // 1. Initialize MPI and HYPRE.
@@ -52,27 +29,29 @@ int main(int argc, char *argv[])
    int myid = Mpi::WorldRank();
    Hypre::Init();
 
-   // 2. Parse command-line options.
-   const char *mesh_file = "../data/star.mesh";
-   int ser_ref_levels = 2;
-   int par_ref_levels = 1;
-   int order = 2;
-   int ode_solver_type = 3;
-   double t_final = 0.5;
-   double dt = 1.0e-2;
-   double alpha = 1.0e-2;
-   double kappa = 0.5;
-   bool visualization = true;
-   bool visit = false;
-   int vis_steps = 5;
-   bool adios2 = false;
+   // 2. Parse input file set in command line
+   OptionsParser args(argc, argv);
+   char *input_file = "";
 
    int precision = 8;
    cout.precision(precision);
 
    OptionsParser args(argc, argv);
-   args.AddOption(&mesh_file, "-m", "--mesh",
-                  "Mesh file to use.");
+   args.AddOption(&input_file, "-i", "--input","JOTS input file.", true);
+   
+
+	args.Parse();
+   if (!args.Good())
+   {
+      args.PrintUsage(cout);
+      return 1;
+   }
+
+   if (myid == 0)
+   {
+      args.PrintOptions(cout);
+   }
+   /*
    args.AddOption(&ser_ref_levels, "-rs", "--refine-serial",
                   "Number of times to refine the mesh uniformly in serial.");
    args.AddOption(&par_ref_levels, "-rp", "--refine-parallel",
@@ -101,22 +80,16 @@ int main(int argc, char *argv[])
    args.AddOption(&adios2, "-adios2", "--adios2-streams", "-no-adios2",
                   "--no-adios2-streams",
                   "Save data using adios2 streams.");
-   args.Parse();
-   if (!args.Good())
-   {
-      args.PrintUsage(cout);
-      return 1;
-   }
+   */
 
-   if (myid == 0)
-   {
-      args.PrintOptions(cout);
-   }
+   // Create Config option with all settings
+   string input_file_string(input_file)
+   Config user_config(input_file);
 
    // 3. Read the serial mesh from the given mesh file on all processors. We can
    //    handle triangular, quadrilateral, tetrahedral and hexahedral meshes
    //    with the same code.
-   Mesh *mesh = new Mesh(mesh_file, 1, 1);
+   Mesh *mesh = new Mesh(user_config.GetMeshFile(),1,1)//mesh_file, 1, 1);
    int dim = mesh->Dimension();
 
    // 4. Define the ODE solver used for time integration. Several implicit
@@ -207,28 +180,6 @@ int main(int argc, char *argv[])
       visit_dc.SetTime(0.0);
       visit_dc.Save();
    }
-
-   // Optionally output a BP (binary pack) file using ADIOS2. This can be
-   // visualized with the ParaView VTX reader.
-#ifdef MFEM_USE_ADIOS2
-   ADIOS2DataCollection* adios2_dc = NULL;
-   if (adios2)
-   {
-      std::string postfix(mesh_file);
-      postfix.erase(0, std::string("../data/").size() );
-      postfix += "_o" + std::to_string(order);
-      postfix += "_solver" + std::to_string(ode_solver_type);
-      const std::string collection_name = "ex16-p-" + postfix + ".bp";
-
-      adios2_dc = new ADIOS2DataCollection(MPI_COMM_WORLD, collection_name, pmesh);
-      adios2_dc->SetParameter("SubStreams", std::to_string(num_procs/2) );
-      adios2_dc->RegisterField("temperature", &u_gf);
-      adios2_dc->SetCycle(0);
-      adios2_dc->SetTime(0.0);
-      adios2_dc->Save();
-   }
-#endif
-
    socketstream sout;
    if (visualization)
    {
@@ -298,25 +249,9 @@ int main(int argc, char *argv[])
             visit_dc.SetTime(t);
             visit_dc.Save();
          }
-
-#ifdef MFEM_USE_ADIOS2
-         if (adios2)
-         {
-            adios2_dc->SetCycle(ti);
-            adios2_dc->SetTime(t);
-            adios2_dc->Save();
-         }
-#endif
       }
       oper.SetParameters(u);
    }
-
-#ifdef MFEM_USE_ADIOS2
-   if (adios2)
-   {
-      delete adios2_dc;
-   }
-#endif
 
    // 11. Save the final solution in parallel. This output can be viewed later
    //     using GLVis: "glvis -np <np> -m ex16-mesh -g ex16-final".
@@ -333,16 +268,4 @@ int main(int argc, char *argv[])
    delete pmesh;
 
    return 0;
-}
-
-double InitialTemperature(const Vector &x)
-{
-   if (x.Norml2() < 0.5)
-   {
-      return 2.0;
-   }
-   else
-   {
-      return 1.0;
-   }
 }
