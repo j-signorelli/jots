@@ -1,10 +1,15 @@
 #include "conduction_operator.hpp"
 
-ConductionOperator::ConductionOperator(ParFiniteElementSpace &f, double al,
-                                       double kap, const Vector &u)
-   : TimeDependentOperator(f.GetTrueVSize(), 0.0), fespace(f), M(NULL), K(NULL),
-     T(NULL), current_dt(0.0),
-     M_solver(f.GetComm()), T_solver(f.GetComm()), z(height)
+ConductionOperator::ConductionOperator(ParFiniteElementSpace &f, double al, double kap, const Vector &u)
+   : TimeDependentOperator(f.GetTrueVSize(), 0.0),
+   fespace(f),
+   M(NULL), 
+   K(NULL),
+   T(NULL),
+   current_dt(0.0),
+   M_solver(f.GetComm()),
+   T_solver(f.GetComm()),
+   z(height)
 {
    const double rel_tol = 1e-8;
 
@@ -45,6 +50,7 @@ void ConductionOperator::Mult(const Vector &u, Vector &du_dt) const
    M_solver.Mult(z, du_dt);
 }
 
+/* Unnecessary except for SDIRK?:
 void ConductionOperator::ImplicitSolve(const double dt,
                                        const Vector &u, Vector &du_dt)
 {
@@ -62,7 +68,7 @@ void ConductionOperator::ImplicitSolve(const double dt,
    z.Neg();
    T_solver.Mult(z, du_dt);
 }
-
+*/
 void ConductionOperator::SetParameters(const Vector &u)
 {
    ParGridFunction u_alpha_gf(&fespace);

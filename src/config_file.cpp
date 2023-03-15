@@ -1,15 +1,14 @@
-#include "config_file.hpp"
-
 #include "boost/property_tree/ptree.hpp"
 #include "boost/property_tree/ini_parser.hpp"
-#include <iostream>
 
-using namespace std;
+#include "config_file.hpp"
 
 namespace bp = boost::property_tree;
+using namespace std;
 
 Config::Config(const char* input_file) : m_input_file(input_file)
-{
+{   
+
     // Set up property_tree
     bp::ptree property_tree;
 
@@ -27,9 +26,19 @@ Config::Config(const char* input_file) : m_input_file(input_file)
     // Read MaterialProperties
     m_kappa = property_tree.get<double>("MaterialProperties.Thermal_Diffusivity");
 
-    // Read InitialConditions
-    // TODO Later -- first testing
+    // Read InitialCondition
+    BINARY_CHOICE restart_choice = Binary_Choice_Map.at(property_tree.get<string>("InitialCondition.Use_Restart"));
+    m_use_restart = restart_choice == BINARY_CHOICE::YES ? true : false;
 
+    if (!m_use_restart)
+    {
+        // Grab initial temperature field set
+        m_initial_temp = property_tree.get<double>("InitialCondition.Initial_Temperature");
+    }
+    else
+    {
+        // Else need to read in restart file
+    }
     // Read BoundaryConditions
     int bc_count = property_tree.get_child("BoundaryConditions").size()/2;
     for (int i = 0; i < bc_count; i++)
@@ -63,7 +72,6 @@ string Config::ToString() const
     
     for (int i = 0; i < m_boundary_conditions.size(); i++)
     {
-        //auto& test = m_boundary_conditions[i+1]
         int type = static_cast<int>(get<0>(m_boundary_conditions.at(i+1))); //.at is used here instead of [] as [] is non const, while this fxn is meant to be const
         double value = get<1>(m_boundary_conditions.at(i+1));
         s += "Boundary " + to_string(i+1) + " Type, Value: " + to_string(type) + ", " + to_string(value) + "\n";

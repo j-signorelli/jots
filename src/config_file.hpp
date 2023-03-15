@@ -1,15 +1,13 @@
+#pragma once
 #include "option_structure.hpp"
-
-#include <iostream>
-using namespace std;
 
 class Config
 {
     private:
         
-        string m_input_file;            /*!< \brief Input file to parse */
+        std::string m_input_file;            /*!< \brief Input file to parse */
 
-        string m_mesh_file;             /*!< \brief Mesh file to read in */
+        std::string m_mesh_file;             /*!< \brief Mesh file to read in */
         int m_fe_order;                 /*!< \brief FE Order (solution mapping order, not necessarily same as geometric mapping order from mesh file) */
         int m_serial_refine;            /*!< \brief Number of times to refine mesh before parallel decomposition */
         int m_parallel_refine;          /*!< \brief Number of times to refine mesh after parallel decomposition  */
@@ -17,10 +15,10 @@ class Config
         double m_kappa;                 /*!< \brief Thermal diffusivity of material */
 
         bool m_use_restart;             /*!< \brief Boolean indicating if restart file should be loaded up as initial condition */
-        string m_restart_file;          /*!< \brief Restart file to load + use; only read if m_use_restart is true */
+        std::string m_restart_file;          /*!< \brief Restart file to load + use; only read if m_use_restart is true */
         double m_initial_temp;          /*!< \brief Initial temperature field to set; only used if m_use_restart is false */
 
-        map<int, tuple<BOUNDARY_CONDITION, double>> m_boundary_conditions; /*!< \brief Map where key = boundary attribute, value = (BC type, value) */
+        std::map<int, std::tuple<BOUNDARY_CONDITION, double>> m_boundary_conditions; /*!< \brief Map where key = boundary attribute, value = (BC type, value) */
 
         TIME_SCHEME m_time_scheme;      /*!< \brief Time integration scheme to use */
         double m_tf;                    /*!< \brief Final time to run to */
@@ -33,7 +31,7 @@ class Config
     public:
         Config(const char* input_file);
 
-        string GetMeshFile() const 
+        std::string GetMeshFile() const 
         {
             return m_mesh_file;
         }
@@ -68,7 +66,7 @@ class Config
             return m_initial_temp;
         } 
 
-        map<int, tuple<BOUNDARY_CONDITION, double>> GetBCs() const
+        std::map<int, std::tuple<BOUNDARY_CONDITION, double>> GetBCs() const
         {
             return m_boundary_conditions;
         }
@@ -88,7 +86,7 @@ class Config
             return m_dt;
         }
 
-        string ToString() const;
+        std::string ToString() const;
 
 
     protected:

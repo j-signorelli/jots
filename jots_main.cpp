@@ -33,31 +33,61 @@
 //               We recommend viewing examples 2, 9 and 10 before viewing this
 //               example.
 
-#include "mfem/mfem.hpp"
-#include "precice/SolverInterface.hpp"
-#include "conduction_operator.hpp"
-#include "config_file.hpp"
+//#include "mfem/mfem.hpp"
+#include "jots_driver.hpp"
+//#include "precice/SolverInterface.hpp"
+//#include "conduction_operator.hpp"
+//#include "config_file.hpp"
 #include <fstream>
 #include <iostream>
 
-#include <typeinfo>
 
 using namespace std;
 using namespace mfem;
 
-double InitialTemperature(const Vector &x);
-
 int main(int argc, char *argv[])
-{
-   // 1. Initialize MPI and HYPRE.
+{  
+   // Initialize MPI and HYPRE.
    Mpi::Init(argc, argv);
    int num_procs = Mpi::WorldSize();
    int myid = Mpi::WorldRank();
    Hypre::Init();
 
+   // Parse input file
+   const char *input_file = "../config_template.ini";
+   int precision = 8;
+   cout.precision(precision);
+
+   OptionsParser args(argc, argv);
+   args.AddOption(&input_file, "-i", "--input",
+                  "Input file to use.");
+
+   args.Parse();
+   if (!args.Good())
+   {
+      args.PrintUsage(cout);
+      return 1;
+   }
+
+   if (myid == 0)
+   {
+      args.PrintOptions(cout);
+   }
+
+   // Create new JOTSDriver
+   JOTSDriver* driver = new JOTSDriver(input_file, myid);
+
+   // Run driver
+   driver->Run();
+
+
+
+
+
+   /*
    // 2. Parse command-line options.
    const char *input_file = "../config_template.ini";
-   /*
+
    int ser_ref_levels = 2;
    int par_ref_levels = 1;
    int order = 2;
@@ -66,7 +96,6 @@ int main(int argc, char *argv[])
    double dt = 1.0e-2;
    double alpha = 1.0e-2;
    double kappa = 0.5;
-   */
    bool visualization = true;
    bool visit = false;
    int vis_steps = 5;
@@ -93,19 +122,28 @@ int main(int argc, char *argv[])
 
    // Create Config of user's inputs
    Config user_input(input_file);
-
-   cout << user_input.ToString() << endl;
    
    if (myid == 0)
-   {
-      cout << "Config File Parsed Successfully!" << endl;
-   }
+      cout << "Configuration file " << input_file << " parsed successfully!" << endl;
+   
+
+
+
+
 
    // 3. Read the serial mesh from the given mesh file on all processors. We can
    //    handle triangular, quadrilateral, tetrahedral and hexahedral meshes
    //    with the same code.
-   Mesh *mesh = new Mesh(user_input.GetMeshFile().c_str(), 1);//pass one to generate edges
+   const char* mesh_file = user_input.GetMeshFile().c_str();
+   Mesh *mesh = new Mesh(mesh_file, 1);//pass one to generate edges
    int dim = mesh->Dimension();
+
+   if (myid == 0)
+      cout << "Mesh File: " << mesh_file << endl;
+      cout << "Problem Dimension: " << dim << endl;
+
+
+
 
 
    // 4. Define the ODE solver used for time integration. Several implicit
@@ -116,25 +154,46 @@ int main(int argc, char *argv[])
    {
       case TIME_SCHEME::EULER_IMPLICIT:
          ode_solver = new BackwardEulerSolver;
+         if (myid == 0)
+            cout << "Time Scheme: Euler Implicit" << endl;
          break;
       case TIME_SCHEME::EULER_EXPLICIT:
          ode_solver = new ForwardEulerSolver;
+         if (myid == 0)
+            cout << "Time Scheme: Euler Explicit" << endl;
          break;
       case TIME_SCHEME::RK4:
          ode_solver = new RK4Solver;
+         if (myid == 0)
+            cout << "Time Scheme: RK4" << endl;
          break;
       default:
-         cout << "Unknown ODE solver type" << '\n';
+         if (myid == 0)
+            cout << "Unknown ODE solver type!" << endl;
          delete mesh;
          return 3;
    }
 
 
+
+
+
    // 5. Refine the mesh in serial to increase the resolution.
-   for (int lev = 0; lev < user_input.GetSerialRefine(); lev++)
+   int ser_ref = user_input.GetSerialRefine();
+   for (int lev = 0; lev < ser_ref; lev++)
    {
       mesh->UniformRefinement();
    }
+
+   if (myid == 0)
+      if (ser_ref > 1)
+         cout << "Serial refinements of mesh completed: " << ser_ref << endl;
+      else
+         cout << "No serial refinements of mesh completed" << endl;
+
+
+
+
 
 
    // 6. Define a parallel mesh by a partitioning of the serial mesh. Refine
@@ -142,15 +201,27 @@ int main(int argc, char *argv[])
    //    parallel mesh is defined, the serial mesh can be deleted.
    ParMesh *pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
    delete mesh;
-   for (int lev = 0; lev < user_input.GetParallelRefine(); lev++)
+
+   int par_ref = user_input.GetParallelRefine();
+
+   for (int lev = 0; lev < par_ref; lev++)
    {
       pmesh->UniformRefinement();
    }
 
+   if (myid == 0)
+      if (par_ref > 1)
+         cout << "Parallel refinements of mesh completed: " << par_ref << endl;
+      else
+         cout << "No parallel refinements of mesh completed" << endl;
 
-   // 7. Define the vector finite element space representing the current and the
-   //    initial temperature
 
+
+
+
+   // 7. Define a parallel finite element space on the parallel mesh representing the current and the
+   //    initial temperature, and define the solution vector T_gf as a parallel finite element grid function
+   //    corresponding to fespace.
    // If fe_order is set to -1, then use isoparametric space
    //TODO: Ex 11p, understand this better.
    FiniteElementCollection *fe_coll;
@@ -166,14 +237,14 @@ int main(int argc, char *argv[])
    {
       cout << "Number of temperature unknowns: " << fe_size << endl;
    }
-
    // Create GridFunction (Vector associated with this FE space)
    ParGridFunction T_gf(&fespace);
 
-   // 8. Set the initial conditions for T.
-   // if NOT using restart file
-   double t_0;
 
+
+   // 9. Set the initial condition
+   double t_0;
+   // If using not using restart:
    if (!user_input.UsesRestart())
    {  
       //Create constant coefficient of initial temperature
@@ -183,32 +254,91 @@ int main(int argc, char *argv[])
       T_gf.ProjectCoefficient(T_0);
 
       t_0 = 0.0;
+      if (myid == 0)
+         cout << "\n\nNon-restart simulation; initial temperature field: " << user_input.GetInitialTemp() << endl;
+
    }
    else //else ARE using restart file
    {
       //TODO:
-      return 0;
+      if (myid == 0)
+         cout << "\n\nRestarted simulation. Not yet implemented! Closing..." << endl;
+      return 3;
    }
 
-   // 9. Set the boundary conditions
-   for (int i = 0; i < user_input.GetBCs().size(); i++)
+
+
+   // BCs need to be enforced every single time iteration
+   // 8. Set the boundary conditions
+   //    Create "marker arrays" to define the portions of boundary associated
+   //    with each type of boundary condition. These arrays have an entry
+   //    corresponding to each boundary attribute. Placing a '1' in entry i
+   //    marks attribute i+1 as being active, '0' is inactive.
+   Array<int> nbc_bdr(pmesh.bdr_attributes.Max()); // Neumann BCs
+   Array<int> dbc_bdr(pmesh.bdr_attributes.Max()); // Dirichlet BCs
+
+   // Initially, set all to 0:
+   nbc_bdr = 0;
+   dbc_bdr = 0;
+
+   // Loop through user BCs
+   auto bcs = user_input.GetBCs();
+   for (auto it = bcs.begin(); it != bcs.end(); it++)
    {
-      // Set the Dirichlet (isothermal) BCs
+      int bdr_attr = it->first;
+      BOUNDARY_CONDITION bc_type = get<0>(it->second);
+      double value = get<1>(it->second);
 
-      // Set the Neumann (heat flux) BCs
+      switch (bc_type)
+      {
+         case BOUNDARY_CONDITION::HEATFLUX:
 
+            //Activate Neumann BC for this attribute:
+            nbc_bdr[bdr_attr-1] = 1;
+
+            if (myid == 0)
+               cout << "Boundary Condition " << bdr_attr << ": HeatFlux --- Value: " << value << endl;
+            break;
+         case BOUNDARY_CONDITION::ISOTHERMAL:
+
+            //Activate Dirichlet BC for this attribute:
+            dbc_bdr[bdr_attr-1] = 1;
+
+            if (myid == 0)
+               cout << "Boundary Condition " << bdr_attr << ": Isothermal --- Value: " << value << endl;
+            break;
+         default:
+            return 3; 
+      }
    }
 
+   // Create an empty array that will soon hold all essential (Dirichlet) true DOFs
+   Array<int> ess_tdof_list(0);
 
-   
+   // For a continuous basis the linear system must be modified to enforce an
+   // essential (Dirichlet) boundary condition.
+   // Give fespace our array of active Dirichlet BCs, get the DOFs
+   fespace.GetEssentialTrueDofs(dbc_bdr, ess_tdof_list);
+
+   // 10. Initialize the conduction operator
+   ConductionOperator oper(fespace, alpha, kappa, u);
+
+
+
+
+
+
+
+
+
+
 
    // Get the true DOFs - if all boundaries are Neumann, then all must be solved for
    // So: Must specify BCs above (Somehow!)
    Vector u;
    T_gf.GetTrueDofs(u);
-
-   // ^ TODO
-
+   */
+   
 
 
    /*

@@ -1,6 +1,6 @@
+#pragma once
 #include <string>
 #include <map>
-using namespace std;
 
 // This idea for arranging settings below was taken from SU2 v6.0:
 
@@ -26,7 +26,7 @@ enum class TIME_SCHEME
     //case 24: ode_solver = new SDIRK34Solver; break;
 };
 
-static const map<string, TIME_SCHEME> Time_Scheme_Map = {{"Euler_Implicit", TIME_SCHEME::EULER_IMPLICIT},
+static const std::map<std::string, TIME_SCHEME> Time_Scheme_Map = {{"Euler_Implicit", TIME_SCHEME::EULER_IMPLICIT},
                                                          {"Euler_Explicit", TIME_SCHEME::EULER_EXPLICIT},
                                                          {"RK4", TIME_SCHEME::RK4}};
 
@@ -35,10 +35,19 @@ enum class BOUNDARY_CONDITION
   HEATFLUX = 0,
   ISOTHERMAL = 1,
   PRECICE_HEATFLUX = 2,
-  PRECICE_ISOTHERMAL = 3,
+  PRECICE_ISOTHERMAL = 3
 };
 
-static const map<string, BOUNDARY_CONDITION> Boundary_Condition_Map = {{"HeatFlux", BOUNDARY_CONDITION::HEATFLUX},
+static const std::map<std::string, BOUNDARY_CONDITION> Boundary_Condition_Map = {{"HeatFlux", BOUNDARY_CONDITION::HEATFLUX},
                                                                        {"Isothermal", BOUNDARY_CONDITION::ISOTHERMAL},
                                                                        {"preCICE_HeatFlux",  BOUNDARY_CONDITION::PRECICE_HEATFLUX},
                                                                        {"preCICE_Isothermal", BOUNDARY_CONDITION::PRECICE_ISOTHERMAL}};
+
+enum class BINARY_CHOICE
+{
+  NO = 0,
+  YES = 1
+};
+
+static const std::map<std::string, BINARY_CHOICE> Binary_Choice_Map = {{"Yes", BINARY_CHOICE::YES},
+                                                             {"No", BINARY_CHOICE::NO}};

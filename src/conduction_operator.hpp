@@ -1,3 +1,4 @@
+#pragma once
 #include "mfem/mfem.hpp"
 using namespace mfem;
 
