@@ -13,7 +13,7 @@ class BoundaryCondition
         BoundaryCondition(double in_value, BOUNDARY_CONDITION in_type) : value(in_value), bc_type(in_type) {};
         BOUNDARY_CONDITION GetType() const { return bc_type; };
         double GetValue() { return value; };
-        virtual void ApplyBC() const {};
+        virtual void ApplyBC() const = 0;
 
 };
 

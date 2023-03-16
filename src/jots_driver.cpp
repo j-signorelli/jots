@@ -145,7 +145,7 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
     }
     //----------------------------------------------------------------------
     // Print BCs - they will just be sent to ConductionOperator
-    for (int i = 0; i < user_input->GetBCs().size(); i++)
+    for (size_t i = 0; i < user_input->GetBCCount(); i++)
     {   
         BoundaryCondition* bc = user_input->GetBCs()[i];
 
@@ -166,8 +166,10 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
         }
     }
     //----------------------------------------------------------------------
-    // Instantiate ConductionOperator, sending all necessary parameters
-    oper = new ConductionOperator(*fespace, user_input->GetConductivityModel(), user_input->GetBCs(),*T_gf, t_0);
+    // Create vector for holding true DOFs + instantiate ConductionOperator, sending all necessary parameters
+    Vector u;
+    T_gf->GetTrueDofs(u);
+    oper = new ConductionOperator(user_input, *fespace, u, t_0);
 }
 
 void JOTSDriver::Run()
@@ -175,4 +177,15 @@ void JOTSDriver::Run()
     
     //Here is where the run shit is done
     // preCICE may be implemented here, but boundary conditions are not fixed is an issue
+}
+
+JOTSDriver::~JOTSDriver()
+{
+    delete user_input;
+    delete ode_solver;
+    delete pmesh;
+    delete fe_coll;
+    delete T_gf;
+    delete oper;
+
 }

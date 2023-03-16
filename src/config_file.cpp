@@ -52,8 +52,8 @@ Config::Config(const char* in_file) : input_file(in_file)
         restart_file = property_tree.get<string>("InitialCondition.Restart_File");
     }
     // Read BoundaryConditions
-    int bc_count = property_tree.get_child("BoundaryConditions").size()/2;
-
+    bc_count = property_tree.get_child("BoundaryConditions").size()/2;
+    boundary_conditions = new BoundaryCondition*[bc_count];
     for (int i = 0; i < bc_count; i++)
     {
         // For now: just assume each BC type has a type and a value. May update in future
@@ -63,10 +63,10 @@ Config::Config(const char* in_file) : input_file(in_file)
         switch (type)
         {
             case BOUNDARY_CONDITION::HEATFLUX:
-                boundary_conditions.push_back(new UniformHeatFluxBC(value));
+                boundary_conditions[i] = new UniformHeatFluxBC(value);
                 break;
             case BOUNDARY_CONDITION::ISOTHERMAL:
-                boundary_conditions.push_back(new UniformIsothermalBC(value));
+                boundary_conditions[i] = new UniformIsothermalBC(value);
                 break;
 
         }
@@ -85,6 +85,14 @@ Config::Config(const char* in_file) : input_file(in_file)
 
 }
 
+Config::~Config()
+{
+    delete cond_model;
+    for (size_t i = 0; i < bc_count; i++)
+        delete boundary_conditions[i];
+
+    delete[] boundary_conditions;
+}
 /* OLD: used to debug
 string Config::ToString() const
 {

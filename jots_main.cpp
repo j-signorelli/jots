@@ -606,15 +606,3 @@ int main(int argc, char *argv[])
 
    return 0;
 }
-
-double InitialTemperature(const Vector &x)
-{
-   if (x.Norml2() < 0.5)
-   {
-      return 2.0;
-   }
-   else
-   {
-      return 1.0;
-   }
-}

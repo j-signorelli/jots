@@ -1,5 +1,4 @@
 #pragma once
-#include <vector>
 
 #include "boost/property_tree/ptree.hpp"
 #include "boost/property_tree/ini_parser.hpp"
@@ -26,7 +25,8 @@ class Config
         std::string restart_file;          /*!< \brief Restart file to load + use; only read if use_restart is true */
         double initial_temp;          /*!< \brief Initial temperature field to set; only used if use_restart is false */
 
-        std::vector<BoundaryCondition*> boundary_conditions; /*!< \brief Vector where index = boundary attribute - 1, value = BoundaryCondition object */
+        BoundaryCondition** boundary_conditions; /*!< \brief Array where index = boundary attribute - 1, value = BoundaryCondition object */
+        size_t bc_count;
 
         TIME_SCHEME time_scheme;      /*!< \brief Time integration scheme to use */
         double tf;                    /*!< \brief Final time to run to */
@@ -59,7 +59,9 @@ class Config
 
         double GetInitialTemp() const { return initial_temp; } 
 
-        std::vector<BoundaryCondition*> GetBCs() const { return boundary_conditions; }
+        BoundaryCondition** GetBCs() const { return boundary_conditions; }
+
+        int GetBCCount() {return bc_count;};
 
         TIME_SCHEME GetTimeScheme() const { return time_scheme; }
         
@@ -69,6 +71,7 @@ class Config
 
         std::string ToString() const;
 
+        ~Config();
 
     protected:
 

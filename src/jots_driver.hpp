@@ -22,6 +22,7 @@ class JOTSDriver
         JOTSDriver(const char* input_file, int myid);
         void Run();
 
+        ~JOTSDriver();
 
     protected:
 };
