@@ -1,89 +1,97 @@
 #pragma once
-#include "option_structure.hpp"
+#include <vector>
 
+#include "option_structure.hpp"
+#include "boundary_condition.hpp"
+#include "thermal_diffusivity.hpp"
 class Config
 {
     private:
         
-        std::string m_input_file;            /*!< \brief Input file to parse */
+        std::string input_file;            /*!< \brief Input file to parse */
 
-        std::string m_mesh_file;             /*!< \brief Mesh file to read in */
-        int m_fe_order;                 /*!< \brief FE Order (solution mapping order, not necessarily same as geometric mapping order from mesh file) */
-        int m_serial_refine;            /*!< \brief Number of times to refine mesh before parallel decomposition */
-        int m_parallel_refine;          /*!< \brief Number of times to refine mesh after parallel decomposition  */
+        std::string mesh_file;             /*!< \brief Mesh file to read in */
+        int fe_order;                 /*!< \brief FE Order (solution mapping order, not necessarily same as geometric mapping order from mesh file) */
+        int serial_refine;            /*!< \brief Number of times to refine mesh before parallel decomposition */
+        int parallel_refine;          /*!< \brief Number of times to refine mesh after parallel decomposition  */
         
-        double m_kappa;                 /*!< \brief Thermal diffusivity of material */
+        ThermDiff* therm_diff_model;                 /*!< \brief Thermal diffusivity model of material */
 
-        bool m_use_restart;             /*!< \brief Boolean indicating if restart file should be loaded up as initial condition */
-        std::string m_restart_file;          /*!< \brief Restart file to load + use; only read if m_use_restart is true */
-        double m_initial_temp;          /*!< \brief Initial temperature field to set; only used if m_use_restart is false */
+        bool use_restart;             /*!< \brief Boolean indicating if restart file should be loaded up as initial condition */
+        std::string restart_file;          /*!< \brief Restart file to load + use; only read if use_restart is true */
+        double initial_temp;          /*!< \brief Initial temperature field to set; only used if use_restart is false */
 
-        std::map<int, std::tuple<BOUNDARY_CONDITION, double>> m_boundary_conditions; /*!< \brief Map where key = boundary attribute, value = (BC type, value) */
+        std::vector<BoundaryCondition> boundary_conditions; /*!< \brief Vector where index = boundary attribute - 1, value = BoundaryCondition object */
 
-        TIME_SCHEME m_time_scheme;      /*!< \brief Time integration scheme to use */
-        double m_tf;                    /*!< \brief Final time to run to */
-        double m_dt;                    /*!< \brief Delta time, timestep */
+        TIME_SCHEME time_scheme;      /*!< \brief Time integration scheme to use */
+        double tf;                    /*!< \brief Final time to run to */
+        double dt;                    /*!< \brief Delta time, timestep */
 
-        int m_restart_freq;             /*!< \brief Frequency to output restart files (iterations per output) */
-        int m_vis_freq;                 /*!< \brief Frequency to output Paraview files (iterations per output) */
+        int restart_freq;             /*!< \brief Frequency to output restart files (iterations per output) */
+        int vis_freq;                 /*!< \brief Frequency to output Paraview files (iterations per output) */
         
     
     public:
-        Config(const char* input_file);
+        Config(const char* in_file);
 
         std::string GetMeshFile() const 
         {
-            return m_mesh_file;
+            return mesh_file;
         }
 
         int GetFEOrder() const
         {
-            return m_fe_order;
+            return fe_order;
         }
 
         int GetSerialRefine() const
         {
-            return m_serial_refine;
+            return serial_refine;
         }
 
         int GetParallelRefine() const
         {
-            return m_parallel_refine;
+            return parallel_refine;
         }
 
-        double GetKappa() const
+        ThermDiff* GetThermDiffModel() const
         {
-            return m_kappa;
+            return therm_diff_model;
         }
 
         bool UsesRestart() const
         {
-            return m_use_restart;
+            return use_restart;
+        }
+
+        std::string GetRestartFile() const
+        {
+            return restart_file;
         }
 
         double GetInitialTemp() const
         {
-            return m_initial_temp;
+            return initial_temp;
         } 
 
-        std::map<int, std::tuple<BOUNDARY_CONDITION, double>> GetBCs() const
+        std::vector<BoundaryCondition> GetBCs() const
         {
-            return m_boundary_conditions;
+            return boundary_conditions;
         }
 
         TIME_SCHEME GetTimeScheme() const
         {
-            return m_time_scheme;
+            return time_scheme;
         }
         
         double GetFinalTime() const
         {
-            return m_tf;
+            return tf;
         }
 
         double Getdt() const
         {
-            return m_dt;
+            return dt;
         }
 
         std::string ToString() const;

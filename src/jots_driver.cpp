@@ -18,7 +18,7 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
                                 
                                 
 
-    )" << endl << line << endl;
+    )" << endl << "MFEM-Based Thermal Solver w/ preCICE" << endl << "Version 1.0" << endl << line << endl;
     //----------------------------------------------------------------------
     // Parse config file
     user_input = new Config(input_file);
@@ -109,6 +109,9 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
 
     T_gf = new ParGridFunction(fespace);
     //----------------------------------------------------------------------
+    // Print the thermal diffusivity model
+
+    //----------------------------------------------------------------------
     // Set the initial condition
     double t_0;
     if (!user_input->UsesRestart()) // If not using restart
@@ -121,23 +124,43 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
 
         t_0 = 0.0;
         if (myid == 0)
-            cout << "\n\nNon-restart simulation; initial temperature field: " << user_input->GetInitialTemp() << endl;
+            cout << "\n\nNon-restart simulation --> Initial temperature field: " << user_input->GetInitialTemp() << endl;
 
     }
     else //else ARE using restart file
     {
         //TODO:
         if (myid == 0)
-            cout << "\n\nRestarted simulation. Not yet implemented! Closing..." << endl;
-        //return 3;
+            cout << "\n\nRestarted simulation --> Restart file: " << user_input->GetRestartFile() << endl;
+
     }
     //----------------------------------------------------------------------
-    // Set up all BCs - note that these must be allowed to be dynamic
-    //boundary_conditions = new BoundaryConditions(user_input->GetBCs());
+    // Print BCs - they will just be sent to ConductionOperator
+    for (int i = 0; i < user_input->GetBCs().size(); i++)
+    {   
+        BoundaryCondition bc = user_input->GetBCs()[i];
 
+        if (myid == 0)
+        {
+            cout << "Boundary Attribute " << i+1 << ": ";
+            switch (bc.GetType())
+            {
+                case BOUNDARY_CONDITION::HEATFLUX:
+                    cout << "Heat Flux";
+                    break;
+                case BOUNDARY_CONDITION::ISOTHERMAL:
+                    cout << "Isothermal";
+                    break;
+                default:
+                    cout << "Error" << endl;
+            };
+
+            cout << " --- Value: " << bc.GetValue() << endl;
+        }
+    }
     //----------------------------------------------------------------------
-    // Instantiate ConductionOperator finally
-    //oper = new ConductionOperator();
+    // Instantiate ConductionOperator, sending all necessary parameters
+    //oper = new ConductionOperator(*fespace, );
 }
 
 void JOTSDriver::Run()

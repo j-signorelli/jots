@@ -1,15 +1,17 @@
 #include "conduction_operator.hpp"
 
-ConductionOperator::ConductionOperator(ParFiniteElementSpace &f, double al, double kap, const Vector &u)
-   : TimeDependentOperator(f.GetTrueVSize(), 0.0),
-   fespace(f),
-   M(NULL), 
-   K(NULL),
-   T(NULL),
-   current_dt(0.0),
-   M_solver(f.GetComm()),
-   T_solver(f.GetComm()),
-   z(height)
+using namespace std;
+
+ConductionOperator::ConductionOperator(ParFiniteElementSpace &f, ThermDiff therm_diff_model, vector<BoundaryCondition> bcs, const Vector &u, double t_0)
+   :  TimeDependentOperator(f.GetTrueVSize(), t_0),
+      fespace(f),
+      M(NULL), 
+      K(NULL),
+      T(NULL),
+      current_dt(t_0),
+      M_solver(f.GetComm()),
+      T_solver(f.GetComm()),
+      z(height)
 {
    const double rel_tol = 1e-8;
 
@@ -27,8 +29,8 @@ ConductionOperator::ConductionOperator(ParFiniteElementSpace &f, double al, doub
    M_solver.SetPreconditioner(M_prec);
    M_solver.SetOperator(Mmat);
 
-   alpha = al;
-   kappa = kap;
+   alpha = 1e-2;
+   kappa = 0.5;
 
    T_solver.iterative_mode = false;
    T_solver.SetRelTol(rel_tol);

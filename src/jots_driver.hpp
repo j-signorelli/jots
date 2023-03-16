@@ -1,8 +1,9 @@
 #pragma once
 #include "mfem/mfem.hpp"
+
 #include "config_file.hpp"
 #include "conduction_operator.hpp"
-
+#include "thermal_diffusivity.hpp"
 using namespace mfem;
 
 class JOTSDriver

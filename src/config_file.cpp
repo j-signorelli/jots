@@ -3,64 +3,77 @@
 
 #include "config_file.hpp"
 
+
 namespace bp = boost::property_tree;
 using namespace std;
 
-Config::Config(const char* input_file) : m_input_file(input_file)
+Config::Config(const char* in_file) : input_file(in_file)
 {   
 
     // Set up property_tree
     bp::ptree property_tree;
 
     // Parse ini file
-    bp::read_ini(m_input_file, property_tree);
+    bp::read_ini(input_file, property_tree);
 
     // Set all member variables using values from tree
 
     // Read FiniteElementSetup
-    m_mesh_file = property_tree.get<string>("FiniteElementSetup.Mesh_File");
-    m_fe_order = property_tree.get<int>("FiniteElementSetup.FE_Order");
-    m_serial_refine = property_tree.get<int>("FiniteElementSetup.Serial_Refine");
-    m_parallel_refine = property_tree.get<int>("FiniteElementSetup.Parallel_Refine");
+    mesh_file = property_tree.get<string>("FiniteElementSetup.Mesh_File");
+    fe_order = property_tree.get<int>("FiniteElementSetup.FE_Order");
+    serial_refine = property_tree.get<int>("FiniteElementSetup.Serial_Refine");
+    parallel_refine = property_tree.get<int>("FiniteElementSetup.Parallel_Refine");
+
 
     // Read MaterialProperties
-    m_kappa = property_tree.get<double>("MaterialProperties.Thermal_Diffusivity");
+    THERM_DIFF_MODEL model = Therm_Diff_Model_Map.at(property_tree.get<string>("MaterialProperties.Thermal_Diffusivity_Model"));
+    switch (model)
+    {
+        case THERM_DIFF_MODEL::CONSTANT:
+            //double kappa = property_tree.get<double>("MaterialProperties.Kappa");
+            therm_diff_model = new ConstantThermDiff(property_tree.get<double>("MaterialProperties.Kappa"));
+            break;
+    }
 
     // Read InitialCondition
     BINARY_CHOICE restart_choice = Binary_Choice_Map.at(property_tree.get<string>("InitialCondition.Use_Restart"));
-    m_use_restart = restart_choice == BINARY_CHOICE::YES ? true : false;
+    use_restart = restart_choice == BINARY_CHOICE::YES ? true : false;
 
-    if (!m_use_restart)
+    if (!use_restart)
     {
         // Grab initial temperature field set
-        m_initial_temp = property_tree.get<double>("InitialCondition.Initial_Temperature");
+        initial_temp = property_tree.get<double>("InitialCondition.Initial_Temperature");
     }
     else
     {
-        // Else need to read in restart file
+        // Else need to read in restart file - save file name
+        restart_file = property_tree.get<string>("InitialCondition.Restart_File");
     }
     // Read BoundaryConditions
     int bc_count = property_tree.get_child("BoundaryConditions").size()/2;
+
     for (int i = 0; i < bc_count; i++)
     {
-        // Insert type and value
+        // Insert type and value - FOR NOW
+        // Ideally future: not just single value.
         BOUNDARY_CONDITION type = Boundary_Condition_Map.at(property_tree.get<string>("BoundaryConditions.Boundary_" + to_string(i+1)  + "_Type"));
         double value =  property_tree.get<double>("BoundaryConditions.Boundary_" + to_string(i+1)  + "_Value");
-        m_boundary_conditions[i+1] = make_tuple(type, value);
+        boundary_conditions.push_back(BoundaryCondition(type, value));
     }
 
     // Read TimeIntegration
-    m_time_scheme = Time_Scheme_Map.at(property_tree.get<string>("TimeIntegration.Time_Scheme"));
-    m_dt = property_tree.get<double>("TimeIntegration.Delta_Time");
-    m_tf = property_tree.get<double>("TimeIntegration.Final_Time");
+    time_scheme = Time_Scheme_Map.at(property_tree.get<string>("TimeIntegration.Time_Scheme"));
+    dt = property_tree.get<double>("TimeIntegration.Delta_Time");
+    tf = property_tree.get<double>("TimeIntegration.Final_Time");
 
     //Read Output
-    m_restart_freq = property_tree.get<int>("Output.Restart_Freq");
-    m_vis_freq = property_tree.get<int>("Output.Visualization_Freq");
+    restart_freq = property_tree.get<int>("Output.Restart_Freq");
+    vis_freq = property_tree.get<int>("Output.Visualization_Freq");
 
 
 }
 
+/* OLD: used to debug
 string Config::ToString() const
 {
     string s = "";
@@ -84,3 +97,4 @@ string Config::ToString() const
 
     return s;
 }
+*/

@@ -1,5 +1,11 @@
 #pragma once
+#include <vector>
+
 #include "mfem/mfem.hpp"
+
+#include "boundary_condition.hpp"
+#include "thermal_diffusivity.hpp"
+
 using namespace mfem;
 
 /** After spatial discretization, the conduction model can be written as:
@@ -37,8 +43,7 @@ protected:
    mutable Vector z; // auxiliary vector
    
 public:
-   ConductionOperator(ParFiniteElementSpace &f, double alpha, double kappa,
-                      const Vector &u);
+   ConductionOperator(ParFiniteElementSpace &f, ThermDiff therm_diff_model, std::vector<BoundaryCondition> bcs, const Vector &u, double t_0);
 
    virtual void Mult(const Vector &u, Vector &du_dt) const;
    
