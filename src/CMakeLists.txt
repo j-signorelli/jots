@@ -2,7 +2,7 @@
 add_library(jotsLib conduction_operator.cpp
 			  config_file.cpp
 			  boundary_condition.cpp
-			  thermal_diffusivity.cpp
+			  conductivity_model.cpp
 			  jots_driver.cpp)
 
 # Link MFEM as conduction_operator needs it

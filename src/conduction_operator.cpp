@@ -2,7 +2,18 @@
 
 using namespace std;
 
-ConductionOperator::ConductionOperator(ParFiniteElementSpace &f, ThermDiff therm_diff_model, vector<BoundaryCondition> bcs, const Vector &u, double t_0)
+
+/** After spatial discretization, the conduction model can be written as:
+ *
+ *     du/dt = M^{-1}(-Ku)
+ *
+ *  where u is the vector representing the temperature, M is the mass matrix,
+ *  and K is the diffusion operator with diffusivity depending on u:
+ *  (\kappa + \alpha u).
+ *
+ *  Class ConductionOperator represents the right-hand side of the above ODE.
+ */
+ConductionOperator::ConductionOperator(ParFiniteElementSpace &f, ConductivityModel* cond_model, vector<BoundaryCondition*> bcs, const Vector &u, double t_0)
    :  TimeDependentOperator(f.GetTrueVSize(), t_0),
       fespace(f),
       M(NULL), 
@@ -15,8 +26,11 @@ ConductionOperator::ConductionOperator(ParFiniteElementSpace &f, ThermDiff therm
 {
    const double rel_tol = 1e-8;
 
+   // Set up parallel bilinear form
    M = new ParBilinearForm(&fespace);
-   M->AddDomainIntegrator(new MassIntegrator());
+
+   // Add domain integrator for M
+   M->AddDomainIntegrator(new MassIntegrator());// NOTE: need to implement rho and C_V or C_P as coefficient for M.
    M->Assemble(0); // keep sparsity pattern of M and K the same
    M->FormSystemMatrix(ess_tdof_list, Mmat);
 

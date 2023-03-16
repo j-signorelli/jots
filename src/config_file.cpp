@@ -1,8 +1,5 @@
-#include "boost/property_tree/ptree.hpp"
-#include "boost/property_tree/ini_parser.hpp"
 
 #include "config_file.hpp"
-
 
 namespace bp = boost::property_tree;
 using namespace std;
@@ -26,12 +23,17 @@ Config::Config(const char* in_file) : input_file(in_file)
 
 
     // Read MaterialProperties
-    THERM_DIFF_MODEL model = Therm_Diff_Model_Map.at(property_tree.get<string>("MaterialProperties.Thermal_Diffusivity_Model"));
+    density = property_tree.get<double>("MaterialProperties.Density");
+    Cp = property_tree.get<double>("MaterialProperties.Specific_Heat_Cp");
+    CONDUCTIVITY_MODEL model = Conductivity_Model_Map.at(property_tree.get<string>("MaterialProperties.Thermal_Conductivity_Model"));
     switch (model)
     {
-        case THERM_DIFF_MODEL::CONSTANT:
+        case CONDUCTIVITY_MODEL::CONSTANT:
             //double kappa = property_tree.get<double>("MaterialProperties.Kappa");
-            therm_diff_model = new ConstantThermDiff(property_tree.get<double>("MaterialProperties.Kappa"));
+            cond_model = new ConstantCond(property_tree.get<double>("MaterialProperties.k"));
+            break;
+        case CONDUCTIVITY_MODEL::LINEARIZED:
+            cond_model = new LinearizedCond(property_tree.get<double>("MaterialProperties.k"), property_tree.get<double>("MaterialProperties.alpha"));
             break;
     }
 
@@ -54,11 +56,21 @@ Config::Config(const char* in_file) : input_file(in_file)
 
     for (int i = 0; i < bc_count; i++)
     {
-        // Insert type and value - FOR NOW
-        // Ideally future: not just single value.
+        // For now: just assume each BC type has a type and a value. May update in future
         BOUNDARY_CONDITION type = Boundary_Condition_Map.at(property_tree.get<string>("BoundaryConditions.Boundary_" + to_string(i+1)  + "_Type"));
         double value =  property_tree.get<double>("BoundaryConditions.Boundary_" + to_string(i+1)  + "_Value");
-        boundary_conditions.push_back(BoundaryCondition(type, value));
+        
+        switch (type)
+        {
+            case BOUNDARY_CONDITION::HEATFLUX:
+                boundary_conditions.push_back(new UniformHeatFluxBC(value));
+                break;
+            case BOUNDARY_CONDITION::ISOTHERMAL:
+                boundary_conditions.push_back(new UniformIsothermalBC(value));
+                break;
+
+        }
+        
     }
 
     // Read TimeIntegration

@@ -4,7 +4,7 @@
 #include "mfem/mfem.hpp"
 
 #include "boundary_condition.hpp"
-#include "thermal_diffusivity.hpp"
+#include "conductivity_model.hpp"
 
 using namespace mfem;
 
@@ -43,13 +43,13 @@ protected:
    mutable Vector z; // auxiliary vector
    
 public:
-   ConductionOperator(ParFiniteElementSpace &f, ThermDiff therm_diff_model, std::vector<BoundaryCondition> bcs, const Vector &u, double t_0);
+   ConductionOperator(ParFiniteElementSpace &f, ConductivityModel* therm_diff_model, std::vector<BoundaryCondition*> bcs, const Vector &u, double t_0);
 
    virtual void Mult(const Vector &u, Vector &du_dt) const;
    
    /** Solve the Backward-Euler equation: k = f(u + dt*k, t), for the unknown k.
        This is the only requirement for high-order SDIRK implicit integration.*/
-   virtual void ImplicitSolve(const double dt, const Vector &u, Vector &k);
+   //virtual void ImplicitSolve(const double dt, const Vector &u, Vector &k);
 
    /// Update the diffusion BilinearForm K using the given true-dof vector `u`.
    void SetParameters(const Vector &u);

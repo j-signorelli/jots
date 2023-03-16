@@ -53,11 +53,6 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
             if (myid == 0)
                 cout << "Time Scheme: RK4" << endl;
             break;
-        default:
-            if (myid == 0)
-                cout << "Unknown ODE solver type!" << endl;
-            delete mesh;
-            //TODO: throw error
     }
     //----------------------------------------------------------------------
     // Refine mesh in serial
@@ -109,8 +104,22 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
 
     T_gf = new ParGridFunction(fespace);
     //----------------------------------------------------------------------
-    // Print the thermal diffusivity model
-
+    // Print the material properties and conductivity model
+    if (myid == 0)
+    {   
+        cout << "\n\n";
+        cout << "Density: " << user_input->GetDensity() << endl;
+        cout << "Specific Heat Cp: " << user_input->GetCp() << endl;
+        cout << "Thermal Diffusivity Model: ";
+        switch (user_input->GetConductivityModel()->GetModel())
+        {
+            case CONDUCTIVITY_MODEL::CONSTANT:
+                cout << "Constant -- k: " << ((ConstantCond*)user_input->GetConductivityModel())->Getk() << endl;
+                break;
+            case CONDUCTIVITY_MODEL::LINEARIZED:
+                cout << "Linearized -- k: " << ((LinearizedCond*)user_input->GetConductivityModel())->Getk() << "; alpha: " << ((LinearizedCond*)user_input->GetConductivityModel())->Getalpha() << endl;
+        }
+    }
     //----------------------------------------------------------------------
     // Set the initial condition
     double t_0;
@@ -124,26 +133,26 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
 
         t_0 = 0.0;
         if (myid == 0)
-            cout << "\n\nNon-restart simulation --> Initial temperature field: " << user_input->GetInitialTemp() << endl;
+            cout << "Non-restart simulation --> Initial temperature field: " << user_input->GetInitialTemp() << endl;
 
     }
     else //else ARE using restart file
     {
         //TODO:
         if (myid == 0)
-            cout << "\n\nRestarted simulation --> Restart file: " << user_input->GetRestartFile() << endl;
+            cout << "Restarted simulation --> Restart file: " << user_input->GetRestartFile() << endl;
 
     }
     //----------------------------------------------------------------------
     // Print BCs - they will just be sent to ConductionOperator
     for (int i = 0; i < user_input->GetBCs().size(); i++)
     {   
-        BoundaryCondition bc = user_input->GetBCs()[i];
+        BoundaryCondition* bc = user_input->GetBCs()[i];
 
         if (myid == 0)
         {
             cout << "Boundary Attribute " << i+1 << ": ";
-            switch (bc.GetType())
+            switch (bc->GetType())
             {
                 case BOUNDARY_CONDITION::HEATFLUX:
                     cout << "Heat Flux";
@@ -151,16 +160,14 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
                 case BOUNDARY_CONDITION::ISOTHERMAL:
                     cout << "Isothermal";
                     break;
-                default:
-                    cout << "Error" << endl;
             };
 
-            cout << " --- Value: " << bc.GetValue() << endl;
+            cout << " --- Value: " << bc->GetValue() << endl;
         }
     }
     //----------------------------------------------------------------------
     // Instantiate ConductionOperator, sending all necessary parameters
-    //oper = new ConductionOperator(*fespace, );
+    oper = new ConductionOperator(*fespace, user_input->GetConductivityModel(), user_input->GetBCs(),*T_gf, t_0);
 }
 
 void JOTSDriver::Run()

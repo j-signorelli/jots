@@ -52,10 +52,11 @@ enum class BINARY_CHOICE
 static const std::map<std::string, BINARY_CHOICE> Binary_Choice_Map = {{"Yes", BINARY_CHOICE::YES},
                                                              {"No", BINARY_CHOICE::NO}};
 
-enum class THERM_DIFF_MODEL
+enum class CONDUCTIVITY_MODEL
 {
   CONSTANT=0,
-
+  LINEARIZED=1
 };
 
-static const std::map<std::string, THERM_DIFF_MODEL> Therm_Diff_Model_Map = {{"Constant", THERM_DIFF_MODEL::CONSTANT}};
+static const std::map<std::string, CONDUCTIVITY_MODEL> Conductivity_Model_Map = {{"Constant", CONDUCTIVITY_MODEL::CONSTANT},
+                                                                             {"Linearized", CONDUCTIVITY_MODEL::LINEARIZED}};
