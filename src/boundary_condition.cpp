@@ -1,11 +1,13 @@
 #include "boundary_condition.hpp"
 
-void UniformIsothermalBC::ApplyBC() const
-{
+using namespace mfem;
 
+Coefficient* UniformIsothermalBC::GetCoefficient() const
+{
+    return new ConstantCoefficient(value);
 }
 
-void UniformHeatFluxBC::ApplyBC() const
+Coefficient* UniformHeatFluxBC::GetCoefficient() const
 {
-
+    return new ConstantCoefficient(value);
 }

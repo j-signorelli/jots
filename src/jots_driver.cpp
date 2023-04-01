@@ -110,7 +110,7 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
         cout << "\n\n";
         cout << "Density: " << user_input->GetDensity() << endl;
         cout << "Specific Heat Cp: " << user_input->GetCp() << endl;
-        cout << "Thermal Diffusivity Model: ";
+        cout << "Thermal Conductivity Model: ";
         switch (user_input->GetConductivityModel()->GetModel())
         {
             case CONDUCTIVITY_MODEL::CONSTANT:
@@ -167,9 +167,9 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
     }
     //----------------------------------------------------------------------
     // Create vector for holding true DOFs + instantiate ConductionOperator, sending all necessary parameters
-    Vector u;
-    T_gf->GetTrueDofs(u);
-    oper = new ConductionOperator(user_input, *fespace, u, t_0);
+    Vector T;
+    T_gf->GetTrueDofs(T);
+    oper = new ConductionOperator(user_input, *fespace, t_0);
 }
 
 void JOTSDriver::Run()
