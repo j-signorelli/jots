@@ -1,66 +1,58 @@
-# Dev Notes
+# Weak Formulation Derivation
+
+Start with the unsteady thermal conduction equation, applying the following assumptions:
+
+1. Density $\rho$ and specific heat $C_p$ are uniform (constant in space and time)
+2. We allow for thermal conductivity $k$ to vary as a function of temperature: $k=k(T(x,y,z,t))$
+3. No heat generation
+
+This yields:
+
+$$\rho c_p \dfrac{\partial T}{\partial t} - \nabla \cdot (k \nabla T) = 0$$
+
+We seek a weak formulation of this allowing for nonhomogeneous Neumann and Dirichlet boundary conditions.
+
+Given that one applies the appropriate "lifting" of the solution, we can assume homogeneous Dirichlet BCs in the derivation such that:
+
+$$T=0 \text{ on } \partial \Omega_D$$
+$$\hat{n} \cdot (k \nabla T)=g \text{ on } \partial \Omega_N \text{ given } g : \partial \Omega_N \rightarrow \mathbb{R}$$
+
+where $\Omega$ is our domain and $\partial \Omega$ is the boundary of the domain.
+
+So: we seek a solution $T \isin H^1_{\partial \Omega_D}(\Omega)$ where $H^1_{\partial \Omega_D}(\Omega) = \{T \isin H^1(\Omega) : T=0 \text{ on } \partial \Omega_D \}$.
+
+Multiply the heat equation by test function $v \isin H^1_{\partial \Omega_D}(\Omega)$ and integrate:
+
+$$\int_\Omega \rho c_p \dfrac{\partial T}{\partial t}vd\vec{x} - \int_\Omega \nabla \cdot (k \nabla T)vd\vec{x} = 0$$
+
+We can then apply the following Green formula to the second term:
+
+$$\int_\Omega \nabla \cdot (k \nabla T)vd\vec{x} = -\int_\Omega \nabla v \cdot (k\nabla T) d\vec{x} + \int_{\partial \Omega} \hat{n} \cdot (k \nabla T) d\vec{x}$$
+
+Note from earlier that $ g = \hat{n} \cdot (k \nabla T)$, a specified heat flux on Neumann boundaries.
+
+Now we may apply the finite element approximation to this weak formulation, assuming $H^1$-conforming nodal elements:
+
+$$T(x,y,z,t) = \sum_j T_j(t)\phi_j(x,y,z)$$
+$$v(x,y,z) = \sum_j v_j(t)\phi_j(x,y,z)$$
 
 
-## Understanding the discretization
+where $\phi_j(x)$ are the finite element basis functions and $T_j$ are nodal DOFs. Plugging this in:
 
-It is quite complex. See this website for the derivation: https://en.wikiversity.org/wiki/Finite_elements/Solution_of_heat_equation
+$$\sum_i \sum_j \left( \int_\Omega \rho C_p \dfrac{d T_i}{d t} \phi_i \phi_j d\vec{x} v_j\right) + \sum_i \sum_j \left( \int_\Omega T_i (k \nabla \phi_i) \cdot (\nabla \phi_j) d\vec{x} v_j\right) = \sum_j \left( \int_{\partial \Omega} g\phi_j d\vec{x}v_j\right)$$
 
-Or you can look at this much simpler derivation by the one and only ChatGPT:
+Note now that we may define:
 
-Starting from the continuous form of the unsteady thermal conduction equation:
+$$M_{ij}=\int_\Omega \rho C_p \phi_i \phi_j d\vec{x} = \text{Mass Matrix}$$
 
-$$\rho c_p \frac{\partial u}{\partial t} - \nabla \cdot (k \nabla u) = f$$
+$$K_{ij} = \int_\Omega (k \nabla \phi_i) \cdot (\nabla \phi_j) d\vec{x} = \text{Stiffness Matrix}$$
 
-where $u$ is the temperature, $\rho$ is the density, $c_p$ is the specific heat, $k$ is the thermal conductivity, and $f$ is a volumetric heat source/sink term.
+and then rewrite:
 
-We begin by approximating the temperature $u$ using a finite element basis expansion:
+$$M_{ij}\dfrac{dT_j}{dt} + K_{ij}T_j = \int_{\partial \Omega} g\phi_j d\vec{x}$$
 
-$$u(x) \approx \sum_i u_i \phi_i(x)$$
+Finally, we can rewrite this as:
 
-where $u_i$ are the coefficients of the expansion and $\phi_i(x)$ are the finite element basis functions.
+$$\dfrac{dT_j}{dt} = M_{ij}^{-1} \left( -K_{ij}T_j + \int_{\partial \Omega} g\phi_j d\vec{x}\right)$$
 
-Substituting this expression for $u$ into the continuous equation and multiplying by a test function $\phi_j(x)$, we obtain:
-
-$$\int_\Omega \left(\rho c_p \frac{\partial u}{\partial t} - \nabla \cdot (k \nabla u)\right) \phi_j(x) \ dx = \int_\Omega f \phi_j(x) \ dx$$
-
-Using integration by parts to eliminate the second-order derivative term, we get:
-
-$$\int_\Omega \rho c_p \frac{\partial u}{\partial t} \phi_j(x) \ dx + \int_\Omega k \nabla u \cdot \nabla \phi_j(x) \ dx - \int_{\partial \Omega} k \frac{\partial u}{\partial n} \phi_j(x) \ ds = \int_\Omega f \phi_j(x) \ dx$$
-
-where $\partial \Omega$ denotes the boundary of the domain $\Omega$ and $\frac{\partial u}{\partial n}$ is the normal derivative of $u$ on the boundary.
-
-Assuming that the boundary conditions satisfy the homogeneous Neumann condition ($\frac{\partial u}{\partial n} = 0$), the boundary term vanishes and we are left with:
-
-$$\int_\Omega \rho c_p \frac{\partial u}{\partial t} \phi_j(x) \ dx + \int_\Omega k \nabla u \cdot \nabla \phi_j(x) \ dx = \int_\Omega f \phi_j(x) \ dx$$
-
-Using the Galerkin finite element method, we approximate the temperature $u$ and test function $\phi_j(x)$ using the same basis functions and restrict the integrals to the finite element subdomains:
-
-$$\sum_i \left(\rho c_p \frac{\partial u_i}{\partial t} + \int_\Omega k \nabla \phi_i(x) \cdot \nabla \phi_j(x) \ dx \ u_i\right) = \int_\Omega f \phi_j(x) \ dx$$
-
-This can be written more compactly as:
-
-$$\sum_i (M_{ij} \frac{du_i}{dt} + K_{ij} u_i) = F_j$$
-
-where $M_{ij}$ is the mass matrix and $K_{ij}$ is the stiffness matrix, given by:
-
-$$M_{ij} = \int_\Omega \rho c_p \phi_i(x) \phi_j(x) \ dx, \ \ K_{ij} = \int_\Omega k \nabla \phi_i(x) \cdot \nabla \phi_j(x) \ dx$$
-
-The final step is to apply the inverse of the mass matrix $M$ to both sides of the equation, giving:
-
-$$M^{-1} \sum_i (M_{ij} \frac{du_i}{dt} + K_{ij} u_i) = M^{-1} F_j$$
-
-Using the distributive property of matrix multiplication, we can simplify this equation to:
-
-$$\frac{d}{dt} \sum_i (M^{-1} M_{ij} u_i) + \sum_i (M^{-1} K_{ij} u_i) = M^{-1} F_j$$
-
-Recognizing that the term $\sum_i (M^{-1} M_{ij} u_i)$ is just the finite element approximation of the temperature $u$ at the point $x_j$, we can rewrite this equation as:
-
-$$\frac{d}{dt} u_j + \sum_i (M^{-1} K_{ij} u_i) = (M^{-1} F)_j$$
-
-This is the desired equation for the finite element method after spatial discretization:
-
-$$\frac{d}{dt} u = M^{-1}(-Ku) + M^{-1} F$$
-
-where $u$ is the temperature vector, $M$ is the mass matrix, $K$ is the stiffness matrix, and $F$ is the load vector. This equation can be solved numerically using time integration methods such as the backward Euler method or the Crank-Nicolson method.
-
-Note that for our case, we are assuming $F=0$
+Note that the boundary integral term is a linear form that must be added to enforce Neumann BCs.
