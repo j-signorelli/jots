@@ -169,7 +169,7 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
     // Create vector for holding true DOFs + instantiate ConductionOperator, sending all necessary parameters
     Vector T;
     T_gf->GetTrueDofs(T);
-    oper = new ConductionOperator(user_input, *fespace, t_0);
+    oper = new ConductionOperator(user_input, *fespace, t_0);// Needs BCs, FESpace, and initial time
 }
 
 void JOTSDriver::Run()

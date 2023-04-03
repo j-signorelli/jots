@@ -23,7 +23,7 @@ ConductionOperator::ConductionOperator(Config* in_config, ParFiniteElementSpace 
       M_solver(f.GetComm()),
       //T_solver(f.GetComm()),
       user_input(in_config),
-      z(height)
+      z(height)// what is height??
 {
    const double rel_tol = 1e-8;
 
@@ -97,9 +97,9 @@ void ConductionOperator::Mult(const Vector &u, Vector &du_dt) const
    z.Neg();
 
    // Add boundary term (for Neumann BCs)
-   Vector b_vec;
-   b->ParallelAssemble(b_vec);
-   z += b_vec;
+   z += *b;
+
+
    M_solver.Mult(z, du_dt);
 }
 
@@ -148,21 +148,18 @@ void ConductionOperator::SetThermalConductivities(const Vector &u)
 
    // Delete u_coeff
    delete u_coeff;
+
    //delete T;
    //T = NULL; // re-compute T on the next ImplicitSolve
 }
 
-void ConductionOperator::ApplyBCs(ParGridFunction* u_gf, Vector &u)
+void ConductionOperator::ApplyBCs(Vector &u)
 {
-   // TODO: Clean this up. Create b_vec here
-   // TODO: any better ways to update boundary values? Look into/
-   //          Normally you set boundary values and then create Vector it seems (but may be better way even with just Vector)
-
    delete b;
 
-   // Update ParGridFunction u_gf with values from u (if they have changed)
-   u_gf->SetFromTrueDofs(u);
-
+   // Create temp ParGridFunction u_gf with values from (updated) u
+   ParGridFunction u_gf_temp(&fespace);
+   u_gf_temp.SetFromTrueDofs(u);
 
    // Create linear form for Neumann BCs
    b = new ParLinearForm(&fespace);
@@ -186,7 +183,7 @@ void ConductionOperator::ApplyBCs(ParGridFunction* u_gf, Vector &u)
       // Set appropriately
       if (user_input->GetBCs()[i]->IsEssential()) // Update u
       {
-         u_gf->ProjectBdrCoefficient(*bdr_coeff, attr); // Add boundary integrator to boundary
+         u_gf_temp.ProjectBdrCoefficient(*bdr_coeff, attr); // Add boundary integrator to boundary
       } else
       {
          b->AddBoundaryIntegrator(new BoundaryLFIntegrator(*bdr_coeff), attr);
@@ -195,11 +192,12 @@ void ConductionOperator::ApplyBCs(ParGridFunction* u_gf, Vector &u)
       delete bdr_coeff;
    }
    
-   // Update vector u values
-   u_gf->GetTrueDofs(u);
+   // Update vector u Dirichlet BC values
+   u_gf_temp.GetTrueDofs(u);
 
-   // Assemble the new linear form
+   // Assemble the new linear form for Neumann BCs
    b->Assemble();
+
 }
 
 ConductionOperator::~ConductionOperator()
@@ -207,4 +205,6 @@ ConductionOperator::~ConductionOperator()
    //delete T;
    delete M;
    delete K;
+   delete b;
+   
 }

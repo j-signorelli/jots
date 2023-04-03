@@ -25,8 +25,7 @@ protected:
 
    ParBilinearForm *M;
    ParBilinearForm *K;
-   ParLinearForm *b; // Linear form for Neumann BCs
-
+   ParLinearForm *b;
 
    HypreParMatrix Mmat;
    HypreParMatrix Kmat;
@@ -41,7 +40,9 @@ protected:
 
    Config* user_input; // Not allocated here
 
+   //Vector* b_vec; // Vector for enforcing Neumann BCs
    mutable Vector z; // auxiliary vector
+
    
 public:
    ConductionOperator(Config* in_config, ParFiniteElementSpace &f, double t_0);
@@ -56,7 +57,7 @@ public:
    void SetThermalConductivities(const Vector &u);
 
    // Apply the given boundary conditions
-   void ApplyBCs(ParGridFunction* u_gf, Vector &u);
+   void ApplyBCs(Vector &u);
 
    ~ConductionOperator();
 };
