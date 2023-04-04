@@ -82,7 +82,8 @@ Config::Config(const char* in_file) : input_file(in_file)
     restart_freq = property_tree.get<int>("Output.Restart_Freq");
     vis_freq = property_tree.get<int>("Output.Visualization_Freq");
 
-
+    // TODO: update to automatically retrieve from restarts, but for now:
+    t0 = 0;
 }
 
 Config::~Config()

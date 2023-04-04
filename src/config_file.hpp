@@ -29,6 +29,7 @@ class Config
         size_t bc_count;
 
         TIME_SCHEME time_scheme;      /*!< \brief Time integration scheme to use */
+        double t0;                    /*!< \brief Starting time */
         double tf;                    /*!< \brief Final time to run to */
         double dt;                    /*!< \brief Delta time, timestep */
 
@@ -65,9 +66,16 @@ class Config
 
         TIME_SCHEME GetTimeScheme() const { return time_scheme; }
         
+        double GetStartTime() const { return t0; }
+
         double GetFinalTime() const { return tf; }
 
         double Getdt() const { return dt; }
+
+
+        int GetRestartFreq() const { return restart_freq; }
+
+        int GetVisFreq() const { return vis_freq; }
 
         std::string ToString() const;
 

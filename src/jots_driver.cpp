@@ -5,7 +5,8 @@ using namespace std;
 JOTSDriver::JOTSDriver(const char* input_file, int myid)
 {   
     const std::string line = "-------------------------------------------------------------------------------------------";
-        
+    id = myid;
+    
     cout << line << endl;
     cout << R"(
 
@@ -122,7 +123,6 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
     }
     //----------------------------------------------------------------------
     // Set the initial condition
-    double t_0;
     if (!user_input->UsesRestart()) // If not using restart
     {  
         //Create constant coefficient of initial temperature
@@ -131,7 +131,6 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
         // Project that coefficient onto the GridFunction
         T_gf->ProjectCoefficient(T_0);
 
-        t_0 = 0.0;
         if (myid == 0)
             cout << "Non-restart simulation --> Initial temperature field: " << user_input->GetInitialTemp() << endl;
 
@@ -166,17 +165,69 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
         }
     }
     //----------------------------------------------------------------------
-    // Create vector for holding true DOFs + instantiate ConductionOperator, sending all necessary parameters
-    Vector T;
+    // Declare vector for holding true DOFs + instantiate ConductionOperator, sending all necessary parameters
     T_gf->GetTrueDofs(T);
-    oper = new ConductionOperator(user_input, *fespace, t_0);// Needs BCs, FESpace, and initial time
+    oper = new ConductionOperator(user_input, *fespace, user_input->GetStartTime());// Needs BCs, FESpace, and initial time
+
+    cout << line << endl;
 }
 
 void JOTSDriver::Run()
-{
-    
-    //Here is where the run shit is done
-    // preCICE may be implemented here, but boundary conditions are not fixed is an issue
+{   
+    double t0 = user_input->GetStartTime();
+    double dt = user_input->Getdt();
+    double tf = user_input->GetFinalTime();
+
+    // Initialize the ODE Solver
+    cout << "Initializing solver...";
+    ode_solver->Init(*oper);
+    cout << " Done!" << endl;
+
+    double time = t0;
+    int it_num = 0;
+
+    // Set up Paraview
+    ParaViewDataCollection paraview_dc("Output", pmesh);
+    paraview_dc.SetPrefixPath("ParaView");
+    paraview_dc.SetLevelsOfDetail(user_input->GetFEOrder());
+    paraview_dc.SetDataFormat(VTKFormat::BINARY);
+    paraview_dc.SetHighOrderOutput(true);
+    paraview_dc.SetCycle(0);
+    paraview_dc.SetTime(t0);
+    paraview_dc.RegisterField("Temperature",T_gf);
+    paraview_dc.Save();
+
+
+    while (time <= tf)//Main Solver Loop
+    {
+
+        // Apply the BCs
+        oper->ApplyBCs(T);
+
+        // Calculate thermal conductivities
+        oper->SetThermalConductivities(T);
+
+        // Step in time - time automatically updated
+        ode_solver->Step(T, time, dt);
+        it_num += 1;
+
+        // Print current timestep information:
+        if (id == 0)
+            printf("Step #%10i || Time: %10.5g/%-10.5g || Max Temperature: %10.3g \n", it_num, time, tf,  T.Max());
+            //cout << "Step #" << it_num << " || t = " << time << "||" << "Rank 0 Max T: " << T.Max() << endl;
+        
+
+        if (it_num % user_input->GetVisFreq() == 0)
+        {
+            cout << "Saving Paraview Data..." << endl;
+            // Save data in the ParaView format
+            T_gf->SetFromTrueDofs(T);
+            paraview_dc.SetCycle(it_num);
+            paraview_dc.SetTime(time);
+            paraview_dc.Save();
+        }
+    }
+
 }
 
 JOTSDriver::~JOTSDriver()

@@ -22,7 +22,10 @@ class ConductionOperator : public TimeDependentOperator
 protected:
    ParFiniteElementSpace &fespace;
    Array<int> ess_tdof_list; // list of essential true dofs
-
+   Array<int>* all_bdr_attr_markers;
+   Coefficient** all_bdr_coeffs;
+   Coefficient* k_coeff;
+   
    ParBilinearForm *M;
    ParBilinearForm *K;
    ParLinearForm *b;
@@ -30,7 +33,7 @@ protected:
    HypreParMatrix Mmat;
    HypreParMatrix Kmat;
    //HypreParMatrix *T; // T = M + dt K
-   double current_dt;
+   //double current_dt;
 
    CGSolver M_solver;    // Krylov solver for inverting the mass matrix M
    HypreSmoother M_prec; // Preconditioner for the mass matrix M

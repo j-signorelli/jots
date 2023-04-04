@@ -15,18 +15,18 @@ using namespace std;
 ConductionOperator::ConductionOperator(Config* in_config, ParFiniteElementSpace &f, double t_0)
    :  TimeDependentOperator(f.GetTrueVSize(), t_0),
       fespace(f),
+      k_coeff(NULL),
       M(NULL), 
       K(NULL),
       b(NULL),
       //T(NULL),
-      current_dt(t_0),
+      //current_dt(t_0),
       M_solver(f.GetComm()),
       //T_solver(f.GetComm()),
       user_input(in_config),
       z(height)// what is height??
 {
    const double rel_tol = 1e-8;
-
 
    // Assemble parallel bilinear form for mass matrix (does not change in time)
    M = new ParBilinearForm(&fespace);
@@ -41,10 +41,25 @@ ConductionOperator::ConductionOperator(Config* in_config, ParFiniteElementSpace 
    dbc_bdr = 0; // Initialize with all attributes set to non-essential = 0
    
    // Loop through vector boundary conditions, update array if needed (1=Dirichlet)
+   // Further, create bdr_attr_marker arrays and Coefficient arrays for all BCs
+   // ^This is required as everything in MFEM refers to references, so we must keep everything intact until simulation is complete
+   all_bdr_attr_markers = new Array<int>[user_input->GetBCCount()];
+   all_bdr_coeffs = new Coefficient*[user_input->GetBCCount()];
+   
    for (size_t i = 0; i < user_input->GetBCCount(); i++)
+   {
+      Array<int> bdr_attr(user_input->GetBCCount());
+      bdr_attr = 0;
+      bdr_attr[i] = 1;
+      all_bdr_attr_markers[i] = bdr_attr;
+
+      all_bdr_coeffs[i] = NULL;
+
       if (user_input->GetBCs()[i]->IsEssential())
          dbc_bdr[i] = 1;
-   
+   }
+
+
    // Get the essential true dofs, given the Dirichlet boundaries. Store in ess_tdof_list
    fespace.GetEssentialTrueDofs(dbc_bdr, ess_tdof_list);
    
@@ -81,17 +96,6 @@ void ConductionOperator::Mult(const Vector &u, Vector &du_dt) const
    //    du/dt = M^{-1}(-Ku + boundary_terms)
    // for du_dt
 
-   // Apply thermal conductivity model - cannot do! const
-   //SetThermalConductivities(u);
-
-   // Apply boundary conditions - cannot do! const
-   //ApplyBCs(u);
-
-
-   // ^Must do externally
-
-
-
    // Complete multiplication
    Kmat.Mult(u, z);
    z.Neg();
@@ -111,13 +115,6 @@ void ConductionOperator::ImplicitSolve(const double dt,
    //    du_dt = M^{-1}*[-K(u + dt*du_dt)]
    // for du_dt, where K is linearized by using u from the previous timestep
 
-   // Apply thermal conductivity model - cannot do! const
-   //SetThermalConductivities(u);
-
-   // Apply boundary conditions - cannot do! const
-   //ApplyBCs(u);
-
-
    // ^Must do externally
    if (!T)
    {
@@ -133,21 +130,21 @@ void ConductionOperator::ImplicitSolve(const double dt,
 */
 
 void ConductionOperator::SetThermalConductivities(const Vector &u)
-{
+{  
+
    delete K;
+   delete k_coeff;
+
    // Assemble the parallel bilinear form for stiffness matrix
    K = new ParBilinearForm(&fespace);
 
    // Apply thermal conductivity model to get appropriate coefficient \lambda in Diffusion integrator
-   Coefficient* u_coeff = user_input->GetConductivityModel()->ApplyModel(&fespace,u);
+   k_coeff = user_input->GetConductivityModel()->ApplyModel(&fespace,u);
 
    // Create stiffness matrix Kmat with applied thermal conductivity model 
-   K->AddDomainIntegrator(new DiffusionIntegrator(*u_coeff));
+   K->AddDomainIntegrator(new DiffusionIntegrator(*k_coeff));
    K->Assemble(0); // keep sparsity pattern of M and K the same
    K->FormSystemMatrix(ess_tdof_list, Kmat);
-
-   // Delete u_coeff
-   delete u_coeff;
 
    //delete T;
    //T = NULL; // re-compute T on the next ImplicitSolve
@@ -155,8 +152,11 @@ void ConductionOperator::SetThermalConductivities(const Vector &u)
 
 void ConductionOperator::ApplyBCs(Vector &u)
 {
+   // Delete previous stuff
    delete b;
-
+   for (size_t i = 0; i < user_input->GetBCCount(); i++)
+      delete all_bdr_coeffs[i];
+   
    // Create temp ParGridFunction u_gf with values from (updated) u
    ParGridFunction u_gf_temp(&fespace);
    u_gf_temp.SetFromTrueDofs(u);
@@ -164,32 +164,23 @@ void ConductionOperator::ApplyBCs(Vector &u)
    // Create linear form for Neumann BCs
    b = new ParLinearForm(&fespace);
 
-   // Create temporary coefficient for setting BCs
-   Coefficient* bdr_coeff;
-
-
    // Create ParGridFunction using 
    // Loop through all BCs
    for (size_t i = 0; i < user_input->GetBCCount(); i++)
-   {
-      // Create auxiliary boundary array of all 0s except at boundary of current interest
-      Array<int> attr(user_input->GetBCCount());
-      attr = 0;
-      attr[i] = 1;
-
+   {  
       // Get the coefficient of interest
-      bdr_coeff = user_input->GetBCs()[i]->GetCoefficient();
+      all_bdr_coeffs[i] = user_input->GetBCs()[i]->GetCoefficient();
 
       // Set appropriately
-      if (user_input->GetBCs()[i]->IsEssential()) // Update u
+      if (user_input->GetBCs()[i]->IsEssential())
       {
-         u_gf_temp.ProjectBdrCoefficient(*bdr_coeff, attr); // Add boundary integrator to boundary
+         u_gf_temp.ProjectBdrCoefficient(*all_bdr_coeffs[i], all_bdr_attr_markers[i]);  // Update u
       } else
       {
-         b->AddBoundaryIntegrator(new BoundaryLFIntegrator(*bdr_coeff), attr);
+         b->AddBoundaryIntegrator(new BoundaryLFIntegrator(*all_bdr_coeffs[i]), all_bdr_attr_markers[i]);// Add boundary integrator to boundary
       }
 
-      delete bdr_coeff;
+
    }
    
    // Update vector u Dirichlet BC values
@@ -198,13 +189,18 @@ void ConductionOperator::ApplyBCs(Vector &u)
    // Assemble the new linear form for Neumann BCs
    b->Assemble();
 
+
 }
 
 ConductionOperator::~ConductionOperator()
 {
    //delete T;
+   delete[] all_bdr_attr_markers;
+   for (size_t i = 0; i < user_input->GetBCCount(); i++)
+      delete all_bdr_coeffs[i];
+   delete k_coeff;
+   delete[] all_bdr_coeffs;
    delete M;
    delete K;
    delete b;
-   
 }

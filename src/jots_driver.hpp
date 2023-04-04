@@ -1,4 +1,6 @@
 #pragma once
+#include <cstdio>
+
 #include "mfem/mfem.hpp"
 
 #include "config_file.hpp"
@@ -9,6 +11,8 @@ using namespace mfem;
 class JOTSDriver
 {
     private:
+        int id;
+
         Config* user_input;
         int dim;
         ODESolver* ode_solver;
@@ -16,6 +20,8 @@ class JOTSDriver
         FiniteElementCollection* fe_coll;
         ParFiniteElementSpace* fespace;
         ParGridFunction* T_gf;
+        Vector T;
+
         
         ConductionOperator* oper;
     public:

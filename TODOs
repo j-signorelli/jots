@@ -1,0 +1,4 @@
+Known bugs:
+
+- Issue when using FE_Order == 1 for I believe an order 1 mesh
+- Update so that all boundary stuff is in JOTSDriver, not in the operator.
