@@ -88,10 +88,7 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
 
     //----------------------------------------------------------------------
     // Define parallel FE space on parallel mesh, and solution vector (grid function) T_gf
-    if (user_input->GetFEOrder() > 1)
-        fe_coll = new H1_FECollection(user_input->GetFEOrder(), dim);
-    else
-        fe_coll = pmesh->GetNodes()->OwnFEC();
+    fe_coll = new H1_FECollection(user_input->GetFEOrder(), dim);
 
     fespace = new ParFiniteElementSpace(pmesh, fe_coll);
 
