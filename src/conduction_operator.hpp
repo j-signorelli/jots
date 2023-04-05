@@ -35,7 +35,7 @@ protected:
    //HypreParMatrix *T; // T = M + dt K
    //double current_dt;
 
-   CGSolver M_solver;    // Krylov solver for inverting the mass matrix M
+   FGMRESSolver M_solver;    // FMGRES solver for inverting the mass matrix M
    HypreSmoother M_prec; // Preconditioner for the mass matrix M
 
    //CGSolver T_solver;    // Implicit solver for T = M + dt K

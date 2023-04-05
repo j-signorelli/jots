@@ -4,8 +4,7 @@ using namespace std;
 
 JOTSDriver::JOTSDriver(const char* input_file, int myid)
 {   
-    const std::string line = "-------------------------------------------------------------------------------------------";
-    id = myid;
+    rank = myid;
     
     cout << line << endl;
     cout << R"(
@@ -23,14 +22,14 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
     //----------------------------------------------------------------------
     // Parse config file
     user_input = new Config(input_file);
-    if (myid == 0)
+    if (rank == 0)
       cout << "Configuration file " << input_file << " parsed successfully!" << endl;
     //----------------------------------------------------------------------
     // Read the serial mesh
     const char* mesh_file = user_input->GetMeshFile().c_str();
     Mesh* mesh = new Mesh(mesh_file, 1);//pass one to generate edges
     dim = mesh->Dimension();
-    if (myid == 0)
+    if (rank == 0)
     {
         cout << "Mesh File: " << mesh_file << endl;
         cout << "Problem Dimension: " << dim << endl;
@@ -41,17 +40,17 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
     {
         case TIME_SCHEME::EULER_IMPLICIT:
             ode_solver = new BackwardEulerSolver;
-            if (myid == 0)
+            if (rank == 0)
                 cout << "Time Scheme: Euler Implicit" << endl;
             break;
         case TIME_SCHEME::EULER_EXPLICIT:
             ode_solver = new ForwardEulerSolver;
-            if (myid == 0)
+            if (rank == 0)
                 cout << "Time Scheme: Euler Explicit" << endl;
             break;
         case TIME_SCHEME::RK4:
             ode_solver = new RK4Solver;
-            if (myid == 0)
+            if (rank == 0)
                 cout << "Time Scheme: RK4" << endl;
             break;
     }
@@ -63,7 +62,7 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
         mesh->UniformRefinement();
     }
 
-    if (myid == 0)
+    if (rank == 0)
         if (ser_ref > 1)
             cout << "Serial refinements of mesh completed: " << ser_ref << endl;
         else
@@ -81,7 +80,7 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
         pmesh->UniformRefinement();
     }
 
-    if (myid == 0)
+    if (rank == 0)
         if (par_ref > 1)
             cout << "Parallel refinements of mesh completed: " << par_ref << endl;
         else
@@ -98,7 +97,7 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
 
     HYPRE_BigInt fe_size = fespace->GlobalTrueVSize();
 
-    if (myid == 0)
+    if (rank == 0)
     {
         cout << "Number of temperature unknowns: " << fe_size << endl;
     }
@@ -106,7 +105,7 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
     T_gf = new ParGridFunction(fespace);
     //----------------------------------------------------------------------
     // Print the material properties and conductivity model
-    if (myid == 0)
+    if (rank == 0)
     {   
         cout << "\n\n";
         cout << "Density: " << user_input->GetDensity() << endl;
@@ -131,14 +130,14 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
         // Project that coefficient onto the GridFunction
         T_gf->ProjectCoefficient(T_0);
 
-        if (myid == 0)
+        if (rank == 0)
             cout << "Non-restart simulation --> Initial temperature field: " << user_input->GetInitialTemp() << endl;
 
     }
     else //else ARE using restart file
     {
         //TODO:
-        if (myid == 0)
+        if (rank == 0)
             cout << "Restarted simulation --> Restart file: " << user_input->GetRestartFile() << endl;
 
     }
@@ -148,7 +147,7 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
     {   
         BoundaryCondition* bc = user_input->GetBCs()[i];
 
-        if (myid == 0)
+        if (rank == 0)
         {
             cout << "Boundary Attribute " << i+1 << ": ";
             switch (bc->GetType())
@@ -167,9 +166,14 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
     //----------------------------------------------------------------------
     // Declare vector for holding true DOFs + instantiate ConductionOperator, sending all necessary parameters
     T_gf->GetTrueDofs(T);
+    if (rank == 0)
+    {
+        cout << line << endl;
+        cout << "Initializing operator... ";
+    }
     oper = new ConductionOperator(user_input, *fespace, user_input->GetStartTime());// Needs BCs, FESpace, and initial time
-
-    cout << line << endl;
+    if (rank == 0)
+        cout << "Done!" << endl;
 }
 
 void JOTSDriver::Run()
@@ -179,9 +183,12 @@ void JOTSDriver::Run()
     double tf = user_input->GetFinalTime();
 
     // Initialize the ODE Solver
-    cout << "Initializing solver...";
+    if (rank == 0)
+        cout << "Initializing solver...";
     ode_solver->Init(*oper);
-    cout << " Done!" << endl;
+    
+    if (rank == 0)
+        cout << " Done!" << endl;
 
     double time = t0;
     int it_num = 0;
@@ -197,8 +204,7 @@ void JOTSDriver::Run()
     paraview_dc.RegisterField("Temperature",T_gf);
     paraview_dc.Save();
 
-
-    while (time <= tf)//Main Solver Loop
+    while (time < tf)//Main Solver Loop- TODO: Fix this
     {
 
         // Apply the BCs
@@ -212,14 +218,21 @@ void JOTSDriver::Run()
         it_num += 1;
 
         // Print current timestep information:
-        if (id == 0)
-            printf("Step #%10i || Time: %10.5g/%-10.5g || Max Temperature: %10.3g \n", it_num, time, tf,  T.Max());
+        if (rank == 0)
+            printf("Step #%10i || Time: %10.5g out of %-10.5g || dt: %10.5g || Rank 0 Max Temperature: %10.3g \n", it_num, time, tf,  dt, T.Max());
             //cout << "Step #" << it_num << " || t = " << time << "||" << "Rank 0 Max T: " << T.Max() << endl;
         
+	if (T.Max() > 1e10)
+	{
+        if (rank == 0)
+	        cout << "Error: JOTS has diverged" << endl;
+	    return; // TODO: Have main return nonzero value
+	}
 
         if (it_num % user_input->GetVisFreq() == 0)
         {
-            cout << "Saving Paraview Data..." << endl;
+            if (rank == 0)
+                cout << line << endl << "Saving Paraview Data..." << endl << line << endl;
             // Save data in the ParaView format
             T_gf->SetFromTrueDofs(T);
             paraview_dc.SetCycle(it_num);

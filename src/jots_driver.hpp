@@ -11,7 +11,9 @@ using namespace mfem;
 class JOTSDriver
 {
     private:
-        int id;
+        const std::string line = "-------------------------------------------------------------------------------------------";
+
+	    int rank;
 
         Config* user_input;
         int dim;

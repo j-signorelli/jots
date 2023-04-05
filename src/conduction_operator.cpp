@@ -24,10 +24,10 @@ ConductionOperator::ConductionOperator(Config* in_config, ParFiniteElementSpace 
       M_solver(f.GetComm()),
       //T_solver(f.GetComm()),
       user_input(in_config),
-      z(height)// what is height??
+      z(height)
 {
-   const double rel_tol = 1e-8;
-
+   const double rel_tol = 1e-16;
+   const double abs_tol = 1e-10;
    // Assemble parallel bilinear form for mass matrix (does not change in time)
    M = new ParBilinearForm(&fespace);
 
@@ -69,10 +69,10 @@ ConductionOperator::ConductionOperator(Config* in_config, ParFiniteElementSpace 
    // Set up the solver we will use to invert Mmat
    M_solver.iterative_mode = false; // If true, would use second argument of Mult() as initial guess; here it is set to false
    M_solver.SetRelTol(rel_tol); // Sets "relative tolerance" of iterative solver
-   M_solver.SetAbsTol(0.0); // Sets "absolute tolerance" of iterative solver
-   M_solver.SetMaxIter(100); // Sets maximum number of iterations
+   M_solver.SetAbsTol(abs_tol); // Sets "absolute tolerance" of iterative solver
+   //M_solver.SetMaxIter(100); // Sets maximum number of iterations
    M_solver.SetPrintLevel(0); // Print all information about detected issues
-   M_prec.SetType(HypreSmoother::Jacobi); // Set type of preconditioning (relaxation type) 
+   M_prec.SetType(HypreSmoother::Chebyshev); // Set type of preconditioning (relaxation type) 
    M_solver.SetPreconditioner(M_prec); // Set preconditioner to matrix inversion solver
    M_solver.SetOperator(Mmat); // Set solver for given operator
    // Now have successfully created matrix Mmat
@@ -101,10 +101,17 @@ void ConductionOperator::Mult(const Vector &u, Vector &du_dt) const
    z.Neg();
 
    // Add boundary term (for Neumann BCs)
-   z += *b;
+   // z += *b;
 
 
    M_solver.Mult(z, du_dt);
+
+   /*
+   for (int i = 0; i < du_dt.Size(); i++)
+   {
+      cout << "du_dt[" << i << "] = " << du_dt[i] << endl;
+   }
+   */
 }
 
 /* TODO:
