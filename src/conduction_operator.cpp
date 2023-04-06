@@ -5,9 +5,9 @@ using namespace std;
 
 /** After spatial discretization, the conduction model can be written as:
  *
- *     du/dt = M^{-1}(-Ku + boundary_terms)
+ *     du/dt = m^{-1}(-Ku + boundary_terms)
  *
- *  where u is the vector representing the temperature, M is the mass matrix,
+ *  where u is the vector representing the temperature, m is the mass matrix,
  *  and K is the stiffness matrix
  *
  *  Class ConductionOperator represents the right-hand side of the above ODE.
@@ -16,25 +16,26 @@ ConductionOperator::ConductionOperator(Config* in_config, ParFiniteElementSpace 
    :  TimeDependentOperator(f.GetTrueVSize(), t_0),
       fespace(f),
       k_coeff(NULL),
-      M(NULL), 
-      K(NULL),
+      m(NULL), 
+      k(NULL),
       b(NULL),
       //T(NULL),
       //current_dt(t_0),
-      M_solver(f.GetComm()),
+      solver(f.GetComm()),
       //T_solver(f.GetComm()),
       user_input(in_config),
       z(height)
 {
    const double rel_tol = 1e-16;
    const double abs_tol = 1e-10;
-   // Assemble parallel bilinear form for mass matrix (does not change in time)
-   M = new ParBilinearForm(&fespace);
+
+   // Assemble parallel bilinear form for mass matrix now (this does not change in time)
+   m = new ParBilinearForm(&fespace);
 
    // Add the domain integral with included rho*Cp coefficient everywhere
    ConstantCoefficient rhoCp(user_input->GetDensity()*user_input->GetCp());
-   M->AddDomainIntegrator(new MassIntegrator(rhoCp));
-   M->Assemble(0); // keep sparsity pattern of M and K the same <-- TODO: understand why 0 is here
+   m->AddDomainIntegrator(new MassIntegrator(rhoCp));
+   m->Assemble(0); // keep sparsity pattern of m and k the same
    
    // Set the list of Dirichlet (essential) DOFs
    Array<int> dbc_bdr(in_config->GetBCCount());
@@ -63,19 +64,23 @@ ConductionOperator::ConductionOperator(Config* in_config, ParFiniteElementSpace 
    // Get the essential true dofs, given the Dirichlet boundaries. Store in ess_tdof_list
    fespace.GetEssentialTrueDofs(dbc_bdr, ess_tdof_list);
    
-   // Form the linear system matrix/operator accounting for the essential true DOFs, store in Mmat
-   M->FormSystemMatrix(ess_tdof_list, Mmat);
+
+   // Form the linear system matrix/operator, store in Mmat
+   m->FormSystemMatrix(ess_tdof_list, M);
    
-   // Set up the solver we will use to invert Mmat
-   M_solver.iterative_mode = false; // If true, would use second argument of Mult() as initial guess; here it is set to false
-   M_solver.SetRelTol(rel_tol); // Sets "relative tolerance" of iterative solver
-   M_solver.SetAbsTol(abs_tol); // Sets "absolute tolerance" of iterative solver
-   M_solver.SetMaxIter(100); // Sets maximum number of iterations
-   M_solver.SetPrintLevel(0); // Print all information about detected issues
-   M_prec.SetType(HypreSmoother::Chebyshev); // Set type of preconditioning (relaxation type) 
-   M_solver.SetPreconditioner(M_prec); // Set preconditioner to matrix inversion solver
-   M_solver.SetOperator(Mmat); // Set solver for given operator
-   // Now have successfully created matrix Mmat
+   // Set up the solver
+   solver.iterative_mode = false; // If true, would use second argument of Mult() as initial guess; here it is set to false
+
+   solver.SetRelTol(rel_tol); // Sets "relative tolerance" of iterative solver
+   solver.SetAbsTol(abs_tol); // Sets "absolute tolerance" of iterative solver
+   solver.SetMaxIter(100); // Sets maximum number of iterations
+
+   solver.SetPrintLevel(0); // Print all information about detected issues
+
+   prec.SetType(HypreSmoother::Chebyshev); // Set type of preconditioning (relaxation type) 
+   solver.SetPreconditioner(prec); // Set preconditioner to matrix inversion solver
+
+   solver.SetOperator(M); // Set matrix/operator M as the LHS for the solver
 
 
    // Now set up the solver we will use for implicit time integration
@@ -96,16 +101,18 @@ void ConductionOperator::Mult(const Vector &u, Vector &du_dt) const
    //    du/dt = M^{-1}(-Ku + boundary_terms)
    // for du_dt
 
-   // Complete multiplication
-   Kmat.Mult(u, z);
+   // Complete multiplication of Ku
+   K.Mult(u, z);
    z.Neg();
 
    // Add boundary term (for Neumann BCs)
-   z += *b;
+   //z += *b;
+   //m->FormLinearSystem(ess_tdof_list, z, )
+   // Solver M^-1, then multiply M^-1 * z
+   solver.Mult(z, du_dt);
 
-
-   M_solver.Mult(z, du_dt);
-
+   //test:
+   //du_dt.SetSubVector(ess_tdof_list, 0.0);
 }
 
 /* TODO:
@@ -137,15 +144,15 @@ void ConductionOperator::SetThermalConductivities(const Vector &u)
    delete k_coeff;
 
    // Assemble the parallel bilinear form for stiffness matrix
-   K = new ParBilinearForm(&fespace);
+   k = new ParBilinearForm(&fespace);
 
    // Apply thermal conductivity model to get appropriate coefficient \lambda in Diffusion integrator
    k_coeff = user_input->GetConductivityModel()->ApplyModel(&fespace,u);
 
-   // Create stiffness matrix Kmat with applied thermal conductivity model 
-   K->AddDomainIntegrator(new DiffusionIntegrator(*k_coeff));
-   K->Assemble(0); // keep sparsity pattern of M and K the same
-   K->FormSystemMatrix(ess_tdof_list, Kmat);
+   // Add domain integrator to the bilinear form, and then obtain a system matrix K
+   k->AddDomainIntegrator(new DiffusionIntegrator(*k_coeff));
+   k->Assemble(0); // keep sparsity pattern of m and k the same
+   k->FormSystemMatrix(ess_tdof_list, K); // Create Operator K
 
    //delete T;
    //T = NULL; // re-compute T on the next ImplicitSolve
@@ -201,7 +208,7 @@ ConductionOperator::~ConductionOperator()
       delete all_bdr_coeffs[i];
    delete k_coeff;
    delete[] all_bdr_coeffs;
-   delete M;
+   delete m;
    delete K;
    delete b;
 }

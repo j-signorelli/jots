@@ -26,17 +26,17 @@ protected:
    Coefficient** all_bdr_coeffs;
    Coefficient* k_coeff;
    
-   ParBilinearForm *M;
-   ParBilinearForm *K;
+   ParBilinearForm *m;
+   ParBilinearForm *k;
    ParLinearForm *b;
 
-   HypreParMatrix Mmat;
-   HypreParMatrix Kmat;
+   HypreParMatrix M;
+   HypreParMatrix K;
    //HypreParMatrix *T; // T = M + dt K
    //double current_dt;
 
-   FGMRESSolver M_solver;    // FMGRES solver for inverting the mass matrix M
-   HypreSmoother M_prec; // Preconditioner for the mass matrix M
+   FGMRESSolver solver;    // FMGRES solver for inverting the mass matrix M
+   HypreSmoother prec; // Preconditioner for the mass matrix M
 
    //CGSolver T_solver;    // Implicit solver for T = M + dt K
    //HypreSmoother T_prec; // Preconditioner for the implicit solver

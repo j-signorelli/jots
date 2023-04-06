@@ -209,6 +209,13 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
 
     //----------------------------------------------------------------------
     // Declare vector for holding true DOFs + instantiate ConductionOperator, sending all necessary parameters
+    Array<int> test;
+    FunctionCoefficient death(test);
+    test.Append(1);
+    test.Append(1);
+    test.Append(1);
+    test.Append(1);
+    T_gf->ProjectBdrCoefficient(death, test);
     T_gf->GetTrueDofs(T);
     if (rank == 0)
     {
@@ -218,6 +225,11 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
     oper = new ConductionOperator(user_input, *fespace, user_input->GetStartTime());// Needs BCs, FESpace, and initial time
     if (rank == 0)
         cout << "Done!" << endl;
+}
+
+double test(Vector %x, double t)
+{
+    return 300;
 }
 
 void JOTSDriver::Run()
@@ -243,20 +255,36 @@ void JOTSDriver::Run()
     paraview_dc.SetLevelsOfDetail(user_input->GetFEOrder());
     paraview_dc.SetDataFormat(VTKFormat::BINARY);
     paraview_dc.SetHighOrderOutput(true);
-    paraview_dc.SetCycle(0);
-    paraview_dc.SetTime(t0);
-    paraview_dc.RegisterField("Temperature",T_gf);
-    paraview_dc.Save();
+    /*
+    Array<int> test;
+    ConstantCoefficient death(300);
+    test.Append(1);
+    test.Append(1);
+    test.Append(1);
+    test.Append(1);
+    T_gf->ProjectBdrCoefficient(death, test);
+    T_gf->GetTrueDofs(T);
+    */
+    //oper->ApplyBCs(T);
 
     while (time < tf)//Main Solver Loop- TODO: Fix this
     {
 
         // Apply the BCs
-        oper->ApplyBCs(T);
+        //oper->ApplyBCs(T);
 
         // Calculate thermal conductivities
         oper->SetThermalConductivities(T);
 
+        // Output IC:
+        if (it_num == 0)
+        {   
+            T_gf->SetFromTrueDofs(T);
+            paraview_dc.SetCycle(it_num);
+            paraview_dc.SetTime(t0);
+            paraview_dc.RegisterField("Temperature",T_gf);
+            paraview_dc.Save();
+        }
         // Step in time - time automatically updated
         ode_solver->Step(T, time, dt);
         it_num += 1;
