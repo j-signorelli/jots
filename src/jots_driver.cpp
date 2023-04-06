@@ -88,9 +88,13 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
 
     if (rank == 0)
     {
-        cout << "Mesh Boundary Arributes: <"
-        for (int i = 0; i < pmesh.bdr_attributes.Size(); i++)
-            cout << pmesh.bdr_attributes[i] << ",";
+        cout << "Mesh Boundary Arributes: <";
+        for (int i = 0; i < pmesh->bdr_attributes.Size(); i++)
+        {
+            if (i != 0)
+                cout << ",";
+            cout << pmesh->bdr_attributes[i];
+        }
 
         cout << ">" << endl;
     }
@@ -147,6 +151,40 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
 
     }
     //----------------------------------------------------------------------
+    // Confirm user input matches mesh bdr_attributes...
+
+    // Check count
+    if (pmesh->bdr_attributes.Size() != user_input->GetBCCount())
+    {
+        if (rank == 0)
+            cout << "Error: Input file BC count and mesh file BC counts do not match." << endl;
+        return; // TODO: Error handling
+    }
+    // Check one-to-oneness
+    for (size_t i = 0; i < user_input->GetBCCount(); i++)
+    {
+        int attr = pmesh->bdr_attributes[i];
+        bool one_to_one = true;
+
+        for (size_t j = 0; j < user_input->GetBCCount(); j++)
+        {
+            if (attr == user_input->GetBCs()[j]->GetBdrAttr())
+            {
+                one_to_one = true;
+                j = user_input->GetBCCount();
+            }
+        }
+        if (!one_to_one)
+        {   
+            if (rank == 0)
+                cout << "Error: No matching boundary attribute in mesh file for attribute " << attr << endl;
+            return;// TODO: Error handling
+        }
+    }
+
+    // Reorder BC array in Config to match bdr_attributes (ensures consistency when setting them)
+    user_input->ReorderBCs(pmesh->bdr_attributes);
+
     // Print BCs - they will just be sent to ConductionOperator
     for (size_t i = 0; i < user_input->GetBCCount(); i++)
     {   
@@ -168,33 +206,7 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
             cout << " --- Value: " << bc->GetValue() << endl;
         }
     }
-    // Verify that listed BCs match the boundary attributes in the mesh
-    
-    // Confirm user input matches mesh bdr_attributes
-    if (pmesh.bdr_attributes.Size() != user_input->GetBCCount())
-    {
-        cout << "Error: Input file BC count and mesh file BC counts do not match." << endl;
-        return; // TODO: Error handling
-    }
 
-    bool one_to_one = false;
-    for (size_t i < 0; i < user_input->GetBCCount(); i++)
-    {
-        int attr = user_input->GetBCs()[i];
-        one_to_one = true;
-
-        for (size_t j < 0; j < user_input->GetBCCount(); j++)
-        {
-            
-            if attr == user_input->GetBCCount()[j];
-                one_to_one = true;
-        }
-        if (!one_to_one)
-        {
-            cout << "Error: No matching boundary attribute in mesh file for attribute " << attr << endl;
-            return;// TODO: Error handling
-        }
-    }
     //----------------------------------------------------------------------
     // Declare vector for holding true DOFs + instantiate ConductionOperator, sending all necessary parameters
     T_gf->GetTrueDofs(T);

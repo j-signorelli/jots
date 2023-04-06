@@ -5,6 +5,7 @@
 #include "boost/foreach.hpp"
 #include "boost/algorithm/string/trim.hpp"
 #include "boost/algorithm/string.hpp"
+#include "mfem/mfem.hpp"
 
 #include "option_structure.hpp"
 #include "boundary_condition.hpp"
@@ -81,7 +82,7 @@ class Config
 
         int GetVisFreq() const { return vis_freq; }
 
-        std::string ToString() const;
+        void ReorderBCs(const mfem::Array<int> bdr_attributes);
 
         ~Config();
 

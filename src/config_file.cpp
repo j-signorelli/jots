@@ -107,6 +107,32 @@ Config::Config(const char* in_file) : input_file(in_file)
     t0 = 0;
 }
 
+void Config::ReorderBCs(mfem::Array<int> bdr_attributes)
+{
+    // Loop through bdr_attributes, swap pointers in the BoundaryConditions array as needed
+    for (int i = 0; i < bdr_attributes.Size(); i++)
+    {
+        if (bdr_attributes[i] == boundary_conditions[i]->GetBdrAttr())
+            continue;
+        else
+        {
+            BoundaryCondition* temp = boundary_conditions[i];
+
+            for (int j = 0; j < bc_count; j++)
+            {
+                if (bdr_attributes[i] == boundary_conditions[j]->GetBdrAttr())
+                {
+                    boundary_conditions[i] = boundary_conditions[j];
+                    boundary_conditions[j] = temp;
+                    j = bc_count;
+
+                }
+            }
+
+        }
+    }
+}
+
 Config::~Config()
 {
     delete cond_model;
@@ -115,28 +141,3 @@ Config::~Config()
 
     delete[] boundary_conditions;
 }
-/* OLD: used to debug
-string Config::ToString() const
-{
-    string s = "";
-    s += "Mesh File: " + m_mesh_file + "\n";
-    s += "FE Order: " + to_string(m_fe_order) + "\n";
-    s += "Serial Refine: " + to_string(m_serial_refine) + "\n";
-    s += "Parallel Refine: " + to_string(m_parallel_refine) + "\n";
-    s += "Kappa: " + to_string(m_kappa) + "\n";
-    
-    for (int i = 0; i < m_boundary_conditions.size(); i++)
-    {
-        int type = static_cast<int>(get<0>(m_boundary_conditions.at(i+1))); //.at is used here instead of [] as [] is non const, while this fxn is meant to be const
-        double value = get<1>(m_boundary_conditions.at(i+1));
-        s += "Boundary " + to_string(i+1) + " Type, Value: " + to_string(type) + ", " + to_string(value) + "\n";
-    }
-    s += "Time Scheme: " + to_string(static_cast<int>(m_time_scheme)) + "\n";
-    s += "dt: " + to_string(m_dt) + "\n";
-    s += "tf: " + to_string(m_tf) + "\n";
-    s += "Restart Freq: " + to_string(m_restart_freq) + "\n";
-    s += "Visualization Freq: " + to_string(m_vis_freq) + "\n";
-
-    return s;
-}
-*/
