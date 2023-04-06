@@ -2,10 +2,15 @@
 
 #include "boost/property_tree/ptree.hpp"
 #include "boost/property_tree/ini_parser.hpp"
+#include "boost/foreach.hpp"
+#include "boost/algorithm/string/trim.hpp"
+#include "boost/algorithm/string.hpp"
 
 #include "option_structure.hpp"
 #include "boundary_condition.hpp"
 #include "conductivity_model.hpp"
+
+
 class Config
 {
     private:
@@ -25,7 +30,7 @@ class Config
         std::string restart_file;          /*!< \brief Restart file to load + use; only read if use_restart is true */
         double initial_temp;          /*!< \brief Initial temperature field to set; only used if use_restart is false */
 
-        BoundaryCondition** boundary_conditions; /*!< \brief Array where index = boundary attribute - 1, value = BoundaryCondition object */
+        BoundaryCondition** boundary_conditions; /*!< \brief Array containing BoundaryConditions objects, value = ptr to BoundaryCondition object */
         size_t bc_count;
 
         TIME_SCHEME time_scheme;      /*!< \brief Time integration scheme to use */
@@ -35,8 +40,7 @@ class Config
 
         int restart_freq;             /*!< \brief Frequency to output restart files (iterations per output) */
         int vis_freq;                 /*!< \brief Frequency to output Paraview files (iterations per output) */
-        
-    
+
     public:
         Config(const char* in_file);
 

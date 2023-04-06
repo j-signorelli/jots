@@ -70,7 +70,7 @@ ConductionOperator::ConductionOperator(Config* in_config, ParFiniteElementSpace 
    M_solver.iterative_mode = false; // If true, would use second argument of Mult() as initial guess; here it is set to false
    M_solver.SetRelTol(rel_tol); // Sets "relative tolerance" of iterative solver
    M_solver.SetAbsTol(abs_tol); // Sets "absolute tolerance" of iterative solver
-   //M_solver.SetMaxIter(100); // Sets maximum number of iterations
+   M_solver.SetMaxIter(100); // Sets maximum number of iterations
    M_solver.SetPrintLevel(0); // Print all information about detected issues
    M_prec.SetType(HypreSmoother::Chebyshev); // Set type of preconditioning (relaxation type) 
    M_solver.SetPreconditioner(M_prec); // Set preconditioner to matrix inversion solver
@@ -101,17 +101,11 @@ void ConductionOperator::Mult(const Vector &u, Vector &du_dt) const
    z.Neg();
 
    // Add boundary term (for Neumann BCs)
-   // z += *b;
+   z += *b;
 
 
    M_solver.Mult(z, du_dt);
 
-   /*
-   for (int i = 0; i < du_dt.Size(); i++)
-   {
-      cout << "du_dt[" << i << "] = " << du_dt[i] << endl;
-   }
-   */
 }
 
 /* TODO:

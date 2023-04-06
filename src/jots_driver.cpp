@@ -160,6 +160,8 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
             cout << " --- Value: " << bc->GetValue() << endl;
         }
     }
+    // Verify that listed BCs match the boundary attributes in the mesh
+    
     //----------------------------------------------------------------------
     // Declare vector for holding true DOFs + instantiate ConductionOperator, sending all necessary parameters
     T_gf->GetTrueDofs(T);

@@ -20,7 +20,7 @@ Config::Config(const char* in_file) : input_file(in_file)
     fe_order = property_tree.get<int>("FiniteElementSetup.FE_Order");
     serial_refine = property_tree.get<int>("FiniteElementSetup.Serial_Refine");
     parallel_refine = property_tree.get<int>("FiniteElementSetup.Parallel_Refine");
-
+    
 
     // Read MaterialProperties
     density = property_tree.get<double>("MaterialProperties.Density");
@@ -52,26 +52,47 @@ Config::Config(const char* in_file) : input_file(in_file)
         restart_file = property_tree.get<string>("InitialCondition.Restart_File");
     }
     // Read BoundaryConditions
-    bc_count = property_tree.get_child("BoundaryConditions").size()/2;
+    bc_count = property_tree.get_child("BoundaryConditions").size();
     boundary_conditions = new BoundaryCondition*[bc_count];
-    for (int i = 0; i < bc_count; i++)
-    {
-        // For now: just assume each BC type has a type and a value. May update in future
-        BOUNDARY_CONDITION type = Boundary_Condition_Map.at(property_tree.get<string>("BoundaryConditions.Boundary_" + to_string(i+1)  + "_Type"));
-        double value =  property_tree.get<double>("BoundaryConditions.Boundary_" + to_string(i+1)  + "_Value");
+    int index = 0;
+    BOOST_FOREACH(const bp::ptree::value_type &v , property_tree.get_child("BoundaryConditions"))
+    {   
+        // Get the attribute:
+        char s_attr = v.first.back();
+        int attr = atoi(&s_attr);
+
+        // Get the BC type:
+        vector<string> bc_info;
+        boost::algorithm::split(bc_info, v.second.data(), boost::algorithm::is_any_of(","));
+        
+        // Clear out any leading or trailing white space
+        boost::algorithm::trim(bc_info[0]);
+        boost::algorithm::trim(bc_info[1]);
+
+        // Get the value set
+        double value =  stod(bc_info[1].c_str());
+
+        // Set the BC
+        BOUNDARY_CONDITION type = Boundary_Condition_Map.at(bc_info[0]);
         
         switch (type)
         {
             case BOUNDARY_CONDITION::HEATFLUX:
-                boundary_conditions[i] = new UniformHeatFluxBC(value);
+                boundary_conditions[index] = new UniformHeatFluxBC(attr, value);
                 break;
             case BOUNDARY_CONDITION::ISOTHERMAL:
-                boundary_conditions[i] = new UniformIsothermalBC(value);
+                boundary_conditions[index] = new UniformIsothermalBC(attr, value);
                 break;
 
         }
+
+        index++;
+        
+        
         
     }
+
+    // TODO: Read LinearSystemSettings
 
     // Read TimeIntegration
     time_scheme = Time_Scheme_Map.at(property_tree.get<string>("TimeIntegration.Time_Scheme"));
