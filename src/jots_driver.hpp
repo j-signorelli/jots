@@ -10,7 +10,7 @@ using namespace mfem;
 
 class JOTSDriver
 {
-    private:
+    protected:
         const std::string line = "-------------------------------------------------------------------------------------------";
 
 	    int rank;
@@ -26,11 +26,13 @@ class JOTSDriver
 
         
         ConductionOperator* oper;
+
+
     public:
         JOTSDriver(const char* input_file, int myid);
         void Run();
 
         ~JOTSDriver();
 
-    protected:
+    private:
 };

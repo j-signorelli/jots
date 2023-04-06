@@ -14,6 +14,7 @@ class BoundaryCondition
 
     public:
         BoundaryCondition(int attr, double in_value, BOUNDARY_CONDITION in_type) : bdr_attr(attr), value(in_value), bc_type(in_type) {};
+        int GetBdrAttr() const { return bdr_attr; }
         BOUNDARY_CONDITION GetType() const { return bc_type; };
         double GetValue() const { return value; };
         virtual bool IsEssential() const = 0;
