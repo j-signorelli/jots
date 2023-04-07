@@ -5,7 +5,7 @@ Known bugs:
 - We need to understand exactly what is being recommended in the Github discussion bookmarked:
 	- Mmat is created from FormSystemMatrix, which eliminates essential DOFs from M from bilinear form and saves it in M_e (where M and M_e are private member variables of bilinear form)
 	- Kmat is created from FormSystemMatrix, which eliminates essential DOFs from M from bilinear form and saves it in M_e (where M and M_e are private member variables of bilinear form)
-	- u is the primal vector, without any applied essential BCs - so are only rows and not columns removed from Kmat? --> Must be!
+	- u is the primal vector, without any applied essential BCs - so how can we multiply a reduced matrix Kmat by u??? 
 	- Then see the Github for z, which is this eliminated essential BC matrix times u. As per the Github, this is not what we want. I can dig deeper into this tomorrow.
 	- 
 
