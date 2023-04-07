@@ -108,7 +108,7 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
 
     if (rank == 0)
     {
-        cout << "Number of temperature unknowns: " << fe_size << endl;
+        cout << "Number of temperature nodes: " << fe_size << endl;
     }
 
     T_gf = new ParGridFunction(fespace);
@@ -209,13 +209,15 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
 
     //----------------------------------------------------------------------
     // Declare vector for holding true DOFs + instantiate ConductionOperator, sending all necessary parameters
+    /*
     Array<int> test;
-    FunctionCoefficient death(test);
+    ConstantCoefficient death(300);
     test.Append(1);
     test.Append(1);
     test.Append(1);
     test.Append(1);
     T_gf->ProjectBdrCoefficient(death, test);
+    */
     T_gf->GetTrueDofs(T);
     if (rank == 0)
     {
@@ -225,11 +227,6 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
     oper = new ConductionOperator(user_input, *fespace, user_input->GetStartTime());// Needs BCs, FESpace, and initial time
     if (rank == 0)
         cout << "Done!" << endl;
-}
-
-double test(Vector %x, double t)
-{
-    return 300;
 }
 
 void JOTSDriver::Run()
@@ -274,8 +271,7 @@ void JOTSDriver::Run()
         //oper->ApplyBCs(T);
 
         // Calculate thermal conductivities
-        oper->SetThermalConductivities(T);
-
+        //oper->SetThermalConductivities(T);
         // Output IC:
         if (it_num == 0)
         {   
@@ -285,6 +281,10 @@ void JOTSDriver::Run()
             paraview_dc.RegisterField("Temperature",T_gf);
             paraview_dc.Save();
         }
+
+        // Preprocess (Apply BCs, calculate stiffness matrix, set up LS)
+        oper->Preprocess(T, dt);
+
         // Step in time - time automatically updated
         ode_solver->Step(T, time, dt);
         it_num += 1;

@@ -44,9 +44,18 @@ protected:
    Config* user_input; // Not allocated here
 
    //Vector* b_vec; // Vector for enforcing Neumann BCs
-   mutable Vector z; // auxiliary vector
-
    
+   Vector du_dt_dbc; // Vector of projected coefficients on boundaries
+   mutable Vector DU_DT; // Vector of DOFs w/ removed essential BCs - mutable so it may be solved for in const function
+   Vector r; // Vector that holds entire RHS without removed essential DOFs
+   Vector R; // Vector of RHS w/ removed essential DOFs
+
+   /// Update the diffusion BilinearForm K using the given true-dof vector `u` based on specified model.
+   void SetThermalConductivities(const Vector &u);
+
+   // Apply the given boundary conditions
+   void ApplyBCs(Vector &u, double dt);
+
 public:
    ConductionOperator(Config* in_config, ParFiniteElementSpace &f, double t_0);
 
@@ -56,11 +65,7 @@ public:
        This is the only requirement for high-order SDIRK implicit integration.*/
    //void ImplicitSolve(const double dt, const Vector &u, Vector &k);
 
-   /// Update the diffusion BilinearForm K using the given true-dof vector `u` based on specified model.
-   void SetThermalConductivities(const Vector &u);
-
-   // Apply the given boundary conditions
-   void ApplyBCs(Vector &u);
-
+   void Preprocess(Vector &u, double dt);
+   
    ~ConductionOperator();
 };
