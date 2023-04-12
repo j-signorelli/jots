@@ -3,7 +3,7 @@
 Start with the unsteady thermal conduction equation, applying the following assumptions:
 
 1. Density $\rho$ and specific heat $C_p$ are uniform (constant in space and time)
-2. We allow for thermal conductivity $k$ to vary as a function of temperature: $k=k(T(x,y,z,t))$
+2. We assume isotropic thermal conductivity $k$ but allow for it to vary as a function of temperature: $k=k(T(x,y,z,t))$
 3. No heat generation
 
 This yields:
@@ -53,6 +53,6 @@ $$M_{ij}\dfrac{dT_j}{dt} + K_{ij}T_j = \int_{\partial \Omega} g\phi_j d\vec{x}$$
 
 Finally, we can rewrite this as:
 
-$$\dfrac{dT_j}{dt} = M_{ij}^{-1} \left( -K_{ij}T_j + \int_{\partial \Omega} g\phi_j d\vec{x}\right)$$
+$$\dfrac{dT_i}{dt} = M_{ik}^{-1} \left( -K_{kj}T_j + \int_{\partial \Omega} g\phi_i d\vec{x}\right)$$
 
 Note that the boundary integral term is a linear form that must be added to enforce Neumann BCs.
