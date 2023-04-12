@@ -23,10 +23,7 @@ ConductionOperator::ConductionOperator(Config* in_config, ParFiniteElementSpace 
       //current_dt(t_0),
       solver(f.GetComm()),
       //T_solver(f.GetComm()),
-      user_input(in_config),
-      z(height)
-      //du_dt_dbc(height),
-      //r(height)
+      user_input(in_config)
 {
 
    
@@ -129,51 +126,6 @@ void ConductionOperator::PreprocessSolver()
 
 }
 
-void ConductionOperator::Mult(const Vector &u, Vector &du_dt) const
-{
-   // Compute:
-   //    du/dt = M^{-1}(-Ku + boundary_terms)
-   // for du_dt
-
-   // Complete multiplication of Ku
-   K.Mult(u, z);
-   z.Neg();
-
-   // Add boundary term (for Neumann BCs)
-   //z += *b->ParallelAssemble();
-   
-   // Solve the linear system of no essential DOFs
-   //solver.Mult(R, DU_DT);
-
-   // Recover du_dt from it
-   //m->RecoverFEMSolution(DU_DT, r, du_dt);
- 
-   // Solver M^-1, then multiply M^-1 * z
-   solver.Mult(z, du_dt);
-}
-
-/* TODO:
-void ConductionOperator::ImplicitSolve(const double dt,
-                                       const Vector &u, Vector &du_dt)
-{
-   // Solve the equation:
-   //    du_dt = M^{-1}*[-K(u + dt*du_dt)]
-   // for du_dt, where K is linearized by using u from the previous timestep
-
-   // ^Must do externally
-   if (!T)
-   {
-      T = Add(1.0, Mmat, dt, Kmat);
-      current_dt = dt;
-      T_solver.SetOperator(*T);
-   }
-   MFEM_VERIFY(dt == current_dt, ""); // SDIRK methods use the same dt
-   Kmat.Mult(u, z);
-   z.Neg();
-   T_solver.Mult(z, du_dt);
-}
-*/
-
 void ConductionOperator::PreprocessIteration(Vector &u, double curr_time)
 {
    // Apply BCs
@@ -187,17 +139,21 @@ void ConductionOperator::ApplyBCs(Vector &u, double curr_time)
 {
 
    // Update time-dependent coefficients with current time
+   // Also project essential coefficients onto u
+   bool changed = false;
    for (size_t i = 0; i < user_input->GetBCCount(); i++)
    {
       if (!user_input->GetBCs()[i]->IsConstant()) // If not constant in time
       {
          // Set coefficient's time to current time
          all_bdr_coeffs[i]->SetTime(curr_time);
+         changed = true;
       }
    }
 
    // Reassemble linear form b with updated coeffs
-   b->Assemble();
+   if (changed)
+      b->Assemble();
 
 
    /*
@@ -233,6 +189,76 @@ void ConductionOperator::ApplyBCs(Vector &u, double curr_time)
    */
 }
 
+
+void ConductionOperator::Mult(const Vector &u, Vector &du_dt) const
+{
+   // Compute:
+   //    du/dt = M^{-1}(-Ku + boundary_terms)
+   // for du_dt
+
+   // Create auxiliary ParLinearForm to store dual vector values
+   ParLinearForm z(&fespace);
+
+   // Complete multiplication of ParBilinearForm with primal vector for dual vector z
+   k->Mult(u, z);
+
+   z.Neg(); // z = -z
+
+   // Add Neumann ParLinearForm term
+   z.Add(1, *b);
+
+   // Now have RHS (as required dual vector / ParLinearForm)!
+
+   // Enforce appropriate du_dt Dirichlet
+   ParGridFunction tmp_du_dt(&fespace);
+   tmp_du_dt = 0.0; // For now enforce this as constant Dirichlet
+
+   // Auxiliary variables
+   OperatorPtr A;
+   Vector B;// X;
+
+   // Form Linear System
+   m->FormLinearSystem(ess_tdof_list, tmp_du_dt, z, A, du_dt, B);
+
+
+   // Solver M^-1, then multiply M^-1 * z
+   solver.Mult(B, du_dt);
+
+   /*
+   //----------------------------------------------------------
+   // TODO: Check this more below, Rob just does above Mult with X=du_dt
+   //       I believe that below is more generalized
+   // Recover the solution as a ParGridFunction
+   m->RecoverFEMSolution(X, z, tmp_du_dt);
+
+   // Set new DOFs
+   tmp_du_dt.GetTrueDofs(du_dt);
+   */
+
+}
+
+/* TODO:
+void ConductionOperator::ImplicitSolve(const double dt,
+                                       const Vector &u, Vector &du_dt)
+{
+   // Solve the equation:
+   //    du_dt = M^{-1}*[-K(u + dt*du_dt)]
+   // for du_dt, where K is linearized by using u from the previous timestep
+
+   // ^Must do externally
+   if (!T)
+   {
+      T = Add(1.0, Mmat, dt, Kmat);
+      current_dt = dt;
+      T_solver.SetOperator(*T);
+   }
+   MFEM_VERIFY(dt == current_dt, ""); // SDIRK methods use the same dt
+   Kmat.Mult(u, z);
+   z.Neg();
+   T_solver.Mult(z, du_dt);
+}
+*/
+
 void ConductionOperator::SetThermalConductivities(const Vector &u)
 {  
    // TODO: Update this to use BilinearForm::Update since coefficient can be presumed time-dependent
@@ -249,8 +275,9 @@ void ConductionOperator::SetThermalConductivities(const Vector &u)
    // Add domain integrator to the bilinear form //, and then obtain a system matrix K
    k->AddDomainIntegrator(new DiffusionIntegrator(*k_coeff));
    k->Assemble(0); // keep sparsity pattern of m and k the same
+   k->Finalize(0);
 
-   k->FormSystemMatrix(ess_tdof_list, K); // Create Operator K
+   //k->FormSystemMatrix(ess_tdof_list, K); // Create Operator K
 
    //delete T;
    //T = NULL; // re-compute T on the next ImplicitSolve
@@ -265,6 +292,6 @@ ConductionOperator::~ConductionOperator()
    delete k_coeff;
    delete[] all_bdr_coeffs;
    delete m;
-   delete K;
+   //delete K;
    delete b;
 }

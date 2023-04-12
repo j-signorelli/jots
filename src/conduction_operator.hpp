@@ -31,7 +31,7 @@ protected:
    ParLinearForm *b;
 
    HypreParMatrix M;
-   HypreParMatrix K;
+   //HypreParMatrix K;
    //HypreParMatrix *T; // T = M + dt K
    //double current_dt;
 
@@ -42,8 +42,6 @@ protected:
    //HypreSmoother T_prec; // Preconditioner for the implicit solver
 
    Config* user_input; // Not allocated here
-
-   mutable Vector z;
    /*
    //Vector* b_vec; // Vector for enforcing Neumann BCs
    

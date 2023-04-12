@@ -266,7 +266,6 @@ void JOTSDriver::Run()
 
     while (time < tf)//Main Solver Loop- TODO: Fix this
     {
-
         // Apply the BCs + calculate thermal conductivities
         oper->PreprocessIteration(T, dt);
         // Output IC:
@@ -278,9 +277,6 @@ void JOTSDriver::Run()
             paraview_dc.RegisterField("Temperature",T_gf);
             paraview_dc.Save();
         }
-
-        // Preprocess (Apply BCs, calculate stiffness matrix, set up LS)
-        //oper->Preprocess(T, dt);
 
         // Step in time - time automatically updated
         ode_solver->Step(T, time, dt);
@@ -298,7 +294,7 @@ void JOTSDriver::Run()
 	    return; // TODO: Error handling
 	}
 
-        if (it_num % user_input->GetVisFreq() == 0)
+        if (it_num % user_input->GetVisFreq() == 0) // TODO: VisFreq must be nonzero
         {
             if (rank == 0)
                 cout << line << endl << "Saving Paraview Data..." << endl << line << endl;
