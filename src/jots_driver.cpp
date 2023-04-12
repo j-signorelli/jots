@@ -267,11 +267,8 @@ void JOTSDriver::Run()
     while (time < tf)//Main Solver Loop- TODO: Fix this
     {
 
-        // Apply the BCs
-        //oper->ApplyBCs(T);
-
-        // Calculate thermal conductivities
-        //oper->SetThermalConductivities(T);
+        // Apply the BCs + calculate thermal conductivities
+        oper->PreprocessIteration(T, dt);
         // Output IC:
         if (it_num == 0)
         {   
@@ -283,7 +280,7 @@ void JOTSDriver::Run()
         }
 
         // Preprocess (Apply BCs, calculate stiffness matrix, set up LS)
-        oper->Preprocess(T, dt);
+        //oper->Preprocess(T, dt);
 
         // Step in time - time automatically updated
         ode_solver->Step(T, time, dt);

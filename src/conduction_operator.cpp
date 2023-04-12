@@ -24,65 +24,15 @@ ConductionOperator::ConductionOperator(Config* in_config, ParFiniteElementSpace 
       solver(f.GetComm()),
       //T_solver(f.GetComm()),
       user_input(in_config),
-      du_dt_dbc(height),
-      r(height)
+      z(height)
+      //du_dt_dbc(height),
+      //r(height)
 {
-   const double rel_tol = 1e-16;
-   const double abs_tol = 1e-10;
 
-   // Assemble parallel bilinear form for mass matrix
-   m = new ParBilinearForm(&fespace);
-
-   // Add the domain integral with included rho*Cp coefficient everywhere
-   ConstantCoefficient rhoCp(user_input->GetDensity()*user_input->GetCp());
-   m->AddDomainIntegrator(new MassIntegrator(rhoCp));
-   m->Assemble(0); // keep sparsity pattern of m and k the same
    
-   // Set the list of Dirichlet (essential) DOFs
-   Array<int> dbc_bdr(in_config->GetBCCount());
-   dbc_bdr = 0; // Initialize with all attributes set to non-essential = 0
+   PreprocessBCs();
    
-   // Loop through vector boundary conditions, update array if needed (1=Dirichlet)
-   // Further, create bdr_attr_marker arrays and Coefficient arrays for all BCs
-   // ^This is required as everything in MFEM refers to references, so we must keep everything intact until simulation is complete
-   all_bdr_attr_markers = new Array<int>[user_input->GetBCCount()];
-   all_bdr_coeffs = new Coefficient*[user_input->GetBCCount()];
-   
-   for (size_t i = 0; i < user_input->GetBCCount(); i++)
-   {
-      Array<int> bdr_attr(user_input->GetBCCount());
-      bdr_attr = 0;
-      bdr_attr[i] = 1;
-      all_bdr_attr_markers[i] = bdr_attr;
-
-      all_bdr_coeffs[i] = NULL;
-
-      if (user_input->GetBCs()[i]->IsEssential())
-         dbc_bdr[i] = 1;
-   }
-
-
-   // Get the essential true dofs, given the Dirichlet boundaries. Store in ess_tdof_list
-   fespace.GetEssentialTrueDofs(dbc_bdr, ess_tdof_list);
-   
-
-   // Form the linear system matrix/operator, store in M
-   //m->FormSystemMatrix(ess_tdof_list, M); // Note that M is a reduced form, without any essential DOFs
-   
-   // Set up the solver
-   solver.iterative_mode = false; // If true, would use second argument of Mult() as initial guess; here it is set to false
-
-   solver.SetRelTol(rel_tol); // Sets "relative tolerance" of iterative solver
-   solver.SetAbsTol(abs_tol); // Sets "absolute tolerance" of iterative solver
-   solver.SetMaxIter(100); // Sets maximum number of iterations
-
-   solver.SetPrintLevel(0); // Print all information about detected issues
-
-   prec.SetType(HypreSmoother::Chebyshev); // Set type of preconditioning (relaxation type) 
-   solver.SetPreconditioner(prec); // Set preconditioner to matrix inversion solver
-
-   //solver.SetOperator(M); // Set matrix/operator M as the LHS for the solver - this current configuration does not allow this to vary in time
-
+   PreprocessSolver();
 
    // Now set up the solver we will use for implicit time integration
    // TODO: not yet implemented (understood)
@@ -96,30 +46,110 @@ ConductionOperator::ConductionOperator(Config* in_config, ParFiniteElementSpace 
    */
 }
 
+void ConductionOperator::PreprocessBCs()
+{
+
+   // Set the list of Dirichlet (essential) DOFs
+   Array<int> dbc_bdr(user_input->GetBCCount());
+   dbc_bdr = 0; // Initialize with all attributes set to non-essential = 0
+
+   // Further, create bdr_attr_marker arrays and FunctionCoefficient arrays for all BCs
+   all_bdr_attr_markers = new Array<int>[user_input->GetBCCount()];
+   all_bdr_coeffs = new Coefficient*[user_input->GetBCCount()];
+   for (size_t i = 0; i < user_input->GetBCCount(); i++)
+   {
+      Array<int> bdr_attr(user_input->GetBCCount());
+      bdr_attr = 0;
+      bdr_attr[i] = 1;
+      all_bdr_attr_markers[i] = bdr_attr;
+
+      all_bdr_coeffs[i] = NULL;
+
+      // Update DBC list if essential
+      if (user_input->GetBCs()[i]->IsEssential())
+         dbc_bdr[i] = 1;
+   }
+
+   // Get the essential true dofs, given the Dirichlet boundaries. Store in ess_tdof_list
+   fespace.GetEssentialTrueDofs(dbc_bdr, ess_tdof_list);
+
+   // Create linear form for Neumann BCs
+   b = new ParLinearForm(&fespace);
+
+
+   // Loop through all BCs
+   for (size_t i = 0; i < user_input->GetBCCount(); i++)
+   {  
+      // Get the coefficients for all BCs
+      all_bdr_coeffs[i] = user_input->GetBCs()[i]->GetCoefficient();
+   
+      // Add Neumann BCs to linear form b
+      if (! user_input->GetBCs()[i]->IsEssential())
+      {
+         b->AddBoundaryIntegrator(new BoundaryLFIntegrator(*all_bdr_coeffs[i]), all_bdr_attr_markers[i]);// Add boundary integrator to boundary
+      }
+   }
+
+}
+
+
+void ConductionOperator::PreprocessSolver()
+{  
+   const double rel_tol = 1e-16;
+   const double abs_tol = 1e-10;
+
+
+   delete m;
+
+   // Assemble parallel bilinear form for mass matrix
+   m = new ParBilinearForm(&fespace);
+
+   // Add the domain integral with included rho*Cp coefficient everywhere
+   ConstantCoefficient rhoCp(user_input->GetDensity()*user_input->GetCp());
+   m->AddDomainIntegrator(new MassIntegrator(rhoCp));
+   m->Assemble(0); // keep sparsity pattern of m and k the same
+   
+
+   // Form the linear system matrix/operator, store in M
+   m->FormSystemMatrix(ess_tdof_list, M);
+   
+   // Set up the solver
+   solver.iterative_mode = false; // If true, would use second argument of Mult() as initial guess; here it is set to false
+
+   solver.SetRelTol(rel_tol); // Sets "relative tolerance" of iterative solver
+   solver.SetAbsTol(abs_tol); // Sets "absolute tolerance" of iterative solver
+   solver.SetMaxIter(100); // Sets maximum number of iterations
+
+   solver.SetPrintLevel(0); // Print all information about detected issues
+
+   prec.SetType(HypreSmoother::Chebyshev); // Set type of preconditioning (relaxation type) 
+   solver.SetPreconditioner(prec); // Set preconditioner to matrix inversion solver
+
+   solver.SetOperator(M); // Set matrix/operator M as the LHS for the solver - this current configuration does not allow this to vary in time
+
+}
+
 void ConductionOperator::Mult(const Vector &u, Vector &du_dt) const
 {
    // Compute:
    //    du/dt = M^{-1}(-Ku + boundary_terms)
    // for du_dt
 
-
-
-
    // Complete multiplication of Ku
-   //K.Mult(u, z);
-   //z.Neg();
+   K.Mult(u, z);
+   z.Neg();
 
    // Add boundary term (for Neumann BCs)
-   //z += *b;
+   //z += *b->ParallelAssemble();
    
    // Solve the linear system of no essential DOFs
-   solver.Mult(R, DU_DT);
+   //solver.Mult(R, DU_DT);
 
    // Recover du_dt from it
-   m->RecoverFEMSolution(DU_DT, r, du_dt);
+   //m->RecoverFEMSolution(DU_DT, r, du_dt);
  
    // Solver M^-1, then multiply M^-1 * z
-   //solver.Mult(z, du_dt);
+   solver.Mult(z, du_dt);
 }
 
 /* TODO:
@@ -144,85 +174,37 @@ void ConductionOperator::ImplicitSolve(const double dt,
 }
 */
 
-void ConductionOperator::Preprocess(Vector &u, double dt)
+void ConductionOperator::PreprocessIteration(Vector &u, double curr_time)
 {
-   // Apply BCs - TODO: Either Applying this is extremely slow. We need another way.
-   ApplyBCs(u, dt);
+   // Apply BCs
+   ApplyBCs(u, curr_time);
 
-   //Calculate thermal conductivities + create k bilinear form
+   //Calculate thermal conductivities
    SetThermalConductivities(u);
-
-   // Get the dual vector r=-Ku by multiplying a bilinear form by the primal vector
-   k->Mult(u, r);
-   r.Neg(); // Note that we have not eliminated any essential BCs just yet
-
-   // Add the boundary integral
-   // TODO later
-
-   // Form the linear system to be solved
-   m->FormLinearSystem(ess_tdof_list, du_dt_dbc, r, M, DU_DT, R);
-
-   solver.SetOperator(M);// TODO
-   /* Below not completed as FormLinearSystem is more universal and arguably worth just reassembling M every time
-   
-   Note: Onwards is just manually applying functions of FormLinearSystem, done because we don't want to FormSystemMatrix for M every timestep
-   // Now: apply removal of essential BCs to RHS using stored eliminated part of bilinear operator m to obtain reduced form
-   m->EliminateVDofsInRHS(ess_tdof_list, du_dt_dbc, r);
-
-   // Create reduced forms of r and du_dt_dbc that point to the same spot in memory but refer to only some elements
-   R.MakeRef(r,0, r.Size());
-   DU_DT.MakeRef(du_dt_dbc, 0, du_dt_dbc.Size());
-   */
-   
-   // We have our dual vector r from earlier. Now we can define our linear system
-   //m->FormLinearSystem(ess_tdof_list, du_dt_dbc, r, M, DU_DT, R);
-
-   // Note that there is redundancy here that is slowing things down, but presently this method makes most conceptual sense
-   // TODO: update this later to follow ex16p method but incorporate it better
-   //solver.SetOperator(M);
-
-
 }
 
-
-void ConductionOperator::SetThermalConductivities(const Vector &u)
-{  
-
-   delete k;
-   delete k_coeff;
-
-   // Assemble the parallel bilinear form for stiffness matrix
-   k = new ParBilinearForm(&fespace);
-
-   // Apply thermal conductivity model to get appropriate coefficient \lambda in Diffusion integrator
-   k_coeff = user_input->GetConductivityModel()->ApplyModel(&fespace,u);
-
-   // Add domain integrator to the bilinear form //, and then obtain a system matrix K
-   k->AddDomainIntegrator(new DiffusionIntegrator(*k_coeff));
-   k->Assemble(0); // keep sparsity pattern of m and k the same
-
-
-
-
-   //k->FormSystemMatrix(ess_tdof_list, K); // Create Operator K
-
-   //delete T;
-   //T = NULL; // re-compute T on the next ImplicitSolve
-}
-
-void ConductionOperator::ApplyBCs(Vector &u, double current_dt)
+void ConductionOperator::ApplyBCs(Vector &u, double curr_time)
 {
-   // Delete previous stuff
-   delete b;
+
+   // Update time-dependent coefficients with current time
    for (size_t i = 0; i < user_input->GetBCCount(); i++)
-      delete all_bdr_coeffs[i];
-   
+   {
+      if (!user_input->GetBCs()[i]->IsConstant()) // If not constant in time
+      {
+         // Set coefficient's time to current time
+         all_bdr_coeffs[i]->SetTime(curr_time);
+      }
+   }
+
+   // Reassemble linear form b with updated coeffs
+   b->Assemble();
+
+
+   /*
    // Create temp ParGridFunction u_gf with values from (updated) u
    ParGridFunction u_gf_temp(&fespace);
    u_gf_temp.SetFromTrueDofs(u);
 
-   // Create linear form for Neumann BCs
-   b = new ParLinearForm(&fespace);
 
    // Create ParGridFunction using 
    // Loop through all BCs
@@ -248,11 +230,30 @@ void ConductionOperator::ApplyBCs(Vector &u, double current_dt)
    du_dt_dbc -= u;
    du_dt_dbc /= current_dt;
 
-   
-   // Assemble the new linear form for Neumann BCs
-   b->Assemble();
+   */
+}
 
+void ConductionOperator::SetThermalConductivities(const Vector &u)
+{  
+   // TODO: Update this to use BilinearForm::Update since coefficient can be presumed time-dependent
+   // TODO: do nothing if constant k model - creating new K everytime expensive
+   delete k;
+   delete k_coeff;
 
+   // Assemble the parallel bilinear form for stiffness matrix
+   k = new ParBilinearForm(&fespace);
+
+   // Apply thermal conductivity model to get appropriate coefficient \lambda in Diffusion integrator
+   k_coeff = user_input->GetConductivityModel()->ApplyModel(&fespace,u);
+
+   // Add domain integrator to the bilinear form //, and then obtain a system matrix K
+   k->AddDomainIntegrator(new DiffusionIntegrator(*k_coeff));
+   k->Assemble(0); // keep sparsity pattern of m and k the same
+
+   k->FormSystemMatrix(ess_tdof_list, K); // Create Operator K
+
+   //delete T;
+   //T = NULL; // re-compute T on the next ImplicitSolve
 }
 
 ConductionOperator::~ConductionOperator()
