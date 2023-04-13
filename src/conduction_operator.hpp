@@ -53,10 +53,12 @@ protected:
 
    void PreprocessBCs();
 
+   void PreprocessStiffness();
+   
    void PreprocessSolver();
 
    /// Update the diffusion BilinearForm K using the given true-dof vector `u` based on specified model.
-   void SetThermalConductivities(const Vector &u);
+   void SetThermalConductivities(const Vector &u, double curr_time);
 
    // Apply the given boundary conditions
    void ApplyBCs(Vector &u, double curr_time);

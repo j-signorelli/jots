@@ -73,7 +73,6 @@ void ConductionOperator::PreprocessBCs()
    // Create linear form for Neumann BCs
    b = new ParLinearForm(&fespace);
 
-   // TODO: combine below loop w above
    // Loop through all BCs
    for (size_t i = 0; i < user_input->GetBCCount(); i++)
    {  
@@ -92,6 +91,20 @@ void ConductionOperator::PreprocessBCs()
    b->Assemble();
 }
 
+void ConductionOperator::PreprocessStiffness()
+{
+   // Assemble the parallel bilinear form for stiffness matrix
+   k = new ParBilinearForm(&fespace);
+
+   // Get thermal conductivity coefficient
+   k_coeff = user_input->GetConductivityModel()->GetCoefficient();
+   
+   // Add domain integrator to the bilinear form
+   k->AddDomainIntegrator(new DiffusionIntegrator(*k_coeff));
+   k->Assemble(0); // keep sparsity pattern of m and k the same
+   k->Finalize(0);
+
+}
 
 void ConductionOperator::PreprocessSolver()
 {  
@@ -135,7 +148,7 @@ void ConductionOperator::PreprocessIteration(Vector &u, double curr_time)
    ApplyBCs(u, curr_time);
 
    //Calculate thermal conductivities
-   SetThermalConductivities(u);
+   SetThermalConductivities(u, curr_time);
 }
 
 void ConductionOperator::ApplyBCs(Vector &u, double curr_time)
@@ -174,26 +187,19 @@ void ConductionOperator::ApplyBCs(Vector &u, double curr_time)
 
 }
 
-void ConductionOperator::SetThermalConductivities(const Vector &u)
+void ConductionOperator::SetThermalConductivities(const Vector &u, double curr_time)
 {  
-   // TODO: Update this to use BilinearForm::Update since coefficient can be presumed time-dependent
-   // TODO: do nothing if constant k model - creating new K everytime expensive
-   delete k;
-   delete k_coeff;
-
-   // Assemble the parallel bilinear form for stiffness matrix
-   k = new ParBilinearForm(&fespace);
-
-   // Apply thermal conductivity model to get appropriate coefficient \lambda in Diffusion integrator
-   k_coeff = user_input->GetConductivityModel()->ApplyModel(&fespace,u);
-
-   // Add domain integrator to the bilinear form //, and then obtain a system matrix K
-   k->AddDomainIntegrator(new DiffusionIntegrator(*k_coeff));
-   k->Assemble(0); // keep sparsity pattern of m and k the same
-   k->Finalize(0);
-
-   //k->FormSystemMatrix(ess_tdof_list, K); // Create Operator K
-
+   // Update matrix K IF TIME-DEPENDENT k
+   if (!user_input->GetConductivityModel()->IsConstant())
+   {
+      // TODO: May actually need to create new coefficient
+      // Can I just change ptr of k_coeff?
+      
+      k_coeff->SetTime(curr_time);     
+      k->Update();
+      k->Assemble();
+      k->Finalize();
+   }
    //delete T;
    //T = NULL; // re-compute T on the next ImplicitSolve
 }

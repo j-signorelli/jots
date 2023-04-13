@@ -36,22 +36,24 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
     }
     //----------------------------------------------------------------------
     // Set ODE time integrator
+    if (rank == 0)
+        cout << "Time Scheme: ";
     switch (user_input->GetTimeScheme())
     {
         case TIME_SCHEME::EULER_IMPLICIT:
             ode_solver = new BackwardEulerSolver;
             if (rank == 0)
-                cout << "Time Scheme: Euler Implicit" << endl;
+                cout << "Euler Implicit" << endl;
             break;
         case TIME_SCHEME::EULER_EXPLICIT:
             ode_solver = new ForwardEulerSolver;
             if (rank == 0)
-                cout << "Time Scheme: Euler Explicit" << endl;
+                cout << "Euler Explicit" << endl;
             break;
         case TIME_SCHEME::RK4:
             ode_solver = new RK4Solver;
             if (rank == 0)
-                cout << "Time Scheme: RK4" << endl;
+                cout << "RK4" << endl;
             break;
     }
     //----------------------------------------------------------------------
@@ -63,10 +65,8 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
     }
 
     if (rank == 0)
-        if (ser_ref > 1)
-            cout << "Serial refinements of mesh completed: " << ser_ref << endl;
-        else
-            cout << "No serial refinements of mesh completed" << endl;
+        cout << "Serial refinements of mesh completed: " << ser_ref << endl;
+
 
     //----------------------------------------------------------------------
     // Complete parallel decomposition of serial mesh, delete it, then refine parallel mesh
@@ -81,10 +81,8 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
     }
 
     if (rank == 0)
-        if (par_ref > 1)
-            cout << "Parallel refinements of mesh completed: " << par_ref << endl;
-        else
-            cout << "No parallel refinements of mesh completed" << endl;
+        cout << "Parallel refinements of mesh completed: " << par_ref << endl;
+
 
     if (rank == 0)
     {
@@ -119,15 +117,7 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
         cout << "\n\n";
         cout << "Density: " << user_input->GetDensity() << endl;
         cout << "Specific Heat Cp: " << user_input->GetCp() << endl;
-        cout << "Thermal Conductivity Model: ";
-        switch (user_input->GetConductivityModel()->GetModel())
-        {
-            case CONDUCTIVITY_MODEL::CONSTANT:
-                cout << "Constant -- k: " << ((ConstantCond*)user_input->GetConductivityModel())->Getk() << endl;
-                break;
-            case CONDUCTIVITY_MODEL::LINEARIZED:
-                cout << "Linearized -- k: " << ((LinearizedCond*)user_input->GetConductivityModel())->Getk() << "; alpha: " << ((LinearizedCond*)user_input->GetConductivityModel())->Getalpha() << endl;
-        }
+        cout << "Thermal Conductivity Model: " << user_input->GetConductivityModel()->GetInitString();
     }
     //----------------------------------------------------------------------
     // Set the initial condition
@@ -192,18 +182,7 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
 
         if (rank == 0)
         {
-            cout << "Boundary Attribute " << bc->GetBdrAttr() << ": ";
-            switch (bc->GetType())
-            {
-                case BOUNDARY_CONDITION::HEATFLUX:
-                    cout << "Heat Flux";
-                    break;
-                case BOUNDARY_CONDITION::ISOTHERMAL:
-                    cout << "Isothermal";
-                    break;
-            };
-
-            cout << " --- Value: " << bc->GetValue() << endl;
+            cout << "Boundary Attribute " << bc->GetBdrAttr() << ": " << bc->GetInitString();
         }
     }
 
@@ -264,7 +243,7 @@ void JOTSDriver::Run()
     */
     //oper->ApplyBCs(T);
 
-    while (time < tf)//Main Solver Loop- TODO: Fix this
+    while (time < tf)//Main Solver Loop
     {
         // Apply the BCs + calculate thermal conductivities
         oper->PreprocessIteration(T, time);

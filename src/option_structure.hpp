@@ -54,9 +54,9 @@ static const std::map<std::string, BINARY_CHOICE> Binary_Choice_Map = {{"Yes", B
 
 enum class CONDUCTIVITY_MODEL
 {
-  CONSTANT=0,
+  UNIFORM=0,
   LINEARIZED=1
 };
 
-static const std::map<std::string, CONDUCTIVITY_MODEL> Conductivity_Model_Map = {{"Constant", CONDUCTIVITY_MODEL::CONSTANT},
+static const std::map<std::string, CONDUCTIVITY_MODEL> Conductivity_Model_Map = {{"Uniform", CONDUCTIVITY_MODEL::UNIFORM},
                                                                              {"Linearized", CONDUCTIVITY_MODEL::LINEARIZED}};

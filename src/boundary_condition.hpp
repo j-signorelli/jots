@@ -20,7 +20,7 @@ class BoundaryCondition
         virtual bool IsEssential() const = 0;
         virtual bool IsConstant() const = 0; // true if d/dt is 0 for this coefficient - required to ensure SetTime not called accidentally on something that doesn't have it
         virtual mfem::Coefficient* GetCoefficient() const= 0;
-        
+        virtual std::string GetInitString() const = 0;
 };
 
 class UniformIsothermalBC : public BoundaryCondition
@@ -31,6 +31,7 @@ class UniformIsothermalBC : public BoundaryCondition
         UniformIsothermalBC(int attr, double const_value) : BoundaryCondition(attr, const_value, BOUNDARY_CONDITION::ISOTHERMAL){};
         bool IsEssential() const { return true; }
         bool IsConstant() const { return true; }
+        std::string GetInitString() const { return "Isothermal --- Value: " + std::to_string(value); }
         mfem::Coefficient* GetCoefficient() const;
 };
 
@@ -42,5 +43,6 @@ class UniformHeatFluxBC : public BoundaryCondition
         UniformHeatFluxBC(int attr, double const_value) : BoundaryCondition(attr, const_value, BOUNDARY_CONDITION::HEATFLUX){};
         bool IsEssential() const { return false; }
         bool IsConstant() const { return true; }
+        std::string GetInitString() const { return "Heat Flux --- Value: " + std::to_string(value); }
         mfem::Coefficient* GetCoefficient() const;
 };

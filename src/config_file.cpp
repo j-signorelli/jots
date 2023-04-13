@@ -28,13 +28,15 @@ Config::Config(const char* in_file) : input_file(in_file)
     CONDUCTIVITY_MODEL model = Conductivity_Model_Map.at(property_tree.get<string>("MaterialProperties.Thermal_Conductivity_Model"));
     switch (model)
     {
-        case CONDUCTIVITY_MODEL::CONSTANT:
+        case CONDUCTIVITY_MODEL::UNIFORM:
             //double kappa = property_tree.get<double>("MaterialProperties.Kappa");
-            cond_model = new ConstantCond(property_tree.get<double>("MaterialProperties.k"));
+            cond_model = new UniformCond(property_tree.get<double>("MaterialProperties.k"));
             break;
+        /* TODO
         case CONDUCTIVITY_MODEL::LINEARIZED:
             cond_model = new LinearizedCond(property_tree.get<double>("MaterialProperties.k"), property_tree.get<double>("MaterialProperties.alpha"));
             break;
+        */
     }
 
     // Read InitialCondition

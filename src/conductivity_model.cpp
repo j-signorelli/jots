@@ -2,12 +2,13 @@
 
 using namespace mfem;
 
-Coefficient* ConstantCond::ApplyModel(ParFiniteElementSpace* fespace, const Vector &u) const
+Coefficient* UniformCond::GetCoefficient() const
 {
     return new ConstantCoefficient(k);
 }
 
-Coefficient* LinearizedCond::ApplyModel(ParFiniteElementSpace* fespace, const Vector &u) const
+/*
+Coefficient* LinearizedCond::GetCoefficient(ParFiniteElementSpace* fespace, const Vector &u) const
 {
     ParGridFunction u_alpha_gf(fespace);
     u_alpha_gf.SetFromTrueDofs(u);
@@ -18,3 +19,4 @@ Coefficient* LinearizedCond::ApplyModel(ParFiniteElementSpace* fespace, const Ve
 
     return new GridFunctionCoefficient(&u_alpha_gf);
 }
+*/
