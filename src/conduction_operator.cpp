@@ -87,6 +87,9 @@ void ConductionOperator::PreprocessBCs()
       }
    }
 
+
+   // Assemble b - TODO: Verify that time-dependent coeffs don't crash if SetTime not called first
+   b->Assemble();
 }
 
 
@@ -140,6 +143,7 @@ void ConductionOperator::ApplyBCs(Vector &u, double curr_time)
 
    // Update time-dependent coefficients with current time
    // Also project essential coefficients onto u
+
    bool changed = false;
    for (size_t i = 0; i < user_input->GetBCCount(); i++)
    {
@@ -149,44 +153,18 @@ void ConductionOperator::ApplyBCs(Vector &u, double curr_time)
          all_bdr_coeffs[i]->SetTime(curr_time);
          changed = true;
       }
+
+      if (user_input->GetBCs()[i]->IsEssential())
+      {
+         //TODO: is this correct? Or on du_dt??
+         // u.ProjectBdrCoeff
+      }
    }
 
    // Reassemble linear form b with updated coeffs
    if (changed)
       b->Assemble();
 
-
-   /*
-   // Create temp ParGridFunction u_gf with values from (updated) u
-   ParGridFunction u_gf_temp(&fespace);
-   u_gf_temp.SetFromTrueDofs(u);
-
-
-   // Create ParGridFunction using 
-   // Loop through all BCs
-   for (size_t i = 0; i < user_input->GetBCCount(); i++)
-   {  
-      // Get the coefficient of interest
-      all_bdr_coeffs[i] = user_input->GetBCs()[i]->GetCoefficient();
-
-      // Set appropriately
-      if (user_input->GetBCs()[i]->IsEssential())
-      {
-         u_gf_temp.ProjectBdrCoefficient(*all_bdr_coeffs[i], all_bdr_attr_markers[i]);  // Update u
-      } else
-      {
-         b->AddBoundaryIntegrator(new BoundaryLFIntegrator(*all_bdr_coeffs[i]), all_bdr_attr_markers[i]);// Add boundary integrator to boundary
-      }
-
-
-   }
-   
-   // Calculate du_dt_dbc using difference between current and next state boundary values
-   u_gf_temp.GetTrueDofs(du_dt_dbc);
-   du_dt_dbc -= u;
-   du_dt_dbc /= current_dt;
-
-   */
 }
 
 
@@ -215,16 +193,16 @@ void ConductionOperator::Mult(const Vector &u, Vector &du_dt) const
 
    // Auxiliary variables
    OperatorPtr A;
-   Vector B;// X;
+   Vector B, X;
 
    // Form Linear System
-   m->FormLinearSystem(ess_tdof_list, tmp_du_dt, z, A, du_dt, B);
+   m->FormLinearSystem(ess_tdof_list, tmp_du_dt, z, A, X, B);
 
 
    // Solver M^-1, then multiply M^-1 * z
-   solver.Mult(B, du_dt);
+   solver.Mult(B, X);
 
-   /*
+   
    //----------------------------------------------------------
    // TODO: Check this more below, Rob just does above Mult with X=du_dt
    //       I believe that below is more generalized
@@ -233,7 +211,7 @@ void ConductionOperator::Mult(const Vector &u, Vector &du_dt) const
 
    // Set new DOFs
    tmp_du_dt.GetTrueDofs(du_dt);
-   */
+   
 
 }
 
