@@ -19,30 +19,19 @@ ConductionOperator::ConductionOperator(Config* in_config, ParFiniteElementSpace 
       m(NULL), 
       k(NULL),
       b(NULL),
-      //T(NULL),
-      //current_dt(t_0),
+      T(NULL),
+      current_dt(0.0),
       solver(f.GetComm()),
       //T_solver(f.GetComm()),
       user_input(in_config)
 {
 
-   
    PreprocessBCs();
    
    PreprocessStiffness();
 
    PreprocessSolver();
 
-   // Now set up the solver we will use for implicit time integration
-   // TODO: not yet implemented (understood)
-   /*
-   T_solver.iterative_mode = false;
-   T_solver.SetRelTol(rel_tol);
-   T_solver.SetAbsTol(0.0);
-   T_solver.SetMaxIter(100);
-   T_solver.SetPrintLevel(0);
-   T_solver.SetPreconditioner(T_prec); // Use default preconditioning as none was set
-   */
 }
 
 void ConductionOperator::PreprocessBCs()
@@ -113,9 +102,8 @@ void ConductionOperator::PreprocessSolver()
    const double rel_tol = 1e-16;
    const double abs_tol = 1e-10;
 
-
-   delete m;
-
+   //----------------------------------------------------------------
+   // Prepare explicit solver
    // Assemble parallel bilinear form for mass matrix
    m = new ParBilinearForm(&fespace);
 
@@ -123,24 +111,42 @@ void ConductionOperator::PreprocessSolver()
    ConstantCoefficient rhoCp(user_input->GetDensity()*user_input->GetCp());
    m->AddDomainIntegrator(new MassIntegrator(rhoCp));
    m->Assemble(0); // keep sparsity pattern of m and k the same
-   
+
+   // Create copy of m (unchanged by FormSystemMatrix) to be used for implicit solver
+   impl_m = new ParBilinearForm(&fespace, m);
 
    // Form the linear system matrix/operator, store in M
    m->FormSystemMatrix(ess_tdof_list, M);
    
-   // Set up the solver
-   solver.iterative_mode = false; // If true, would use second argument of Mult() as initial guess; here it is set to false
+   // Set up the solver for Mult
+   expl_solver.iterative_mode = false; // If true, would use second argument of Mult() as initial guess; here it is set to false
 
-   solver.SetRelTol(rel_tol); // Sets "relative tolerance" of iterative solver
-   solver.SetAbsTol(abs_tol); // Sets "absolute tolerance" of iterative solver
-   solver.SetMaxIter(100); // Sets maximum number of iterations
+   expl_solver.SetRelTol(rel_tol); // Sets "relative tolerance" of iterative solver
+   expl_solver.SetAbsTol(abs_tol); // Sets "absolute tolerance" of iterative solver
+   expl_solver.SetMaxIter(100); // Sets maximum number of iterations
 
-   solver.SetPrintLevel(0); // Print all information about detected issues
+   expl_solver.SetPrintLevel(0); // Print all information about detected issues
 
-   prec.SetType(HypreSmoother::Chebyshev); // Set type of preconditioning (relaxation type) 
-   solver.SetPreconditioner(prec); // Set preconditioner to matrix inversion solver
+   expl_prec.SetType(HypreSmoother::Chebyshev); // Set type of preconditioning (relaxation type) 
+   expl_solver.SetPreconditioner(expl_prec); // Set preconditioner to matrix inversion solver
 
-   solver.SetOperator(M); // Set matrix/operator M as the LHS for the solver - this current configuration does not allow this to vary in time
+   expl_solver.SetOperator(M); // Set
+
+   //----------------------------------------------------------------
+   // Prepare implicit solver
+
+   // Prepare bilinear form for LHS
+   a = new ParBilinearForm(&fespace);
+
+   // Set up solver for ImplicitSolve
+   impl_solver.iterative_mode = false;
+   impl_solver.SetRelTol(rel_tol);
+   impl_solver.SetAbsTol(0.0);
+   impl_solver.SetMaxIter(100);
+   impl_solver.SetPrintLevel(0);
+   impl_prec.SetType(HypreSmoother::Chebyshev);
+   impl_solver.SetPreconditioner(impl_prec);
+   
 
 }
 
@@ -151,6 +157,10 @@ void ConductionOperator::PreprocessIteration(Vector &u, double curr_time)
 
    //Calculate thermal conductivities
    SetThermalConductivities(u, curr_time);
+
+   // Calculate RHS to solve
+   CalculateRHS(u);
+
 }
 
 void ConductionOperator::ApplyBCs(Vector &u, double curr_time)
@@ -194,38 +204,38 @@ void ConductionOperator::SetThermalConductivities(const Vector &u, double curr_t
    // Update matrix K IF TIME-DEPENDENT k
    if (!user_input->GetConductivityModel()->IsConstant())
    {
-      // TODO: May actually need to create new coefficient
-      // Can I just change ptr of k_coeff?
-      
       k_coeff->SetTime(curr_time);     
       k->Update();
       k->Assemble(0);
       k->Finalize(0);
+
+      // TODO: Reassemble A
    }
-   //delete T;
-   //T = NULL; // re-compute T on the next ImplicitSolve
 }
 
+void CalculateRHS(const Vector &u)
+{   
 
+   // reset rhs
+   rhs = ParLinearForm(&fespace);
+
+   // Complete multiplication of ParBilinearForm with primal vector for dual vector z
+   k->Mult(u, rhs);
+
+   rhs.Neg(); // z = -z
+
+   // Add Neumann ParLinearForm term
+   rhs.Add(1, *b);
+
+   // Now have RHS (as required dual vector / ParLinearForm)!
+
+}
 
 void ConductionOperator::Mult(const Vector &u, Vector &du_dt) const
 {
    // Compute:
    //    du/dt = M^{-1}(-Ku + boundary_terms)
    // for du_dt
-
-   // Create auxiliary ParLinearForm to store dual vector values
-   ParLinearForm z(&fespace);
-
-   // Complete multiplication of ParBilinearForm with primal vector for dual vector z
-   k->Mult(u, z);
-
-   z.Neg(); // z = -z
-
-   // Add Neumann ParLinearForm term
-   z.Add(1, *b);
-
-   // Now have RHS (as required dual vector / ParLinearForm)!
 
    // Enforce appropriate du_dt=0 for Dirichlet BCs
    ParGridFunction tmp_du_dt(&fespace);
@@ -236,11 +246,11 @@ void ConductionOperator::Mult(const Vector &u, Vector &du_dt) const
    Vector B, X;
 
    // Form Linear System
-   m->FormLinearSystem(ess_tdof_list, tmp_du_dt, z, A, X, B);
+   m->FormLinearSystem(ess_tdof_list, tmp_du_dt, rhs, A, X, B);
 
 
    // Solver M^-1, then multiply M^-1 * z
-   solver.Mult(B, X);
+   expl_solver.Mult(B, X);
 
    
    //----------------------------------------------------------
@@ -255,7 +265,7 @@ void ConductionOperator::Mult(const Vector &u, Vector &du_dt) const
 
 }
 
-/* TODO:
+
 void ConductionOperator::ImplicitSolve(const double dt,
                                        const Vector &u, Vector &du_dt)
 {
@@ -263,6 +273,9 @@ void ConductionOperator::ImplicitSolve(const double dt,
    //    du_dt = M^{-1}*[-K(u + dt*du_dt)]
    // for du_dt, where K is linearized by using u from the previous timestep
 
+
+   // Set up LHS
+   impl_m->Add()
    // ^Must do externally
    if (!T)
    {
@@ -275,7 +288,7 @@ void ConductionOperator::ImplicitSolve(const double dt,
    z.Neg();
    T_solver.Mult(z, du_dt);
 }
-*/
+
 
 ConductionOperator::~ConductionOperator()
 {

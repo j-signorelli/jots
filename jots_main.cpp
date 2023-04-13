@@ -1,5 +1,3 @@
-//#include <fstream>
-//#include <iostream>
 
 #include "jots_driver.hpp"
 

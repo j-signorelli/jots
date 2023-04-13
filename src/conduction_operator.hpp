@@ -27,19 +27,23 @@ protected:
    Coefficient* k_coeff;
    
    ParBilinearForm *m;
+   ParBilinearForm *m_impl;
    ParBilinearForm *k;
    ParLinearForm *b;
 
    HypreParMatrix M;
-   //HypreParMatrix K;
-   //HypreParMatrix *T; // T = M + dt K
-   //double current_dt;
 
-   FGMRESSolver solver;    // FMGRES solver for inverting the mass matrix M
-   HypreSmoother prec; // Preconditioner for the mass matrix M
+   ParLinearForm rhs; // = -KT + Neumann
 
-   //CGSolver T_solver;    // Implicit solver for T = M + dt K
-   //HypreSmoother T_prec; // Preconditioner for the implicit solver
+   ParBilinearForm a;
+   HypreParMatrix A; // A = M + dt K
+   double current_dt;
+
+   FGMRESSolver expl_solver;    // FMGRES solver for inverting the mass matrix M
+   HypreSmoother expl_prec; // Preconditioner for the mass matrix M
+
+   FGMRESSolver impl_solver;   // Implicit solver for inverting T = M + dt K
+   HypreSmoother impl_prec; // Preconditioner for the implicit solver
 
    Config* user_input; // Not allocated here
    /*
@@ -57,11 +61,13 @@ protected:
    
    void PreprocessSolver();
 
+   // Apply the given boundary conditions
+   void ApplyBCs(Vector &u, double curr_time);
+
    /// Update the diffusion BilinearForm K using the given true-dof vector `u` based on specified model.
    void SetThermalConductivities(const Vector &u, double curr_time);
 
-   // Apply the given boundary conditions
-   void ApplyBCs(Vector &u, double curr_time);
+   void CalculateRHS(const Vector &u);
 
 public:
    ConductionOperator(Config* in_config, ParFiniteElementSpace &f, double t_0);

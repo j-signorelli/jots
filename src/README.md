@@ -53,6 +53,29 @@ $$M_{ij}\dfrac{dT_j}{dt} + K_{ij}T_j = \int_{\partial \Omega} g\phi_j d\vec{x}$$
 
 Finally, we can rewrite this as:
 
-$$\dfrac{dT_i}{dt} = M_{ik}^{-1} \left( -K_{kj}T_j + \int_{\partial \Omega} g\phi_i d\vec{x}\right)$$
+$$\dfrac{dT_i}{dt} = M_{ik}^{-1} \left( -K_{kj}T_j + \int_{\partial \Omega} g\phi_k d\vec{x}\right)$$
 
 Note that the boundary integral term is a linear form that must be added to enforce Neumann BCs.
+
+# Nonhomogeneous Dirichlet BCs
+
+To enforce nonhomogeneous Dirichlet BCs, given temperatures at essential DOFs $T_e$ are enforced, with $\dfrac{\partial T_e}{\partial t} = 0$ as of now.
+
+It may be straightforward to update this for any Dirichlet BCs that change in time, where one may apply a backward differencing if desired, but calculations at start given an initial condition must be carefully considered.
+
+# Time-Integration
+
+For explicit time-integration schemes, it is simply assumed that the $T_j$ on the RHS multiplied by $K$ is the temperature at the previous timestep. For implicit time-integration schemes, $T_j$ on the RHS must be the temperature at the next timestep, so the equation becomes:
+
+$$\dfrac{dT_i}{dt} = M_{ik}^{-1} \left( -K_{kj}(T_j + dt\dfrac{dT_k}{dt}) + \int_{\partial \Omega} g\phi_k d\vec{x}\right)$$
+
+as $$T_i^{n+1} = T_i^n + dt \dfrac{dT_i}{dt}$$
+
+
+Given this, the new equation to solve becomes:
+
+$$Kdt\dfrac{dT}{dt} + M\dfrac{dT}{dt} = \left( -KT + \int_{\partial \Omega} g\phi d\vec{x}\right)$$
+
+$$\left( Kdt + M\right)\dfrac{dT}{dt} = \left( -KT + \int_{\partial \Omega} g\phi d\vec{x}\right)$$
+
+Note **importantly**: stiffness matrix $K$ is still calculated using the temperature from the previous timestep so, if it changes in time, this is a source of error.
