@@ -73,7 +73,7 @@ void ConductionOperator::PreprocessBCs()
    // Create linear form for Neumann BCs
    b = new ParLinearForm(&fespace);
 
-
+   // TODO: combine below loop w above
    // Loop through all BCs
    for (size_t i = 0; i < user_input->GetBCCount(); i++)
    {  
@@ -144,6 +144,9 @@ void ConductionOperator::ApplyBCs(Vector &u, double curr_time)
    // Update time-dependent coefficients with current time
    // Also project essential coefficients onto u
 
+   ParGridFunction temp_u_gf(&fespace);
+   temp_u_gf.SetFromTrueDofs(u);
+
    bool changed = false;
    for (size_t i = 0; i < user_input->GetBCCount(); i++)
    {
@@ -156,16 +159,45 @@ void ConductionOperator::ApplyBCs(Vector &u, double curr_time)
 
       if (user_input->GetBCs()[i]->IsEssential())
       {
-         //TODO: is this correct? Or on du_dt??
-         // u.ProjectBdrCoeff
+         // Project correct values on boundary for essential BCs
+         //cout << "Projecting BDR coefficient " << all_bdr_coeffs[i]->GetValue()
+         temp_u_gf.ProjectBdrCoefficient(*all_bdr_coeffs[i], all_bdr_attr_markers[i]);
       }
    }
+
+   // Apply Dirichlet BCs to T
+   temp_u_gf.GetTrueDofs(u);
 
    // Reassemble linear form b with updated coeffs
    if (changed)
       b->Assemble();
 
 }
+
+void ConductionOperator::SetThermalConductivities(const Vector &u)
+{  
+   // TODO: Update this to use BilinearForm::Update since coefficient can be presumed time-dependent
+   // TODO: do nothing if constant k model - creating new K everytime expensive
+   delete k;
+   delete k_coeff;
+
+   // Assemble the parallel bilinear form for stiffness matrix
+   k = new ParBilinearForm(&fespace);
+
+   // Apply thermal conductivity model to get appropriate coefficient \lambda in Diffusion integrator
+   k_coeff = user_input->GetConductivityModel()->ApplyModel(&fespace,u);
+
+   // Add domain integrator to the bilinear form //, and then obtain a system matrix K
+   k->AddDomainIntegrator(new DiffusionIntegrator(*k_coeff));
+   k->Assemble(0); // keep sparsity pattern of m and k the same
+   k->Finalize(0);
+
+   //k->FormSystemMatrix(ess_tdof_list, K); // Create Operator K
+
+   //delete T;
+   //T = NULL; // re-compute T on the next ImplicitSolve
+}
+
 
 
 void ConductionOperator::Mult(const Vector &u, Vector &du_dt) const
@@ -187,9 +219,9 @@ void ConductionOperator::Mult(const Vector &u, Vector &du_dt) const
 
    // Now have RHS (as required dual vector / ParLinearForm)!
 
-   // Enforce appropriate du_dt Dirichlet
+   // Enforce appropriate du_dt=0 for Dirichlet BCs
    ParGridFunction tmp_du_dt(&fespace);
-   tmp_du_dt = 0.0; // For now enforce this as constant Dirichlet
+   tmp_du_dt = 0.0; // TODO: Actually calculate w/ backward differencing for unsteady Dirichlet
 
    // Auxiliary variables
    OperatorPtr A;
@@ -236,30 +268,6 @@ void ConductionOperator::ImplicitSolve(const double dt,
    T_solver.Mult(z, du_dt);
 }
 */
-
-void ConductionOperator::SetThermalConductivities(const Vector &u)
-{  
-   // TODO: Update this to use BilinearForm::Update since coefficient can be presumed time-dependent
-   // TODO: do nothing if constant k model - creating new K everytime expensive
-   delete k;
-   delete k_coeff;
-
-   // Assemble the parallel bilinear form for stiffness matrix
-   k = new ParBilinearForm(&fespace);
-
-   // Apply thermal conductivity model to get appropriate coefficient \lambda in Diffusion integrator
-   k_coeff = user_input->GetConductivityModel()->ApplyModel(&fespace,u);
-
-   // Add domain integrator to the bilinear form //, and then obtain a system matrix K
-   k->AddDomainIntegrator(new DiffusionIntegrator(*k_coeff));
-   k->Assemble(0); // keep sparsity pattern of m and k the same
-   k->Finalize(0);
-
-   //k->FormSystemMatrix(ess_tdof_list, K); // Create Operator K
-
-   //delete T;
-   //T = NULL; // re-compute T on the next ImplicitSolve
-}
 
 ConductionOperator::~ConductionOperator()
 {

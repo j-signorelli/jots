@@ -267,7 +267,7 @@ void JOTSDriver::Run()
     while (time < tf)//Main Solver Loop- TODO: Fix this
     {
         // Apply the BCs + calculate thermal conductivities
-        oper->PreprocessIteration(T, dt);
+        oper->PreprocessIteration(T, time);
         // Output IC:
         if (it_num == 0)
         {   
