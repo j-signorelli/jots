@@ -1,4 +1,5 @@
 #pragma once
+#include <sstream>
 
 #include "mfem.hpp"
 
@@ -31,7 +32,7 @@ class UniformIsothermalBC : public BoundaryCondition
         UniformIsothermalBC(int attr, double const_value) : BoundaryCondition(attr, const_value, BOUNDARY_CONDITION::ISOTHERMAL){};
         bool IsEssential() const { return true; }
         bool IsConstant() const { return true; }
-        std::string GetInitString() const { return "Isothermal --- Value: " + std::to_string(value); }
+        std::string GetInitString() const;
         mfem::Coefficient* GetCoefficient() const;
 };
 
@@ -43,6 +44,6 @@ class UniformHeatFluxBC : public BoundaryCondition
         UniformHeatFluxBC(int attr, double const_value) : BoundaryCondition(attr, const_value, BOUNDARY_CONDITION::HEATFLUX){};
         bool IsEssential() const { return false; }
         bool IsConstant() const { return true; }
-        std::string GetInitString() const { return "Heat Flux --- Value: " + std::to_string(value); }
+        std::string GetInitString() const;
         mfem::Coefficient* GetCoefficient() const;
 };

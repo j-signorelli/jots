@@ -117,7 +117,7 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
         cout << "\n\n";
         cout << "Density: " << user_input->GetDensity() << endl;
         cout << "Specific Heat Cp: " << user_input->GetCp() << endl;
-        cout << "Thermal Conductivity Model: " << user_input->GetConductivityModel()->GetInitString();
+        cout << "Thermal Conductivity Model: " << user_input->GetConductivityModel()->GetInitString() << endl;
     }
     //----------------------------------------------------------------------
     // Set the initial condition
@@ -182,7 +182,7 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
 
         if (rank == 0)
         {
-            cout << "Boundary Attribute " << bc->GetBdrAttr() << ": " << bc->GetInitString();
+            cout << "Boundary Attribute " << bc->GetBdrAttr() << ": " << bc->GetInitString() << endl;
         }
     }
 

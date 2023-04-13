@@ -1,5 +1,6 @@
 #include "conductivity_model.hpp"
 
+using namespace std;
 using namespace mfem;
 
 Coefficient* UniformCond::GetCoefficient() const
@@ -7,6 +8,13 @@ Coefficient* UniformCond::GetCoefficient() const
     return new ConstantCoefficient(k);
 }
 
+
+string UniformCond::GetInitString() const
+{
+    stringstream sstm;
+    sstm << "Uniform --- k: " << k;
+    return sstm.str();
+}
 /*
 Coefficient* LinearizedCond::GetCoefficient(ParFiniteElementSpace* fespace, const Vector &u) const
 {

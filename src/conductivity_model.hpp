@@ -1,4 +1,5 @@
 #pragma once
+#include <sstream>
 
 #include "mfem/mfem.hpp"
 
@@ -12,9 +13,10 @@ class ConductivityModel
     public:
         ConductivityModel(CONDUCTIVITY_MODEL in_model) : model(in_model) {}
         CONDUCTIVITY_MODEL GetModel() const { return model; };
-        virtual mfem::Coefficient* GetCoefficient() const = 0;//(mfem::ParFiniteElementSpace* fespace, const mfem::Vector &u) const = 0;
         virtual bool IsConstant() const = 0; // true if dk_dt = 0
         virtual std::string GetInitString() const = 0;
+        virtual mfem::Coefficient* GetCoefficient() const = 0;//(mfem::ParFiniteElementSpace* fespace, const mfem::Vector &u) const = 0;
+        
 };
 
 class UniformCond : public ConductivityModel
@@ -25,9 +27,9 @@ class UniformCond : public ConductivityModel
     public:
         UniformCond(double in_k) : ConductivityModel(CONDUCTIVITY_MODEL::UNIFORM), k(in_k) {};
         double Getk() const { return k; };
-        mfem::Coefficient*  GetCoefficient() const;
         bool IsConstant() const { return true; }
-        std::string GetInitString() const { return "Uniform -- k: " + std::to_string(k); }
+        std::string GetInitString() const;
+        mfem::Coefficient*  GetCoefficient() const;
 };
 /* TODO:
 class LinearizedCond : public ConductivityModel

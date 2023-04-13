@@ -29,6 +29,8 @@ ConductionOperator::ConductionOperator(Config* in_config, ParFiniteElementSpace 
    
    PreprocessBCs();
    
+   PreprocessStiffness();
+
    PreprocessSolver();
 
    // Now set up the solver we will use for implicit time integration
@@ -197,8 +199,8 @@ void ConductionOperator::SetThermalConductivities(const Vector &u, double curr_t
       
       k_coeff->SetTime(curr_time);     
       k->Update();
-      k->Assemble();
-      k->Finalize();
+      k->Assemble(0);
+      k->Finalize(0);
    }
    //delete T;
    //T = NULL; // re-compute T on the next ImplicitSolve
