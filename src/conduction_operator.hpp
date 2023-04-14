@@ -30,13 +30,18 @@ protected:
    ParBilinearForm *m_impl;
    ParBilinearForm *k;
    ParLinearForm *b;
+   Vector b_vec;
 
-   HypreParMatrix M;
+   HypreParMatrix M; // ess DOFs eliminated - required always for LHS
+   HypreParMatrix K; // ess DOFs eliminated - required only for implicit LHS
+   HypreParMatrix M_full; // full - no essential DOFs eliminated
+   HypreParMatrix K_full; // full - no essential DOFs eliminated
 
-   ParLinearForm rhs; // = -KT + Neumann
+   mutable Vector rhs; // = -KT + Neumann
 
-   ParBilinearForm a;
-   HypreParMatrix A; // A = M + dt K
+   //ParBilinearForm a;
+   HypreParMatrix *A; // A = M + dt K
+   //HypreParMatrix *A_e; // eliminated part of original A
    double current_dt;
 
    FGMRESSolver expl_solver;    // FMGRES solver for inverting the mass matrix M
@@ -67,7 +72,7 @@ protected:
    /// Update the diffusion BilinearForm K using the given true-dof vector `u` based on specified model.
    void SetThermalConductivities(const Vector &u, double curr_time);
 
-   void CalculateRHS(const Vector &u);
+   void CalculateRHS(const Vector &u) const;
 
 public:
    ConductionOperator(Config* in_config, ParFiniteElementSpace &f, double t_0);
@@ -76,7 +81,7 @@ public:
    
    /** Solve the Backward-Euler equation: k = f(u + dt*k, t), for the unknown k.
        This is the only requirement for high-order SDIRK implicit integration.*/
-   //void ImplicitSolve(const double dt, const Vector &u, Vector &k);
+   void ImplicitSolve(const double dt, const Vector &u, Vector &k);
 
    void PreprocessIteration(Vector &u, double curr_time);
    
