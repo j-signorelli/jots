@@ -77,8 +77,10 @@ class Config
 
         int GetBCCount() {return bc_count;};
 
-        TIME_SCHEME GetTimeScheme() const { return time_scheme; }
+        mfem::ODESolver* GetODESolver() const; // Returns ODESolver that must be deleted by caller!
         
+        std::string GetTimeSchemeString() const;
+
         double GetStartTime() const { return t0; }
 
         double GetFinalTime() const { return tf; }

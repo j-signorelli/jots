@@ -35,27 +35,10 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
         cout << "Problem Dimension: " << dim << endl;
     }
     //----------------------------------------------------------------------
-    // Set ODE time integrator - TODO: move this into Config similar to IterativeSolver
+    // Set ODE time integrator
+    ode_solver = user_input->GetODESolver();
     if (rank == 0)
-        cout << "Time Scheme: ";
-    switch (user_input->GetTimeScheme())
-    {
-        case TIME_SCHEME::EULER_IMPLICIT:
-            ode_solver = new BackwardEulerSolver;
-            if (rank == 0)
-                cout << "Euler Implicit" << endl;
-            break;
-        case TIME_SCHEME::EULER_EXPLICIT:
-            ode_solver = new ForwardEulerSolver;
-            if (rank == 0)
-                cout << "Euler Explicit" << endl;
-            break;
-        case TIME_SCHEME::RK4:
-            ode_solver = new RK4Solver;
-            if (rank == 0)
-                cout << "RK4" << endl;
-            break;
-    }
+        cout << "Time Scheme: " << user_input->GetTimeSchemeString() << endl;
     //----------------------------------------------------------------------
     // Refine mesh in serial
     int ser_ref = user_input->GetSerialRefine();

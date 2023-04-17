@@ -141,6 +141,36 @@ void Config::ReorderBCs(mfem::Array<int> bdr_attributes)
     }
 }
 
+ODESolver* Config::GetODESolver() const
+{
+    switch (time_scheme)
+    {
+        case TIME_SCHEME::EULER_IMPLICIT:
+            return new BackwardEulerSolver;
+            break;
+        case TIME_SCHEME::EULER_EXPLICIT:
+            return new ForwardEulerSolver;
+            break;
+        case TIME_SCHEME::RK4:
+            return new RK4Solver;
+    }
+}
+
+string Config::GetTimeSchemeString() const
+{
+    switch (time_scheme)
+    {
+        case TIME_SCHEME::EULER_IMPLICIT:
+            return "Euler Implicit";
+            break;
+        case TIME_SCHEME::EULER_EXPLICIT:
+            return "Euler Explicit";
+            break;
+        case TIME_SCHEME::RK4:
+            return "RK4";
+    }
+}
+
 IterativeSolver* Config::GetSolver(MPI_Comm comm_) const
 {
     switch (solver)
