@@ -278,18 +278,7 @@ void ConductionOperator::Mult(const Vector &u, Vector &du_dt) const
    //m->FormLinearSystem(ess_tdof_list, tmp_du_dt, rhs_full, A, X, B);
 
    // Solver M^-1, then multiply M^-1 * rhs
-   expl_solver.Mult(rhs, du_dt);
-
-   
-   //----------------------------------------------------------
-   // TODO: Check this more below, Rob just does above Mult with X=du_dt
-   //       I believe that below is more generalized
-   // Recover the solution as a ParGridFunction
-   //m->RecoverFEMSolution(X, rhs_full, tmp_du_dt);
-
-   // Set new DOFs
-   //tmp_du_dt.GetTrueDofs(du_dt);
-   
+   expl_solver.Mult(rhs, du_dt);   
 
 }
 
