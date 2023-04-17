@@ -20,45 +20,35 @@ using namespace mfem;
 class ConductionOperator : public TimeDependentOperator
 {
 protected:
+   Config* user_input; // Not allocated here
    ParFiniteElementSpace &fespace;
    Array<int> ess_tdof_list; // list of essential true dofs
    Array<int>* all_bdr_attr_markers;
    Coefficient** all_bdr_coeffs;
    Coefficient* k_coeff;
-   
-   ParBilinearForm *m;
-   ParBilinearForm *m_impl;
-   ParBilinearForm *k;
-   ParLinearForm *b;
-   Vector b_vec;
-
-   HypreParMatrix M; // ess DOFs eliminated - required always for LHS
-   HypreParMatrix K; // ess DOFs eliminated - required only for implicit LHS
-   HypreParMatrix M_full; // full - no essential DOFs eliminated
-   HypreParMatrix K_full; // full - no essential DOFs eliminated
-
-   mutable Vector rhs; // = -KT + Neumann
-
-   //ParBilinearForm a;
-   HypreParMatrix *A; // A = M + dt K
-   //HypreParMatrix *A_e; // eliminated part of original A
-   double current_dt;
 
    FGMRESSolver expl_solver;    // FMGRES solver for inverting the mass matrix M
    HypreSmoother expl_prec; // Preconditioner for the mass matrix M
-
    FGMRESSolver impl_solver;   // Implicit solver for inverting T = M + dt K
    HypreSmoother impl_prec; // Preconditioner for the implicit solver
 
-   Config* user_input; // Not allocated here
-   /*
-   //Vector* b_vec; // Vector for enforcing Neumann BCs
    
-   Vector du_dt_dbc; // Vector of projected coefficients on boundaries
-   mutable Vector DU_DT; // Vector of DOFs w/ removed essential BCs - mutable so it may be solved for in const function
-   Vector r; // Vector that holds entire RHS without removed essential DOFs
-   Vector R; // Vector of RHS w/ removed essential DOFs
-   */
+   ParBilinearForm *m;
+   ParBilinearForm *k;
+   ParLinearForm *b;
+
+   HypreParMatrix *M_full; // full - no essential DOFs eliminated
+   HypreParMatrix *K_full; // full - no essential DOFs eliminated
+   Vector b_vec; // full - Neumann BCs
+
+   HypreParMatrix *M; // ess DOFs eliminated - Operator for explicit time-integration
+   HypreParMatrix *K; // ess DOFs eliminated
+   HypreParMatrix *A; // ess DOFs eliminated - Operator for implicit time integration (A = M + dt K)
+   
+   HypreParMatrix *M_e; // eliminated part of M, M_full = M + M_e
+   HypreParMatrix *K_e; // eliminated part of K, K_full = K + K_e
+   HypreParMatrix *A_e; // eliminated part of A, A_full = A + A_e - required for setting BCs in implicit time integration
+   mutable Vector rhs; // = -KT + Neumann
 
    void PreprocessBCs();
 

@@ -19,10 +19,16 @@ ConductionOperator::ConductionOperator(Config* in_config, ParFiniteElementSpace 
       m(NULL), 
       k(NULL),
       b(NULL),
+      M_full(NULL),
+      K_full(NULL),
       b_vec(height),
-      rhs(height),
+      M(NULL),
+      K(NULL),
       A(NULL),
-      current_dt(0.0),
+      M_e(NULL),
+      K_e(NULL),
+      A_e(NULL),
+      rhs(height),
       impl_solver(f.GetComm()),
       expl_solver(f.GetComm()),
       user_input(in_config)
@@ -98,14 +104,7 @@ void ConductionOperator::PreprocessStiffness()
    
    // Add domain integrator to the bilinear form
    k->AddDomainIntegrator(new DiffusionIntegrator(*k_coeff));
-   k->Assemble(0); // keep sparsity pattern of m and k the same
 
-   // Create full stiffness matrix w/o removed essential DOFs
-   Array<int> dummy;
-   k->FormSystemMatrix(dummy, K_full);
-   
-   // Create stiffness matrix w/ removed essential DOFs
-   k->FormSystemMatrix(ess_tdof_list, K);
 
 }
 
@@ -122,13 +121,14 @@ void ConductionOperator::PreprocessSolver()
    ConstantCoefficient rhoCp(user_input->GetDensity()*user_input->GetCp());
    m->AddDomainIntegrator(new MassIntegrator(rhoCp));
    m->Assemble(0); // keep sparsity pattern of m and k the same
+   m->Finalize(0);
 
-   // Get matrix M_full with no removed essential DOFs
-   Array<int> dummy;
-   m->FormSystemMatrix(dummy, M_full);
-
-   // Now remove essential DOFs (affect bilinear form m) and get M
-   m->FormSystemMatrix(ess_tdof_list, M);
+   // Create full mass matrix w/o removed essential DOFs
+   M_full = m->ParallelAssemble();
+   M = new HypreParMatrix(*M_full);
+   
+   // Create stiffness matrix w/ removed essential DOFs + remove from M
+   M_e = k->ParallelEliminateTDofs(ess_tdof_list, *M);
 
    //----------------------------------------------------------------
    // Prepare explicit solver
@@ -145,7 +145,7 @@ void ConductionOperator::PreprocessSolver()
    expl_prec.SetType(HypreSmoother::Chebyshev); // Set type of preconditioning (relaxation type) 
    expl_solver.SetPreconditioner(expl_prec); // Set preconditioner to matrix inversion solver
 
-   expl_solver.SetOperator(M); // Set operator M
+   expl_solver.SetOperator(*M); // Set operator M
 
    //----------------------------------------------------------------
    // Prepare implicit solver
@@ -212,8 +212,9 @@ void ConductionOperator::ApplyBCs(Vector &u, double curr_time)
       // Apply changed Dirichlet BCs to T
       temp_u_gf.GetTrueDofs(u);
 
-      // TODO: set tmp_du_dt to be used?
+      // Here is where can set tmp_du_dt to be used if HO wanted
       // For higher-order, need T from n-1 timestep in addition to n timestep? is this worth doing?
+      // Need to save previous timestep temperature in restarts
 
    }
    // Reassemble linear form b with updated coeffs + b_vec
@@ -226,20 +227,30 @@ void ConductionOperator::ApplyBCs(Vector &u, double curr_time)
 }
 
 void ConductionOperator::SetThermalConductivities(const Vector &u, double curr_time)
-{  
-   // Update matrix K IF TIME-DEPENDENT k
-   if (!user_input->GetConductivityModel()->IsConstant())
-   {
+{    
+
+   // Update matrix K IF TIME-DEPENDENT k Or if not yet instantiated
+   if (!K || !user_input->GetConductivityModel()->IsConstant())
+   {  
+
+
+      delete K_full;
+      delete K;
+      delete K_e;
+
+
       k_coeff->SetTime(curr_time);     
       k->Update(); // delete old data (M and M_e)
       k->Assemble(0);
+      k->Finalize(0);
 
-      // Update full stiffness matrix w/o removed essential DOFs
-      Array<int> dummy;
-      k->FormSystemMatrix(dummy, K_full);
+
+      // Create full stiffness matrix w/o removed essential DOFs
+      K_full = k->ParallelAssemble();
+      K = new HypreParMatrix(*K_full);
    
-      // Update stiffness matrix w/ removed essential DOFs
-      k->FormSystemMatrix(ess_tdof_list, K);
+      // Create stiffness matrix w/ removed essential DOFs
+      K_e = k->ParallelEliminateTDofs(ess_tdof_list, *K);
 
    }
 }
@@ -248,7 +259,7 @@ void ConductionOperator::CalculateRHS(const Vector &u) const
 {   
 
    // Complete multiplication of HypreParMatrix with primal vector for dual vector z
-   K_full.Mult(u, rhs);
+   K_full->Mult(u, rhs);
 
    rhs.Neg(); // z = -z
 
@@ -268,16 +279,12 @@ void ConductionOperator::Mult(const Vector &u, Vector &du_dt) const
    // Calculate RHS pre-essential update
    CalculateRHS(u);
 
+   du_dt.SetSubVector(ess_tdof_list, 0.0); // **Assume essential DOFs du_dt = 0.0
+
    // Apply elimination of essential BCs to rhs vector
-   // Internal matrix M_e within bilinear form m from final call to FormSystemMatrix
-   // in constructor allows this
-   du_dt.SetSubVector(ess_tdof_list, 0.0);
-   m->EliminateVDofsInRHS(ess_tdof_list, du_dt, rhs);
+   EliminateBC(*M, *M_e, ess_tdof_list, du_dt, rhs);
 
-
-   //m->FormLinearSystem(ess_tdof_list, tmp_du_dt, rhs_full, A, X, B);
-
-   // Solver M^-1, then multiply M^-1 * rhs
+   // Solve for M^-1 * rhs
    expl_solver.Mult(rhs, du_dt);   
 
 }
@@ -293,20 +300,20 @@ void ConductionOperator::ImplicitSolve(const double dt,
    // Calculate RHS pre-essential update
    CalculateRHS(u);
 
-   // Calculate LHS w/ applied essential BCs
-   A = Add(1.0, M, dt, K);
-
-   current_dt = dt;
+   // Calculate LHS w/o essential DOFs eliminated at first
+   A = Add(1.0, *M, dt, *K);
 
    impl_solver.SetOperator(*A);
-   
-   //TODO: ?What is this
-   MFEM_VERIFY(dt == current_dt, ""); // SDIRK methods use the same dt
 
-   // See above notes
-   du_dt.SetSubVector(ess_tdof_list, 0.0);
-   EliminateBC(*A, *A_e, ess_tdof_list, du_dt, rhs);
+   // Calculate LHS eliminated part using already calculated M_e's from the individual bilinear forms
+   A_e = Add(1.0, *M_e, dt, *K_e);
 
+   du_dt.SetSubVector(ess_tdof_list, 0.0); // **Assume essential DOFs du_dt = 0.0
+
+   // Eliminate BCs from RHS given LHS
+   A->EliminateBC(*A_e, ess_tdof_list, du_dt, rhs);
+
+   // Solve for du_dt
    impl_solver.Mult(rhs, du_dt);
 }
 
@@ -317,9 +324,21 @@ ConductionOperator::~ConductionOperator()
    delete[] all_bdr_attr_markers;
    for (size_t i = 0; i < user_input->GetBCCount(); i++)
       delete all_bdr_coeffs[i];
-   delete k_coeff;
    delete[] all_bdr_coeffs;
+   delete k_coeff;
+
    delete m;
-   //delete K;
+   delete k;
    delete b;
+
+   delete M_full;
+   delete K_full;
+   
+   delete M;
+   delete K;
+   delete A;
+
+   delete M_e;
+   delete K_e;
+   delete A_e;
 }
