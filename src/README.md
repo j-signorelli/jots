@@ -82,3 +82,8 @@ $$Kdt\dfrac{dT}{dt} + M\dfrac{dT}{dt} = \left( -KT + \int_{\partial \Omega} g\ph
 $$\left( Kdt + M\right)\dfrac{dT}{dt} = \left( -KT + \int_{\partial \Omega} g\phi d\vec{x}\right)$$
 
 Note **importantly**: stiffness matrix $K$ is still calculated using the temperature from the previous timestep so, if it changes in time, this is a source of error.
+
+# Important Assumptions / Limitations
+
+1. For implicit time-integration, $K$ is determined using temperatures at the previous timestep ($K$ is linearized from previous timestep).
+2. For essential boundary conditions that vary in time, $\dfrac{dT_i}{dt}$ is assumed to be 0. A backward differencing may be implemented for higher-order accuracy in time but would require restart files that save $t_{n-1}$ data in addition to $t_n$ data.
