@@ -201,7 +201,6 @@ void ConductionOperator::ApplyBCs(Vector &u, double curr_time)
       if (user_input->GetBCs()[i]->IsEssential())
       {
          // Project correct values on boundary for essential BCs
-         //cout << "Projecting BDR coefficient " << all_bdr_coeffs[i]->GetValue()
          d_changed = true;
          temp_u_gf.ProjectBdrCoefficient(*all_bdr_coeffs[i], all_bdr_attr_markers[i]);
       }

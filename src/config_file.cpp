@@ -73,17 +73,20 @@ Config::Config(const char* in_file) : input_file(in_file)
         boost::algorithm::trim(bc_info[1]);
 
         // Get the value set
-        double value =  stod(bc_info[1].c_str());
+        //double value =  stod(bc_info[1].c_str());
 
         // Set the BC
         BOUNDARY_CONDITION type = Boundary_Condition_Map.at(bc_info[0]);
         
+        double value;
         switch (type)
         {
             case BOUNDARY_CONDITION::HEATFLUX:
+                value = stod(bc_info[1].c_str());
                 boundary_conditions[index] = new UniformHeatFluxBC(attr, value);
                 break;
             case BOUNDARY_CONDITION::ISOTHERMAL:
+                value = stod(bc_info[1].c_str());
                 boundary_conditions[index] = new UniformIsothermalBC(attr, value);
                 break;
 
