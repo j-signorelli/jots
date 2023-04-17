@@ -171,15 +171,6 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
 
     //----------------------------------------------------------------------
     // Declare vector for holding true DOFs + instantiate ConductionOperator, sending all necessary parameters
-    /*
-    Array<int> test;
-    ConstantCoefficient death(300);
-    test.Append(1);
-    test.Append(1);
-    test.Append(1);
-    test.Append(1);
-    T_gf->ProjectBdrCoefficient(death, test);
-    */
     T_gf->GetTrueDofs(T);
     if (rank == 0)
     {
@@ -214,17 +205,6 @@ void JOTSDriver::Run()
     paraview_dc.SetLevelsOfDetail(user_input->GetFEOrder());
     paraview_dc.SetDataFormat(VTKFormat::BINARY);
     paraview_dc.SetHighOrderOutput(true);
-    /*
-    Array<int> test;
-    ConstantCoefficient death(300);
-    test.Append(1);
-    test.Append(1);
-    test.Append(1);
-    test.Append(1);
-    T_gf->ProjectBdrCoefficient(death, test);
-    T_gf->GetTrueDofs(T);
-    */
-    //oper->ApplyBCs(T);
 
     while (time < tf)//Main Solver Loop
     {
@@ -246,16 +226,15 @@ void JOTSDriver::Run()
 
         // Print current timestep information:
         if (rank == 0)
-            printf("Step #%10i || Time: %10.5g out of %-10.5g || dt: %10.5g || Rank 0 Max Temperature: %10.3g \n", it_num, time, tf,  dt, T.Max());
+            printf("Step #%10i || Time: %10.5g out of %-10.5g || dt: %10.5g \n", it_num, time, tf,  dt);
+            //|| Rank 0 Max Temperature: %10.3g \n", it_num, time, tf,  dt, T.Max());
             //cout << "Step #" << it_num << " || t = " << time << "||" << "Rank 0 Max T: " << T.Max() << endl;
         
 	if (T.Max() > 1e10)
-	{
-        if (rank == 0)
-	        cout << "Error: JOTS has diverged" << endl;
-	    return; // TODO: Error handling
-	}
-
+    {
+        MFEM_ABORT("JOTS has blown up");
+        return;
+    }
         if (it_num % user_input->GetVisFreq() == 0) // TODO: VisFreq must be nonzero
         {
             if (rank == 0)
