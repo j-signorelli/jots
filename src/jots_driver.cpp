@@ -35,7 +35,7 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
         cout << "Problem Dimension: " << dim << endl;
     }
     //----------------------------------------------------------------------
-    // Set ODE time integrator
+    // Set ODE time integrator - TODO: move this into Config similar to IterativeSolver
     if (rank == 0)
         cout << "Time Scheme: ";
     switch (user_input->GetTimeScheme())

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <mpi.h>
+
 #include "boost/property_tree/ptree.hpp"
 #include "boost/property_tree/ini_parser.hpp"
 #include "boost/foreach.hpp"
@@ -39,6 +41,12 @@ class Config
         double tf;                    /*!< \brief Final time to run to */
         double dt;                    /*!< \brief Delta time, timestep */
 
+        SOLVER solver;                /*!< \brief Linear system solver type */
+        PRECONDITIONER prec;          /*!< \brief Preconditioner to use */
+        double abs_tol;               /*!< \brief Solver absolute tolerance */
+        double rel_tol;               /*!< \brief Solver relative tolerance */
+        int max_iter;                 /*!< \brief Maximum solver iterations */
+
         int restart_freq;             /*!< \brief Frequency to output restart files (iterations per output) */
         int vis_freq;                 /*!< \brief Frequency to output Paraview files (iterations per output) */
 
@@ -77,6 +85,15 @@ class Config
 
         double Getdt() const { return dt; }
 
+        mfem::IterativeSolver* GetSolver(MPI_Comm comm_) const; // Returns IterativeSolver that must be deleted by caller!
+
+        mfem::HypreSmoother::Type GetPrec() const;
+
+        int GetMaxIter() const { return max_iter; }
+
+        double GetAbsTol() const { return abs_tol; }
+
+        double GetRelTol() const { return rel_tol; }
 
         int GetRestartFreq() const { return restart_freq; }
 

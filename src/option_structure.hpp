@@ -60,3 +60,24 @@ enum class CONDUCTIVITY_MODEL
 
 static const std::map<std::string, CONDUCTIVITY_MODEL> Conductivity_Model_Map = {{"Uniform", CONDUCTIVITY_MODEL::UNIFORM},
                                                                              {"Linearized", CONDUCTIVITY_MODEL::LINEARIZED}};
+                                                                    
+enum class SOLVER
+{
+  CG=0,
+  GMRES=1,
+  FGMRES=2
+};
+
+static const std::map<std::string, SOLVER> Solver_Map = {{"CG", SOLVER::CG},
+                                                         {"GMRES", SOLVER::GMRES},
+                                                         {"FGMRES", SOLVER::FGMRES}};
+
+
+enum class PRECONDITIONER
+{
+  JACOBI=0,
+  CHEBYSHEV=16
+};
+
+static const std::map<std::string, PRECONDITIONER> Preconditioner_Map = {{"Jacobi", PRECONDITIONER::JACOBI},
+                                                                         {"Chebyshev", PRECONDITIONER::CHEBYSHEV}};

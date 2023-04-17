@@ -27,9 +27,9 @@ protected:
    Coefficient** all_bdr_coeffs;
    Coefficient* k_coeff;
 
-   FGMRESSolver expl_solver;    // FMGRES solver for inverting the mass matrix M
+   IterativeSolver *expl_solver;    // Solver for explicit time integration
    HypreSmoother expl_prec; // Preconditioner for the mass matrix M
-   FGMRESSolver impl_solver;   // Implicit solver for inverting T = M + dt K
+   IterativeSolver *impl_solver;   // Solver for implicit time integration
    HypreSmoother impl_prec; // Preconditioner for the implicit solver
 
    

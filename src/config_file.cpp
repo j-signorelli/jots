@@ -3,6 +3,7 @@
 
 namespace bp = boost::property_tree;
 using namespace std;
+using namespace mfem;
 
 Config::Config(const char* in_file) : input_file(in_file)
 {   
@@ -94,13 +95,18 @@ Config::Config(const char* in_file) : input_file(in_file)
         
     }
 
-    // TODO: Read LinearSystemSettings
-
     // Read TimeIntegration
     time_scheme = Time_Scheme_Map.at(property_tree.get<string>("TimeIntegration.Time_Scheme"));
     dt = property_tree.get<double>("TimeIntegration.Delta_Time");
     tf = property_tree.get<double>("TimeIntegration.Final_Time");
 
+    // Read LinearSystemSettings
+    solver = Solver_Map.at(property_tree.get<string>("LinearSolverSettings.Solver"));
+    prec = Preconditioner_Map.at(property_tree.get<string>("LinearSolverSettings.Preconditioner"));
+    abs_tol = property_tree.get<double>("LinearSolverSettings.Absolute_Tolerance");
+    rel_tol = property_tree.get<double>("LinearSolverSettings.Relative_Tolerance");
+    max_iter = property_tree.get<int>("LinearSolverSettings.Max_Iterations");
+    
     //Read Output
     restart_freq = property_tree.get<int>("Output.Restart_Freq");
     vis_freq = property_tree.get<int>("Output.Visualization_Freq");
@@ -132,6 +138,35 @@ void Config::ReorderBCs(mfem::Array<int> bdr_attributes)
             }
 
         }
+    }
+}
+
+IterativeSolver* Config::GetSolver(MPI_Comm comm_) const
+{
+    switch (solver)
+    {
+        case SOLVER::CG:
+            return new CGSolver(comm_);
+            break;
+        case SOLVER::GMRES:
+            return new GMRESSolver(comm_);
+            break;
+        case SOLVER::FGMRES:
+            return new FGMRESSolver(comm_);
+            break;
+    }
+}
+
+HypreSmoother::Type Config::GetPrec() const
+{
+    switch (prec)
+    {
+        case PRECONDITIONER::JACOBI:
+            return HypreSmoother::Jacobi;
+            break;
+        case PRECONDITIONER::CHEBYSHEV:
+            return HypreSmoother::Chebyshev;
+            break;
     }
 }
 

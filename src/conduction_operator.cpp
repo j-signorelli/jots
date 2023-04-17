@@ -16,6 +16,8 @@ ConductionOperator::ConductionOperator(Config* in_config, ParFiniteElementSpace 
    :  TimeDependentOperator(f.GetTrueVSize(), t_0),
       fespace(f),
       k_coeff(NULL),
+      impl_solver(NULL),
+      expl_solver(NULL),
       m(NULL), 
       k(NULL),
       b(NULL),
@@ -29,8 +31,6 @@ ConductionOperator::ConductionOperator(Config* in_config, ParFiniteElementSpace 
       K_e(NULL),
       A_e(NULL),
       rhs(height),
-      impl_solver(f.GetComm()),
-      expl_solver(f.GetComm()),
       user_input(in_config)
 {
 
@@ -110,8 +110,10 @@ void ConductionOperator::PreprocessStiffness()
 
 void ConductionOperator::PreprocessSolver()
 {  
-   const double rel_tol = 1e-16;
-   const double abs_tol = 1e-10;
+   double abs_tol = user_input->GetAbsTol();
+   double rel_tol = user_input->GetRelTol();
+   int max_iter = user_input->GetMaxIter();
+
    //----------------------------------------------------------------   
    // Prepare mass matrix
    // Assemble parallel bilinear form for mass matrix
@@ -133,34 +135,36 @@ void ConductionOperator::PreprocessSolver()
    //----------------------------------------------------------------
    // Prepare explicit solver
    
+   expl_solver = user_input->GetSolver(fespace.GetComm());
+
    // Set up the solver for Mult
-   expl_solver.iterative_mode = false; // If true, would use second argument of Mult() as initial guess; here it is set to false
+   expl_solver->iterative_mode = false; // If true, would use second argument of Mult() as initial guess; here it is set to false
 
-   expl_solver.SetRelTol(rel_tol); // Sets "relative tolerance" of iterative solver
-   expl_solver.SetAbsTol(abs_tol); // Sets "absolute tolerance" of iterative solver
-   expl_solver.SetMaxIter(100); // Sets maximum number of iterations
+   expl_solver->SetRelTol(rel_tol); // Sets "relative tolerance" of iterative solver
+   expl_solver->SetAbsTol(abs_tol); // Sets "absolute tolerance" of iterative solver
+   expl_solver->SetMaxIter(max_iter); // Sets maximum number of iterations
+   expl_solver->SetPrintLevel(0); // Print all information about detected issues
 
-   expl_solver.SetPrintLevel(0); // Print all information about detected issues
+   expl_prec.SetType(user_input->GetPrec()); // Set type of preconditioning (relaxation type) 
+   expl_solver->SetPreconditioner(expl_prec); // Set preconditioner to matrix inversion solver
 
-   expl_prec.SetType(HypreSmoother::Chebyshev); // Set type of preconditioning (relaxation type) 
-   expl_solver.SetPreconditioner(expl_prec); // Set preconditioner to matrix inversion solver
-
-   expl_solver.SetOperator(*M); // Set operator M
+   expl_solver->SetOperator(*M); // Set operator M
 
    //----------------------------------------------------------------
    // Prepare implicit solver
-
+   impl_solver = user_input->GetSolver(fespace.GetComm());
+   
    // Prepare bilinear form for LHS
    //a = new ParBilinearForm(&fespace);
 
    // Set up solver for ImplicitSolve
-   impl_solver.iterative_mode = false;
-   impl_solver.SetRelTol(rel_tol);
-   impl_solver.SetAbsTol(abs_tol);
-   impl_solver.SetMaxIter(100);
-   impl_solver.SetPrintLevel(0);
-   impl_prec.SetType(HypreSmoother::Chebyshev);
-   impl_solver.SetPreconditioner(impl_prec);
+   impl_solver->iterative_mode = false;
+   impl_solver->SetRelTol(rel_tol);
+   impl_solver->SetAbsTol(abs_tol);
+   impl_solver->SetMaxIter(max_iter);
+   impl_solver->SetPrintLevel(0);
+   impl_prec.SetType(user_input->GetPrec());
+   impl_solver->SetPreconditioner(impl_prec);
    
 
 }
@@ -285,7 +289,7 @@ void ConductionOperator::Mult(const Vector &u, Vector &du_dt) const
    EliminateBC(*M, *M_e, ess_tdof_list, du_dt, rhs);
 
    // Solve for M^-1 * rhs
-   expl_solver.Mult(rhs, du_dt);   
+   expl_solver->Mult(rhs, du_dt);   
 
 }
 
@@ -303,7 +307,7 @@ void ConductionOperator::ImplicitSolve(const double dt,
    // Calculate LHS w/o essential DOFs eliminated at first
    A = Add(1.0, *M, dt, *K);
 
-   impl_solver.SetOperator(*A);
+   impl_solver->SetOperator(*A);
 
    // Calculate LHS eliminated part using already calculated M_e's from the individual bilinear forms
    A_e = Add(1.0, *M_e, dt, *K_e);
@@ -314,7 +318,7 @@ void ConductionOperator::ImplicitSolve(const double dt,
    A->EliminateBC(*A_e, ess_tdof_list, du_dt, rhs);
 
    // Solve for du_dt
-   impl_solver.Mult(rhs, du_dt);
+   impl_solver->Mult(rhs, du_dt);
 }
 
 
@@ -326,6 +330,9 @@ ConductionOperator::~ConductionOperator()
       delete all_bdr_coeffs[i];
    delete[] all_bdr_coeffs;
    delete k_coeff;
+   
+   delete expl_solver;
+   delete impl_solver;
 
    delete m;
    delete k;
