@@ -207,10 +207,15 @@ void ConductionOperator::ApplyBCs(Vector &u, double curr_time)
       }
    }
 
-   // Apply Dirichlet BCs to T
    if (d_changed)
+   {
+      // Apply changed Dirichlet BCs to T
       temp_u_gf.GetTrueDofs(u);
 
+      // TODO: set tmp_du_dt to be used?
+      // For higher-order, need T from n-1 timestep in addition to n timestep? is this worth doing?
+
+   }
    // Reassemble linear form b with updated coeffs + b_vec
    if (n_changed)
    {
@@ -260,22 +265,12 @@ void ConductionOperator::Mult(const Vector &u, Vector &du_dt) const
    //    du/dt = M^{-1}(-Ku + boundary_terms)
    // for du_dt
 
-   // Enforce appropriate du_dt=0 for Dirichlet BCs
-   ParGridFunction tmp_du_dt(&fespace);
-   tmp_du_dt.SetFromTrueDofs(du_dt);
-   tmp_du_dt = 0.0; // TODO: Actually calculate w/ backward differencing for unsteady Dirichlet
-   
    // Calculate RHS pre-essential update
    CalculateRHS(u);
-
-   // Auxiliary variable
-   //Vector rhs(height);
 
    // Apply elimination of essential BCs to rhs vector
    // Internal matrix M_e within bilinear form m from final call to FormSystemMatrix
    // in constructor allows this
-
-   // IMPORTANT TODO: using tmp_du_dt below does not seem to work. FIGURE OUT WHY
    du_dt.SetSubVector(ess_tdof_list, 0.0);
    m->EliminateVDofsInRHS(ess_tdof_list, du_dt, rhs);
 
