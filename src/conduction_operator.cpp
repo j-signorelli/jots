@@ -184,10 +184,6 @@ void ConductionOperator::ApplyBCs(Vector &u, double curr_time)
 
    // Update time-dependent coefficients with current time
    // Also project essential coefficients onto u
-   // TODO: Rob does this by just setting subvector. Would need to individually
-   //       get and save arrays of ess_tdofs for each bdr but may be faster that creating new GF each time
-   // Would be worth if seeing if it's faster
-   
    ParGridFunction temp_u_gf(&fespace);
    temp_u_gf.SetFromTrueDofs(u);
 
