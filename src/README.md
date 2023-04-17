@@ -49,7 +49,7 @@ $$K_{ij} = \int_\Omega (k \nabla \phi_i) \cdot (\nabla \phi_j) d\vec{x} = \text{
 
 and then rewrite:
 
-$$M_{ij}\dfrac{dT_j}{dt} + K_{ij}T_j = \int_{\partial \Omega} g\phi_j d\vec{x}$$
+$$M_{ij}\dfrac{dT_j}{dt} = -K_{ij}T_j + \int_{\partial \Omega} g\phi_i d\vec{x}$$
 
 Finally, we can rewrite this as:
 
@@ -69,7 +69,10 @@ For explicit time-integration schemes, it is simply assumed that the $T_j$ on th
 
 $$\dfrac{dT_i}{dt} = M_{ik}^{-1} \left( -K_{kj}(T_j + dt\dfrac{dT_k}{dt}) + \int_{\partial \Omega} g\phi_k d\vec{x}\right)$$
 
-as $$T_i^{n+1} = T_i^n + dt \dfrac{dT_i}{dt}$$
+as taking the Taylor Series of $T_i^n$ about the $t_{n+1}$ timestep yields $T_i^n = T_i^{n+1} - dt\dfrac{\partial T^{n+1}_i}{\partial t} + O(dt^2)$ and neglecting HOT yields:  
+
+
+$$T_i^{n+1} = T_i^n + dt \dfrac{dT^{n+1}_i}{dt}$$
 
 
 Given this, the new equation to solve becomes:
