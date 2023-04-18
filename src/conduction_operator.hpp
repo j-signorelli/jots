@@ -24,7 +24,6 @@ protected:
    ParFiniteElementSpace &fespace;
    Array<int> ess_tdof_list; // list of essential true dofs
    Array<int>* all_bdr_attr_markers;
-   Coefficient** all_bdr_coeffs;
    Coefficient* k_coeff;
 
    IterativeSolver *expl_solver;    // Solver for explicit time integration

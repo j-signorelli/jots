@@ -47,19 +47,16 @@ void ConductionOperator::PreprocessBCs()
 
    // Set the list of Dirichlet (essential) DOFs
    Array<int> dbc_bdr(user_input->GetBCCount());
-   dbc_bdr = 0; // Initialize with all attributes set to non-essential = 0
+   dbc_bdr = 0; // Start w/ all attributes set to non-essential = 0
 
-   // Further, create bdr_attr_marker arrays and FunctionCoefficient arrays for all BCs
+   // Create bdr_attr_marker arrays and iniitalize dbc list
    all_bdr_attr_markers = new Array<int>[user_input->GetBCCount()];
-   all_bdr_coeffs = new Coefficient*[user_input->GetBCCount()];
    for (size_t i = 0; i < user_input->GetBCCount(); i++)
    {
       Array<int> bdr_attr(user_input->GetBCCount());
       bdr_attr = 0;
       bdr_attr[i] = 1;
       all_bdr_attr_markers[i] = bdr_attr;
-
-      all_bdr_coeffs[i] = NULL;
 
       // Update DBC list if essential
       if (user_input->GetBCs()[i]->IsEssential())
@@ -75,13 +72,13 @@ void ConductionOperator::PreprocessBCs()
    // Loop through all BCs
    for (size_t i = 0; i < user_input->GetBCCount(); i++)
    {  
-      // Get the coefficients for all BCs
-      all_bdr_coeffs[i] = user_input->GetBCs()[i]->GetCoefficient();
+      // Initialize coefficients for all BCs
+      user_input->GetBCs()[i]->InitCoefficient();
    
       // Add Neumann BCs to linear form b
       if (! user_input->GetBCs()[i]->IsEssential())
       {
-         b->AddBoundaryIntegrator(new BoundaryLFIntegrator(*all_bdr_coeffs[i]), all_bdr_attr_markers[i]);// Add boundary integrator to boundary
+         b->AddBoundaryIntegrator(new BoundaryLFIntegrator(*user_input->GetBCs()[i]->GetCoeffPtr()), all_bdr_attr_markers[i]);// Add boundary integrator to boundary
       }
    }
 
@@ -193,8 +190,8 @@ void ConductionOperator::ApplyBCs(Vector &u, double curr_time)
    {
       if (!user_input->GetBCs()[i]->IsConstant()) // If not constant in time
       {
-         // Set coefficient's time to current time
-         all_bdr_coeffs[i]->SetTime(curr_time);
+         // Update coefficients (could be preCICE calls, could be SetTime calls, etc.)
+         user_input->GetBCs()[i]->UpdateCoeff();
          n_changed = true;
       }
 
@@ -202,7 +199,7 @@ void ConductionOperator::ApplyBCs(Vector &u, double curr_time)
       {
          // Project correct values on boundary for essential BCs
          d_changed = true;
-         temp_u_gf.ProjectBdrCoefficient(*all_bdr_coeffs[i], all_bdr_attr_markers[i]);
+         temp_u_gf.ProjectBdrCoefficient(*user_input->GetBCs()[i]->GetCoeffPtr(), all_bdr_attr_markers[i]);
       }
    }
 
@@ -229,6 +226,7 @@ void ConductionOperator::SetThermalConductivities(const Vector &u, double curr_t
 {    
 
    // Update matrix K IF TIME-DEPENDENT k Or if not yet instantiated
+   // TODO:
    if (!K || !user_input->GetConductivityModel()->IsConstant())
    {  
 
@@ -319,11 +317,7 @@ void ConductionOperator::ImplicitSolve(const double dt,
 
 ConductionOperator::~ConductionOperator()
 {
-   //delete T;
    delete[] all_bdr_attr_markers;
-   for (size_t i = 0; i < user_input->GetBCCount(); i++)
-      delete all_bdr_coeffs[i];
-   delete[] all_bdr_coeffs;
    delete k_coeff;
    
    delete expl_solver;
