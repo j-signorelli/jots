@@ -18,6 +18,8 @@ class Config
 {
     private:
         
+        boost::property_tree::ptree property_tree;
+
         std::string input_file;            /*!< \brief Input file to parse */
 
         std::string mesh_file;             /*!< \brief Mesh file to read in */
@@ -52,6 +54,14 @@ class Config
 
     public:
         Config(const char* in_file);
+
+        void ReadFESetup();
+        void ReadAndInitMatProps();
+        void ReadIC();
+        void ReadAndInitBCs(mfem::ParFiniteElementSpace &f);
+        void ReadTimeInt();
+        void ReadLinSolSettings();
+        void ReadOutput();
 
         std::string GetMeshFile() const { return mesh_file; }
 
@@ -89,7 +99,11 @@ class Config
 
         mfem::IterativeSolver* GetSolver(MPI_Comm comm_) const; // Returns IterativeSolver that must be deleted by caller!
 
+        std::string GetSolverString() const;
+
         mfem::HypreSmoother::Type GetPrec() const;
+
+        std::string GetPrecString()  const;
 
         int GetMaxIter() const { return max_iter; }
 

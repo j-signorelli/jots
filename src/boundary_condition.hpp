@@ -67,15 +67,18 @@ class UnsteadyNodalBC : public BoundaryCondition
 {
     private:
     protected:
-        int dim;
+        mfem::ParFiniteElementSpace &fespace;
+        mfem::ParGridFunction coeff_gf;
         mfem::Array<int> boundary_dofs; // From FiniteElementSpace::GetBoundaryTrueDofs
-        mfem::Array<double> x; //
+        mfem::Array<double> 
 
     public:
-        UnsteadyBC(int attr, BOUNDARY_CONDITION in_type) : BoundaryCondition(attr, in_type) {};
+        UnsteadyNodalBC(int attr, BOUNDARY_CONDITION in_type, mfem::ParFiniteElementSpace &f) : BoundaryCondition(attr, in_type), fespace(f), coeff_gf(f) {};
         bool IsConstant() const { return false; };
-        mfem::Coefficient* GetCoefficient() const {return new GridFunctionCoefficient(); };
+        void InitCoefficient();
         
+        void UpdateCoeff();
+
         virtual bool IsEssential() const = 0;
         virtual std::string GetInitString() const = 0;
 };

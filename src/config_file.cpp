@@ -8,21 +8,24 @@ using namespace mfem;
 Config::Config(const char* in_file) : input_file(in_file)
 {   
 
-    // Set up property_tree
-    bp::ptree property_tree;
-
     // Parse ini file
     bp::read_ini(input_file, property_tree);
 
-    // Set all member variables using values from tree
+    // Set all member variables using values from tree (implemented in member fxns - must be called separately)
+}
 
+void Config::ReadFESetup()
+{
     // Read FiniteElementSetup
     mesh_file = property_tree.get<string>("FiniteElementSetup.Mesh_File");
     fe_order = property_tree.get<int>("FiniteElementSetup.FE_Order");
     serial_refine = property_tree.get<int>("FiniteElementSetup.Serial_Refine");
     parallel_refine = property_tree.get<int>("FiniteElementSetup.Parallel_Refine");
-    
 
+}
+
+void Config::ReadAndInitMatProps()
+{
     // Read MaterialProperties
     density = property_tree.get<double>("MaterialProperties.Density");
     Cp = property_tree.get<double>("MaterialProperties.Specific_Heat_Cp");
@@ -39,10 +42,15 @@ Config::Config(const char* in_file) : input_file(in_file)
             break;
         */
     }
+}
 
+void Config::ReadIC()
+{
     // Read InitialCondition
     BINARY_CHOICE restart_choice = Binary_Choice_Map.at(property_tree.get<string>("InitialCondition.Use_Restart"));
     use_restart = restart_choice == BINARY_CHOICE::YES ? true : false;
+    // TODO: update to automatically retrieve from restarts, but for now:
+    t0 = 0;
 
     if (!use_restart)
     {
@@ -54,6 +62,10 @@ Config::Config(const char* in_file) : input_file(in_file)
         // Else need to read in restart file - save file name
         restart_file = property_tree.get<string>("InitialCondition.Restart_File");
     }
+}
+
+void Config::ReadAndInitBCs(ParFiniteElementSpace &f)
+{
     // Read BoundaryConditions
     bc_count = property_tree.get_child("BoundaryConditions").size();
     boundary_conditions = new BoundaryCondition*[bc_count];
@@ -97,25 +109,32 @@ Config::Config(const char* in_file) : input_file(in_file)
         
         
     }
+}
 
+void Config::ReadTimeInt()
+{
     // Read TimeIntegration
     time_scheme = Time_Scheme_Map.at(property_tree.get<string>("TimeIntegration.Time_Scheme"));
     dt = property_tree.get<double>("TimeIntegration.Delta_Time");
     tf = property_tree.get<double>("TimeIntegration.Final_Time");
+}
 
-    // Read LinearSystemSettings
+void Config::ReadLinSolSettings()
+{
+    // Read LinearSolverSettings
     solver = Solver_Map.at(property_tree.get<string>("LinearSolverSettings.Solver"));
     prec = Preconditioner_Map.at(property_tree.get<string>("LinearSolverSettings.Preconditioner"));
     abs_tol = property_tree.get<double>("LinearSolverSettings.Absolute_Tolerance");
     rel_tol = property_tree.get<double>("LinearSolverSettings.Relative_Tolerance");
     max_iter = property_tree.get<int>("LinearSolverSettings.Max_Iterations");
-    
+}
+
+void Config::ReadOutput()
+{
     //Read Output
     restart_freq = property_tree.get<int>("Output.Restart_Freq");
     vis_freq = property_tree.get<int>("Output.Visualization_Freq");
 
-    // TODO: update to automatically retrieve from restarts, but for now:
-    t0 = 0;
 }
 
 void Config::ReorderBCs(mfem::Array<int> bdr_attributes)
@@ -190,6 +209,22 @@ IterativeSolver* Config::GetSolver(MPI_Comm comm_) const
     }
 }
 
+string Config::GetSolverString() const
+{
+    switch (solver)
+    {
+        case SOLVER::CG:
+            return "Conjugate Gradient";
+            break;
+        case SOLVER::GMRES:
+            return "GMRES";
+            break;
+        case SOLVER::FGMRES:
+            return "FMGRES";
+            break;
+    }
+}
+// TODO: clean up these "GetStrings" such that not needing to copy + paste ideally
 HypreSmoother::Type Config::GetPrec() const
 {
     switch (prec)
@@ -199,6 +234,19 @@ HypreSmoother::Type Config::GetPrec() const
             break;
         case PRECONDITIONER::CHEBYSHEV:
             return HypreSmoother::Chebyshev;
+            break;
+    }
+}
+
+string Config::GetPrecString() const
+{
+    switch (prec)
+    {
+        case PRECONDITIONER::JACOBI:
+            return "Jacobi";
+            break;
+        case PRECONDITIONER::CHEBYSHEV:
+            return "Chebyshev";
             break;
     }
 }

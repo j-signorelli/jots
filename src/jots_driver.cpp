@@ -6,39 +6,39 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
 {   
     rank = myid;
     
-    cout << line << endl;
-    cout << R"(
+    if (rank == 0)
+    {
+        cout << line << endl;
+        cout << R"(
 
-         _  ____ _______ _____ 
-        | |/ __ \__   __/ ____|
-        | | |  | | | | | (___  
-    _   | | |  | | | |  \___ \ 
-   | |__| | |__| | | |  ____) |
-    \____/ \____/  |_| |_____/ 
-                                
-                                
+              _  ____ _______ _____ 
+             | |/ __ \__   __/ ____|
+             | | |  | | | | | (___  
+         _   | | |  | | | |  \___ \ 
+        | |__| | |__| | | |  ____) |
+         \____/ \____/  |_| |_____/ 
+                                    
+                                    
 
-    )" << endl << "MFEM-Based Thermal Solver w/ preCICE" << endl << "Version 1.0" << endl << line << endl;
+        )" << endl << "MFEM-Based Thermal Solver w/ preCICE" << endl << "Version 1.0" << endl << line << endl;
+    }
     //----------------------------------------------------------------------
     // Parse config file
     user_input = new Config(input_file);
     if (rank == 0)
-      cout << "Configuration file " << input_file << " parsed successfully!" << endl;
+      cout << "Configuration file: " << input_file << endl;
     //----------------------------------------------------------------------
+    user_input->ReadFESetup();
     // Read the serial mesh
     const char* mesh_file = user_input->GetMeshFile().c_str();
     Mesh* mesh = new Mesh(mesh_file, 1);//pass one to generate edges
     dim = mesh->Dimension();
     if (rank == 0)
     {
+        cout << "\n";
         cout << "Mesh File: " << mesh_file << endl;
         cout << "Problem Dimension: " << dim << endl;
     }
-    //----------------------------------------------------------------------
-    // Set ODE time integrator
-    ode_solver = user_input->GetODESolver();
-    if (rank == 0)
-        cout << "Time Scheme: " << user_input->GetTimeSchemeString() << endl;
     //----------------------------------------------------------------------
     // Refine mesh in serial
     int ser_ref = user_input->GetSerialRefine();
@@ -69,7 +69,7 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
 
     if (rank == 0)
     {
-        cout << "Mesh Boundary Arributes: <";
+        cout << "Mesh Boundary Attributes: <";
         for (int i = 0; i < pmesh->bdr_attributes.Size(); i++)
         {
             if (i != 0)
@@ -84,7 +84,7 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
     fe_coll = new H1_FECollection(user_input->GetFEOrder(), dim);
 
     fespace = new ParFiniteElementSpace(pmesh, fe_coll);
-
+    
     HYPRE_BigInt fe_size = fespace->GlobalTrueVSize();
 
     if (rank == 0)
@@ -94,15 +94,19 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
 
     T_gf = new ParGridFunction(fespace);
     //----------------------------------------------------------------------
+    user_input->ReadAndInitMatProps();
     // Print the material properties and conductivity model
     if (rank == 0)
     {   
-        cout << "\n\n";
+        cout << "\n";
         cout << "Density: " << user_input->GetDensity() << endl;
         cout << "Specific Heat Cp: " << user_input->GetCp() << endl;
         cout << "Thermal Conductivity Model: " << user_input->GetConductivityModel()->GetInitString() << endl;
     }
     //----------------------------------------------------------------------
+    user_input->ReadIC();
+    if (rank == 0)
+        cout << "\n";
     // Set the initial condition
     if (!user_input->UsesRestart()) // If not using restart
     {  
@@ -124,8 +128,10 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
 
     }
     //----------------------------------------------------------------------
+    user_input->ReadAndInitBCs(*fespace);
+    if (rank == 0)
+        cout << "\n";
     // Confirm user input matches mesh bdr_attributes...
-
     // Check count
     if (pmesh->bdr_attributes.Size() != user_input->GetBCCount())
     {
@@ -157,7 +163,6 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
 
     // Reorder BC array in Config to match bdr_attributes (ensures consistency when setting them)
     user_input->ReorderBCs(pmesh->bdr_attributes);
-
     // Print BCs - they will just be sent to ConductionOperator
     for (size_t i = 0; i < user_input->GetBCCount(); i++)
     {   
@@ -168,7 +173,39 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
             cout << "Boundary Attribute " << bc->GetBdrAttr() << ": " << bc->GetInitString() << endl;
         }
     }
-
+    //----------------------------------------------------------------------
+    user_input->ReadTimeInt();
+    // Set ODE time integrator
+    ode_solver = user_input->GetODESolver();
+    if (rank == 0)
+    {
+        cout << "\n";
+        cout << "Time Scheme: " << user_input->GetTimeSchemeString() << endl;
+        cout << "Time Step: " << user_input->Getdt() << endl;
+        cout << "Max Time: " << user_input->GetFinalTime() << endl;
+    
+    }
+    //----------------------------------------------------------------------
+    user_input->ReadLinSolSettings();
+    // Print linear solver settings
+    if (rank == 0)
+    {
+        cout << "\n";
+        cout << "Linear Solver: " << user_input->GetSolverString() << endl;
+        cout << "Preconditioner: " << user_input->GetPrecString() << endl;
+        cout << "Max Iterations: " << user_input->GetMaxIter() << endl;
+        cout << "Absolute Tolerance: " << user_input->GetAbsTol() << endl;
+        cout << "Relative Tolerance: " << user_input->GetRelTol() << endl;
+    }
+    //----------------------------------------------------------------------
+    user_input->ReadOutput();
+    // Print output settings
+    if (rank == 0)
+    {
+        cout << "\n\n";
+        cout << "Restart Frequency: " << user_input->GetRestartFreq() << endl;
+        cout << "Visualization Frequency: " << user_input->GetVisFreq() << endl;
+    }
     //----------------------------------------------------------------------
     // Declare vector for holding true DOFs + instantiate ConductionOperator, sending all necessary parameters
     T_gf->GetTrueDofs(T);

@@ -16,3 +16,12 @@ string UniformHeatFluxBC::GetInitString() const
     sstm << "Heat Flux --- Value: " << uniform_value;
     return sstm.str();
 }
+/*
+void UnsteadyNodalBC::InitCoefficient()
+{
+    // Get true boundary dofs
+    fespace.GetBoundaryTrueDofs(boundary_dofs, attr);
+
+    // Get boundary dof s
+}
+*/

@@ -21,6 +21,7 @@ class ConductionOperator : public TimeDependentOperator
 {
 protected:
    Config* user_input; // Not allocated here
+   
    ParFiniteElementSpace &fespace;
    Array<int> ess_tdof_list; // list of essential true dofs
    Array<int>* all_bdr_attr_markers;
