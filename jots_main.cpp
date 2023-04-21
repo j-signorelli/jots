@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
    }
 
    // Create new JOTSDriver
-   JOTSDriver* driver = new JOTSDriver(input_file, myid);
+   JOTSDriver* driver = new JOTSDriver(input_file, myid, num_procs);
 
    // Run driver
    driver->Run();

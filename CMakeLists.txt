@@ -11,7 +11,10 @@ project(jots VERSION 1.0
 
 # Get preCICE
 find_package(PRECICE REQUIRED CONFIG NAMES precice)
+# if (DEFINED PRECICE_FOUND)
+#	add_compile_definitions(PRECICE_ENABLED)
 message(STATUS "Found preCICE config: TRUE")
+#endif()
 
 # Get MFEM
 find_package(MFEM REQUIRED CONFIG)

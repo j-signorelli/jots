@@ -1,11 +1,13 @@
 #include "jots_driver.hpp"
 
 using namespace std;
+using namespace mfem;
+using namespace precice;
 
-JOTSDriver::JOTSDriver(const char* input_file, int myid)
+JOTSDriver::JOTSDriver(const char* input_file, int myid, int num_procs)
 {   
     rank = myid;
-    
+    size = num_procs
     if (rank == 0)
     {
         cout << line << endl;
@@ -128,7 +130,33 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid)
 
     }
     //----------------------------------------------------------------------
-    user_input->ReadAndInitBCs(*fespace);
+    // Read preCICE info
+    user_input->ReadpreCICE();
+
+    // Instantiate SolverInterface if using preCICE
+    if (user_input->UsingPreCICE())
+    {
+        if (rank == 0)
+        {
+            cout << "\n";
+            cout << "Using preCICE!" << endl;
+            cout << "preCICE Participant Name: " << user_input->GetpreCICEParticipantName() << endl;
+            cout << "preCICE Config File: " << user_input->GetpreCICEConfigFile() << endl;
+        }
+        interface = new SolverInterface(user_input->GetpreCICEParticipantName(), user_input->GetpreCICEConfigFile(), rank, size);
+
+        if (interface->getDimensions() != dim)
+            MFEM_ABORT("preCICE dimensions and mesh file dimensions are not the same!");
+    
+    }
+    else
+        interface = nullptr;
+    //----------------------------------------------------------------------
+    if (user_input->UsingPreCICE())
+        user_input->ReadAndInitBCs(*fespace, interface);
+    else
+        user_input->ReadAndInitBCs(*fespace);
+
     if (rank == 0)
         cout << "\n";
     // Confirm user input matches mesh bdr_attributes...

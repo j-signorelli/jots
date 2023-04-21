@@ -2,11 +2,11 @@
 #include <cstdio>
 
 #include "mfem/mfem.hpp"
+#include "precice/SolverInterface.hpp"
 
 #include "config_file.hpp"
 #include "conduction_operator.hpp"
 #include "conductivity_model.hpp"
-using namespace mfem;
 
 class JOTSDriver
 {
@@ -14,22 +14,25 @@ class JOTSDriver
         const std::string line = "-------------------------------------------------------------------------------------------";
 
 	    int rank;
+        int size;
+
+        precice::SolverInterface* interface;
 
         Config* user_input;
         int dim;
-        ODESolver* ode_solver;
-        ParMesh* pmesh;
-        FiniteElementCollection* fe_coll;
-        ParFiniteElementSpace* fespace;
-        ParGridFunction* T_gf;
-        Vector T;
+        mfem::ODESolver* ode_solver;
+        mfem::ParMesh* pmesh;
+        mfem::FiniteElementCollection* fe_coll;
+        mfem::ParFiniteElementSpace* fespace;
+        mfem::ParGridFunction* T_gf;
+        mfem::Vector T;
 
         
         ConductionOperator* oper;
 
 
     public:
-        JOTSDriver(const char* input_file, int myid);
+        JOTSDriver(const char* input_file, int myid, int num_procs);
         void Run();
 
         ~JOTSDriver();

@@ -8,6 +8,7 @@
 #include "boost/algorithm/string/trim.hpp"
 #include "boost/algorithm/string.hpp"
 #include "mfem/mfem.hpp"
+#include "precice/SolverInterface.hpp"
 
 #include "option_structure.hpp"
 #include "boundary_condition.hpp"
@@ -35,8 +36,13 @@ class Config
         std::string restart_file;          /*!< \brief Restart file to load + use; only read if use_restart is true */
         double initial_temp;          /*!< \brief Initial temperature field to set; only used if use_restart is false */
 
+        bool with_preCICE;
+        std::string preCICE_participant_name;
+        std::string preCICE_config_file;
+        std::string preCICE_mesh_name;
+
         BoundaryCondition** boundary_conditions; /*!< \brief Array containing BoundaryConditions objects, value = ptr to BoundaryCondition object */
-        size_t bc_count;
+        size_t bc_count;        
 
         TIME_SCHEME time_scheme;      /*!< \brief Time integration scheme to use */
         double t0;                    /*!< \brief Starting time */
@@ -58,7 +64,8 @@ class Config
         void ReadFESetup();
         void ReadAndInitMatProps();
         void ReadIC();
-        void ReadAndInitBCs(mfem::ParFiniteElementSpace &f);
+        void ReadpreCICE();
+        void ReadAndInitBCs(mfem::ParFiniteElementSpace &f, precice::SolverInterface* interface=nullptr);
         void ReadTimeInt();
         void ReadLinSolSettings();
         void ReadOutput();
@@ -85,7 +92,15 @@ class Config
 
         BoundaryCondition** GetBCs() const { return boundary_conditions; }
 
-        int GetBCCount() {return bc_count;};
+        int GetBCCount() const {return bc_count;};
+
+        bool UsingPreCICE() const { return with_preCICE; };
+
+        std::string GetpreCICEParticipantName() const { return preCICE_participant_name; };
+        
+        std::string GetpreCICEConfigFile() const { return preCICE_config_file; };
+
+        std::string GetpreCICEMeshName const { return preCICE_mesh_name; };
 
         mfem::ODESolver* GetODESolver() const; // Returns ODESolver that must be deleted by caller!
         

@@ -4,6 +4,7 @@
 namespace bp = boost::property_tree;
 using namespace std;
 using namespace mfem;
+using namespace precice;
 
 Config::Config(const char* in_file) : input_file(in_file)
 {   
@@ -63,12 +64,29 @@ void Config::ReadIC()
         restart_file = property_tree.get<string>("InitialCondition.Restart_File");
     }
 }
-
-void Config::ReadAndInitBCs(ParFiniteElementSpace &f)
+void Config::ReadpreCICE()
+{
+    // If no preCICE section detected, then do nothing + set with_preCICE
+    if (property_tree.find("preCICE") == property_tree.not_found())
+    {
+        with_preCICE = false;
+    }
+    else // else preCICE section exists, read in info
+    {
+        with_preCICE = true;
+        preCICE_participant_name = property_tree.get<string>("preCICE.Participant_Name");
+        preCICE_config_file = property_tree.get<string>("preCICE.Config_File");
+    }
+}
+void Config::ReadAndInitBCs(ParFiniteElementSpace &f, SolverInterface* interface=nullptr)
 {
     // Read BoundaryConditions
     bc_count = property_tree.get_child("BoundaryConditions").size();
     boundary_conditions = new BoundaryCondition*[bc_count];
+    
+    // Assume no preCICE, update later if yes
+    with_preCICE = false;
+    
     int index = 0;
     BOOST_FOREACH(const bp::ptree::value_type &v , property_tree.get_child("BoundaryConditions"))
     {   
@@ -101,7 +119,14 @@ void Config::ReadAndInitBCs(ParFiniteElementSpace &f)
                 value = stod(bc_info[1].c_str());
                 boundary_conditions[index] = new UniformIsothermalBC(attr, value);
                 break;
-
+            case BOUNDARY_CONDITION::PRECICE_HEATFLUX:
+                initial_value = stod(bc_info[1].c_str());
+                boundary_conditions[index] = new preCICEHeatFluxBC(attr, initial_value, interface, preCICE_mesh_name);
+                break;
+            case BOUNDARY_CONDITION::PRECICE_ISOTHERMAL:
+                initial_value = stod(bc_info[1].c_str());
+                boundary_conditions[index] = new preCICEIsothermalBC(attr, initial_value, interface, preCICE_mesh_name);
+                break;
         }
 
         index++;
