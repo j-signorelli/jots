@@ -81,3 +81,6 @@ enum class PRECONDITIONER
 
 static const std::map<std::string, PRECONDITIONER> Preconditioner_Map = {{"Jacobi", PRECONDITIONER::JACOBI},
                                                                          {"Chebyshev", PRECONDITIONER::CHEBYSHEV}};
+
+std::string PRECICE_TEMPERATURE = "Temperature";
+std::string PRECICE_HEATFLUX = "Heat-Flux";

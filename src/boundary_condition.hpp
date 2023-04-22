@@ -2,6 +2,7 @@
 #include <sstream>
 
 #include "mfem.hpp"
+#include "precice/SolverInterface.hpp"
 
 #include "option_structure.hpp"
 
@@ -62,24 +63,71 @@ class UniformHeatFluxBC : public UniformConstantBC
         std::string GetInitString() const;
 };
 
-/*
-class UnsteadyNodalBC : public BoundaryCondition
+
+class preCICEBC : public BoundaryCondition
 {
     private:
     protected:
+        precice::SolverInterface* interface; // Not allocated here
+        mfem::ParGridFunction* T_gf; // Ptr to main solution GridFunction - Not allocated here, required for obtaining write data
+
+        int meshID;
+        double* coords;
+        int* vertexIDs;
+        int readDataID;
+        int writeDataID;
+
+        bool restart;
+
         mfem::ParFiniteElementSpace &fespace;
         mfem::ParGridFunction coeff_gf;
-        mfem::Array<int> boundary_dofs; // From FiniteElementSpace::GetBoundaryTrueDofs
-        mfem::Array<double> 
+        mfem::Array<int> boundary_dofs; // Includes non-true DOFs
+        mfem::Array<double> coeff_values;
+
+        static double* GetTemperatures(mfem::ParGridFunction* in_T_gf, mfem::Array<int> bdr_dofs);
+        static double* GetWallHeatFlux(mfem::ParGridFunction* in_T_gf, mfem::Array<int> bdr_dofs);
+
+        virtual std::string GetReadDataName() const = 0;
+        virtual std::string GetWriteDataName() const = 0;
 
     public:
-        UnsteadyNodalBC(int attr, BOUNDARY_CONDITION in_type, mfem::ParFiniteElementSpace &f) : BoundaryCondition(attr, in_type), fespace(f), coeff_gf(f) {};
+        preCICEBC(int attr, BOUNDARY_CONDITION in_type, precice::SolverInterface* in, mfem::ParGridFunction* in_T_gf, bool is_restart, std::string mesh_name, double initial_value);
         bool IsConstant() const { return false; };
-        void InitCoefficient();
         
-        void UpdateCoeff();
-
+        virtual void InitCoefficient();
+        virtual void UpdateCoeff() = 0;
         virtual bool IsEssential() const = 0;
         virtual std::string GetInitString() const = 0;
+
+        ~preCICEBC() { delete coords; delete vertexIDs; };
 };
-*/
+
+class preCICEIsothermalBC : public preCICEBC
+{
+    private:
+
+    protected:
+
+        void std::string GetReadDataName() const { return PRECICE_TEMPERATURE; };
+        void std::string GetWriteDataName() const { return PRECICE_HEATFLUX; };
+    
+    public:
+        preCICEIsothermalBC(int attr, precice::SolverInterface* in, mfem::ParGridFunction* in_T_gf, bool is_restart, std::string mesh_name, double initial_value) : preCICEBC(attr, BOUNDARY_CONDITION::PRECICE_ISOTHERMAL, in, in_T_gf, is_restart, mesh_name, initial_value) {};
+        bool IsEssential() const { return true; };
+
+}
+
+class preCICEHeatFluxBC : public preCICEBC
+{
+    private:
+    
+    protected:
+
+        void std::string GetReadDataName() const { return PRECICE_HEATFLUX; };
+        void std::string GetWriteDataName() const { return PRECICE_TEMPERATURE; };
+    
+    public:
+        preCICEHeatFluxBC(int attr, precice::SolverInterface* in, mfem::ParGridFunction* in_T_gf, bool is_restart, std::string mesh_name, double initial_value) : preCICEBC(attr, BOUNDARY_CONDITION::PRECICE_HEATFLUX, in, in_T_gf, is_restart, mesh_name, initial_value) {};
+        bool IsEssential() const { return false; };
+
+}

@@ -7,7 +7,7 @@ using namespace precice;
 JOTSDriver::JOTSDriver(const char* input_file, int myid, int num_procs)
 {   
     rank = myid;
-    size = num_procs
+    size = num_procs;
     if (rank == 0)
     {
         cout << line << endl;
@@ -134,7 +134,7 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid, int num_procs)
     user_input->ReadpreCICE();
 
     // Instantiate SolverInterface if using preCICE
-    if (user_input->UsingPreCICE())
+    if (user_input->UsingpreCICE())
     {
         if (rank == 0)
         {
@@ -152,10 +152,11 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid, int num_procs)
     else
         interface = nullptr;
     //----------------------------------------------------------------------
+    // Setup BCs
     if (user_input->UsingPreCICE())
-        user_input->ReadAndInitBCs(*fespace, interface);
+        user_input->ReadAndInitBCs(T_gf, interface);
     else
-        user_input->ReadAndInitBCs(*fespace);
+        user_input->ReadAndInitBCs();
 
     if (rank == 0)
         cout << "\n";
@@ -249,20 +250,20 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid, int num_procs)
 
 void JOTSDriver::Run()
 {   
-    double t0 = user_input->GetStartTime();
+    double time = user_input->GetStartTime();
     double dt = user_input->Getdt();
     double tf = user_input->GetFinalTime();
+    int it_num = 0;
+
 
     // Initialize the ODE Solver
     if (rank == 0)
         cout << "Initializing solver...";
+
     ode_solver->Init(*oper);
     
     if (rank == 0)
         cout << " Done!" << endl;
-
-    double time = t0;
-    int it_num = 0;
 
     // Set up Paraview
     ParaViewDataCollection paraview_dc("Output", pmesh);
@@ -271,10 +272,17 @@ void JOTSDriver::Run()
     paraview_dc.SetDataFormat(VTKFormat::BINARY);
     paraview_dc.SetHighOrderOutput(true);
 
+    double preCICE_dt = 0;
+
+    // Initialize preCICE
+    if (user_input->UsingpreCICE())
+        preCICE_dt = interface->initialize();
+
     while (time < tf)//Main Solver Loop
     {
         // Apply the BCs + calculate thermal conductivities
         oper->PreprocessIteration(T, time);
+
         // Output IC:
         if (it_num == 0)
         {   
@@ -295,11 +303,12 @@ void JOTSDriver::Run()
             //|| Rank 0 Max Temperature: %10.3g \n", it_num, time, tf,  dt, T.Max());
             //cout << "Step #" << it_num << " || t = " << time << "||" << "Rank 0 Max T: " << T.Max() << endl;
         
-	if (T.Max() > 1e10)
-    {
-        MFEM_ABORT("JOTS has blown up");
-        return;
-    }
+        if (T.Max() > 1e10)
+        {
+            MFEM_ABORT("JOTS has blown up");
+            return;
+        }
+
         if (it_num % user_input->GetVisFreq() == 0) // TODO: VisFreq must be nonzero
         {
             if (rank == 0)
@@ -316,6 +325,7 @@ void JOTSDriver::Run()
 
 JOTSDriver::~JOTSDriver()
 {
+    delete interface;
     delete user_input;
     delete ode_solver;
     delete pmesh;

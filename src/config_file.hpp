@@ -61,11 +61,12 @@ class Config
     public:
         Config(const char* in_file);
 
+        // Note that these Read functions below are designed to be called in this order
         void ReadFESetup();
         void ReadAndInitMatProps();
         void ReadIC();
         void ReadpreCICE();
-        void ReadAndInitBCs(mfem::ParFiniteElementSpace &f, precice::SolverInterface* interface=nullptr);
+        void ReadAndInitBCs(mfem::ParGridFunction* in_T_gf=nullptr, precice::SolverInterface* interface=nullptr);
         void ReadTimeInt();
         void ReadLinSolSettings();
         void ReadOutput();
@@ -94,13 +95,13 @@ class Config
 
         int GetBCCount() const {return bc_count;};
 
-        bool UsingPreCICE() const { return with_preCICE; };
+        bool UsingpreCICE() const { return with_preCICE; };
 
         std::string GetpreCICEParticipantName() const { return preCICE_participant_name; };
         
         std::string GetpreCICEConfigFile() const { return preCICE_config_file; };
 
-        std::string GetpreCICEMeshName const { return preCICE_mesh_name; };
+        std::string GetpreCICEMeshName() const { return preCICE_mesh_name; };
 
         mfem::ODESolver* GetODESolver() const; // Returns ODESolver that must be deleted by caller!
         
