@@ -16,7 +16,7 @@ class ConductivityModel
         virtual bool IsConstant() const = 0; // true if dk_dt = 0
         virtual std::string GetInitString() const = 0;
         virtual mfem::Coefficient* GetCoefficient() const = 0;//(mfem::ParFiniteElementSpace* fespace, const mfem::Vector &u) const = 0;
-        
+        virtual double GetLocalConductivity(double local_temp) const = 0;
 };
 
 class UniformCond : public ConductivityModel
@@ -30,6 +30,7 @@ class UniformCond : public ConductivityModel
         bool IsConstant() const { return true; }
         std::string GetInitString() const;
         mfem::Coefficient*  GetCoefficient() const;
+        double GetLocalConductivity(double local_temp) const { return k; };
 };
 /* TODO:
 class LinearizedCond : public ConductivityModel
