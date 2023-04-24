@@ -121,11 +121,11 @@ void Config::ReadAndInitBCs(ParGridFunction* in_T_gf, SolverInterface* interface
                 break;
             case BOUNDARY_CONDITION::PRECICE_HEATFLUX:
                 value = stod(bc_info[1].c_str());
-                boundary_conditions[index] = new preCICEHeatFluxBC(attr, interface, T_gf, use_restart, preCICE_mesh_name, value);
+                boundary_conditions[index] = new preCICEHeatFluxBC(attr, interface, T_gf, cond_model, use_restart, preCICE_mesh_name, value);
                 break;
             case BOUNDARY_CONDITION::PRECICE_ISOTHERMAL:
                 value = stod(bc_info[1].c_str());
-                boundary_conditions[index] = new preCICEIsothermalBC(attr, interface, T_gf, use_restart, preCICE_mesh_name, value);
+                boundary_conditions[index] = new preCICEIsothermalBC(attr, interface, T_gf, cond_model, use_restart, preCICE_mesh_name, value);
                 break;
         }
 

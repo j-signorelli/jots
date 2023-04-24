@@ -19,11 +19,12 @@ string UniformHeatFluxBC::GetInitString() const
 }
 
 
-preCICEBC::preCICEBC(int attr, BOUNDARY_CONDITION in_type, SolverInterface* in, ParGridFunction* in_T_gf, bool is_restart, string mesh_name, double initial_value); 
+preCICEBC::preCICEBC(int attr, BOUNDARY_CONDITION in_type, SolverInterface* in, const ParGridFunction* in_T_gf, ConductivityModel* in_cond, bool is_restart, string mesh_name, double initial_value); 
 : BoundaryCondition(attr, in_type), 
   fespace(*in_T_gf->FESpace()),
   interface(in),
   T_gf(in_T_gf),
+  cond_model(in_cond)
   restart(is_restart),
   coeff_gf(f),
   boundary_dofs(0),
@@ -118,14 +119,17 @@ preCICEBC::preCICEBC(int attr, BOUNDARY_CONDITION in_type, SolverInterface* in, 
     coeff_values = initial_value;
 }
 
-double* preCICEBC::GetTemperatures(ParGridFunction* in_T_gf, Array<int> bdr_dofs)
+double* preCICEBC::GetTemperatures(const ParGridFunction* in_T_gf, const Array<int> bdr_dofs)
 {
+       
 
 }
 
-double* preCICEBC::GetWallHeatFlux(ParGridFunction* in_T_gf, Array<int> bdr_dofs)
+double* preCICEBC::GetWallHeatFlux(const ParGridFunction* in_T_gf, const Array<int> bdr_dofs)
 {
-
+    // Use GetDerivative probably.
+    // Need wall normal direction vector
+    // NEED THERMAL CONDUCTIVITY AT DOFs - FUCK
 }
 
 //void preCICEBC::InitCoefficient()
@@ -133,6 +137,6 @@ double* preCICEBC::GetWallHeatFlux(ParGridFunction* in_T_gf, Array<int> bdr_dofs
     // This is where restart/nonrestart becomes important.
     // If restart, use current GF values
     // If nonrestart, need to apply BC or something first
-    // Depends on coefficient
+    // Depends on coefficient, but can probably setup w virtual fxns
 
 //}
