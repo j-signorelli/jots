@@ -20,14 +20,15 @@ string UniformHeatFluxBC::GetInitString() const
 
 
 preCICEBC::preCICEBC(int attr, BOUNDARY_CONDITION in_type, SolverInterface* in, const ParGridFunction* in_T_gf, ConductivityModel* in_cond, bool is_restart, string mesh_name, double initial_value); 
-: BoundaryCondition(attr, in_type), 
-  fespace(*in_T_gf->FESpace()),
+: BoundaryCondition(attr, in_type),
   interface(in),
+  fespace(in_T_gf->FESpace()),
   T_gf(in_T_gf),
-  cond_model(in_cond)
+  cond_model(in_cond),
   restart(is_restart),
-  coeff_gf(f),
-  boundary_dofs(0),
+  bdr_elem_indices(0),
+  bdr_dof_indices(0),
+  coeff_gf(in_T_gf->FESpace()),
   coeff_values(0)
 {
     // Method from GridFunction::AccumulateAndCountBdrValues used
@@ -36,7 +37,6 @@ preCICEBC::preCICEBC(int attr, BOUNDARY_CONDITION in_type, SolverInterface* in, 
     ElementTransformation *transf;
 
     int dim = fespace->GetMesh()->Dimension();
-    int num_dofs;
 
     Array<double> coords_temp(0);
 
@@ -44,26 +44,28 @@ preCICEBC::preCICEBC(int attr, BOUNDARY_CONDITION in_type, SolverInterface* in, 
     for (int i = 0; i < fespace->GetNBE(); i++)
     {   
         // Skip over elements not on this BCs boundary
-        if (fespace->GetBdrAttribute(i) != 1)
+        if (fespace->GetBdrAttribute(i) != attr*)
             continue;
+        
+        // Save boundary element index
+        bdr_elem_indices.Append(i);
 
-        fe = fespace->GetBE(i); // Get bdr element
-        num_dofs = fe->GetDof();
+        fe = fespace->GetBE(i); // Get bdr element used at this boundary face i
+        transf = fespace->GetBdrElementTransformation(i); // Get bdr elem transformation - the actual definition of this particular BE
 
-        transf = fespace->GetBdrElementTransformation(i);
-        const IntegrationRule &ir = fe->GetNodes(); // Get nodes of the element
+        const IntegrationRule &ir = fe->GetNodes(); // Get nodes of the bdr element
 
         Array<int> bdr_elem_dofs;
         fespace->GetBdrElementDofs(i, bdr_elem_dofs); // Get bdr element dofs
 
         // Append bdr_elem_dofs to boundary_dofs member variable
-        boundary_dofs.Append(bdr_elem_dofs);
+        bdr_dof_indices.Append(bdr_elem_dofs);
 
         // Loop through all bdr element dofs
-        for (int j = 0; j < num_dofs; j++)
+        for (int j = 0; j < fe->GetDof(); j++)
         {
             const IntegrationPoint &ip = ir.IntPoint(j);
-            transf->SetIntPoint(&ip);
+            transf->SetIntPoint(&ip); // TODO: Why is this necessary for Transform?? Should see if relevant for me
             
             // Set x,y,z of each dof into respective arrays
             Vector coord(3);
@@ -107,29 +109,61 @@ preCICEBC::preCICEBC(int attr, BOUNDARY_CONDITION in_type, SolverInterface* in, 
     meshID = interface->getMeshID(mesh_name);
 
     // Set mesh vertices
-    interface->SetMeshVertices(meshID, boundary_dofs.Size(), coords, vertexIDs);
+    interface->SetMeshVertices(meshID, bdr_dof_indices.Size(), coords, vertexIDs);
 
     // Get read + write data IDs
     readDataID = interface->getDataID(GetReadDataName(), meshID);
     writeDataID = interface->getDataID(GetWriteDataName(), meshID);
 
+    // Create arrays for read/write of preCICE data
+    readDataArr = new double[bdr_dof_indices.Size()];
+    writeDataArr = new double[bdr_dof_indices.Size()]
     // Set coeff_values to initialization value for now
     // If data sent from other participant, this will be updated in first call to UpdateCoeff
-    coeff_values.SetSize(boundary_dofs.Size());
+    coeff_values.SetSize(bdr_dof_indices.Size());
     coeff_values = initial_value;
 }
 
-double* preCICEBC::GetTemperatures(const ParGridFunction* in_T_gf, const Array<int> bdr_dofs)
-{
-       
+void preCICEBC::SetBdrTemperatures(ParGridFunction* T_gf, Array<int> in_bdr_elem_indices, double* nodal_temperatures)
+{   
+    ParFiniteElementSpace* fespace = T_gf->FESpace();
 
+    const FiniteElement *fe;
+    ElementTransformation *transf;
+
+    int nodal_index = 0;
+    for (int i = 0; i < in_bdr_elem_indices.Size(); i++)
+    {
+        fe = fespace->GetBE(i); // Get FiniteElement
+        transf = fespace->GetBdrElementTransformation(i); //Get this associated ElementTransformation from the mesh object
+        // ^Above is same as just calling GetBdrElementTransformation from Mesh
+        
+        // Loop through this bdr element's DOFs
+        for (int j = 0; j < fe->GetDof(); j++)
+        {
+            const IntegrationPoint &ip = ir.IntPoint(j);
+            transf->SetIntPoint(&ip); // TODO: See above- is this line unnecessary?
+
+            // Set the value
+            nodal_temperatures[nodal_index] = T_gf->GetValue(*transf, ip);       
+
+        }
+    }
 }
 
-double* preCICEBC::GetWallHeatFlux(const ParGridFunction* in_T_gf, const Array<int> bdr_dofs)
+double* preCICEBC::GetBdrWallHeatFlux(const mfem::ParGridFunction* T_gf, const mfem::Array<int> in_bdr_elem_indices, double* nodal_wall_heatfluxes);
 {
     // Use GetDerivative probably.
     // Need wall normal direction vector
-    // NEED THERMAL CONDUCTIVITY AT DOFs - FUCK
+
+}
+
+ preCICEBC::~preCICEBC()
+ {
+    delete[] coords;
+    delete[] vertexIDs;
+    delete[] readDataArr;
+    delete[] writeDataArr;
 }
 
 //void preCICEBC::InitCoefficient()

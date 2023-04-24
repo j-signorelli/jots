@@ -70,7 +70,8 @@ class preCICEBC : public BoundaryCondition
     private:
     protected:
         precice::SolverInterface* interface; // Not allocated here
-        
+
+        mfem::ParFiniteElementSpace* fespace; // Not allocated here
         const mfem::ParGridFunction* T_gf; // Ptr to main solution GridFunction - Not allocated here, required for obtaining write data
         const ConductivityModel* cond_model; // Ptr to conductivity model - not allocated here
         
@@ -82,18 +83,21 @@ class preCICEBC : public BoundaryCondition
 
         bool restart;
 
-        mfem::ParFiniteElementSpace &fespace;
+        mfem::Array<int> bdr_elem_indices;
+        mfem::Array<int> bdr_dof_indices; // Includes non-true DOFs
+        
+        double* readDataArr;
+        double* writeDataArr;
+
+
         mfem::ParGridFunction coeff_gf;
-        mfem::Array<int> boundary_dofs; // Includes non-true DOFs
         mfem::Array<double> coeff_values;
 
-        static double* GetTemperatures(const mfem::ParGridFunction* in_T_gf, const mfem::Array<int> bdr_dofs);
-        static double* GetWallHeatFlux(const mfem::ParGridFunction* in_T_gf, const const mfem::Array<int> bdr_dofs);
+        static void SetBdrTemperatures(const mfem::ParGridFunction* T_gf, const mfem::Array<int> in_bdr_elem_indices, double* nodal_temperatures); // Precondition: in_bdr_elem_indices length is correct
+        static void SetBdrWallHeatFlux(const mfem::ParGridFunction* T_gf, const mfem::Array<int> in_bdr_elem_indices, double* nodal_wall_heatfluxes); // Precondition same above
 
         virtual std::string GetReadDataName() const = 0;
         virtual std::string GetWriteDataName() const = 0;
-        //virtual double* GetInitialWriteData() const = 0;
-        //virtual double* Get
 
     public:
         preCICEBC(int attr, BOUNDARY_CONDITION in_type, precice::SolverInterface* in, const mfem::ParGridFunction* in_T_gf, ConductivityModel* in_cond, bool is_restart, std::string mesh_name, double initial_value);
@@ -104,8 +108,8 @@ class preCICEBC : public BoundaryCondition
 
         virtual bool IsEssential() const = 0;
         virtual std::string GetInitString() const = 0;
-
-        ~preCICEBC() { delete coords; delete vertexIDs; };
+        ~preCICEBC();
+       
 };
 
 class preCICEIsothermalBC : public preCICEBC

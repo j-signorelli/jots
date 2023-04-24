@@ -30,7 +30,7 @@ class Config
         
         double density;
         double Cp;
-        ConductivityModel* cond_model;                 /*!< \brief Thermal diffusivity model of material */
+        ConductivityModel* cond_model;                 /*!< \brief Thermal conductivity model of material */
 
         bool use_restart;             /*!< \brief Boolean indicating if restart file should be loaded up as initial condition */
         std::string restart_file;          /*!< \brief Restart file to load + use; only read if use_restart is true */
