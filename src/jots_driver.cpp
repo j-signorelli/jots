@@ -153,7 +153,7 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid, int num_procs)
         interface = nullptr;
     //----------------------------------------------------------------------
     // Setup BCs
-    if (user_input->UsingPreCICE())
+    if (user_input->UsingpreCICE())
         user_input->ReadAndInitBCs(T_gf, interface);
     else
         user_input->ReadAndInitBCs();
@@ -288,7 +288,7 @@ void JOTSDriver::Run()
         {   
             T_gf->SetFromTrueDofs(T);
             paraview_dc.SetCycle(it_num);
-            paraview_dc.SetTime(t0);
+            paraview_dc.SetTime(time);
             paraview_dc.RegisterField("Temperature",T_gf);
             paraview_dc.Save();
         }
