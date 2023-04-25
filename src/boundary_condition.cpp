@@ -67,7 +67,7 @@ preCICEBC::preCICEBC(int attr, BOUNDARY_CONDITION in_type, SolverInterface* in, 
         for (int j = 0; j < fe->GetDof(); j++)
         {
             const IntegrationPoint &ip = ir.IntPoint(j);
-            transf->SetIntPoint(&ip); // TODO: Why is this necessary for Transform?? Should see if relevant for me
+            transf->SetIntPoint(&ip); // TODO: Why is this necessary for Transform?? Should see if relevant for me - See Coefficient::Eval documentation
             
             // Set x,y,z of each dof into respective arrays
             Vector coord(3);
@@ -124,9 +124,17 @@ preCICEBC::preCICEBC(int attr, BOUNDARY_CONDITION in_type, SolverInterface* in, 
     // If data sent from other participant, this will be updated in first call to UpdateCoeff
     coeff_values.SetSize(bdr_dof_indices.Size());
     coeff_values = initial_value;
+
+    /*
+    // DEBUG CHECK:
+    cout << "Printing nodal values as debug check: " << endl;
+    preCICEBC::SetBdrTemperatures(T_gf, bdr_elem_indices, readDataArr);
+    for (int i = 0; i < bdr_dof_indices.Size(); i++)
+        cout << "BDR DOF " << bdr_dof_indices[i] << ": " << readDataArr[i] << " K\n";
+    */
 }
 
-void preCICEBC::SetBdrTemperatures(const ParGridFunction* T_gf, const Array<int> in_bdr_elem_indices, double* nodal_temperatures)
+void preCICEBC::GetBdrTemperatures(const ParGridFunction* T_gf, const Array<int> in_bdr_elem_indices, double* nodal_temperatures)
 {   
     ParFiniteElementSpace* fespace = T_gf->ParFESpace();
 
@@ -150,16 +158,50 @@ void preCICEBC::SetBdrTemperatures(const ParGridFunction* T_gf, const Array<int>
 
             // Set the value
             nodal_temperatures[nodal_index] = T_gf->GetValue(*transf, ip);       
-
+            nodal_index++;
         }
     }
 }
 
-void preCICEBC::SetBdrWallHeatFlux(const mfem::ParGridFunction* T_gf, const mfem::Array<int> in_bdr_elem_indices, double* nodal_wall_heatfluxes)
+void preCICEBC::GetBdrWallHeatFlux(const mfem::ParGridFunction* T_gf, const ConductivityModel* cond_model, const mfem::Array<int> in_bdr_elem_indices, double* nodal_wall_heatfluxes)
 {
-    // Use GetDerivative probably.
-    // Need wall normal direction vector
 
+    ParFiniteElementSpace* fespace = T_gf->ParFESpace();
+
+    const FiniteElement *fe;
+    ElementTransformation *transf;
+
+    int nodal_index = 0;
+    for (int i = 0; i < in_bdr_elem_indices.Size(); i++)
+    {
+        fe = fespace->GetBE(i); // Get FiniteElement
+        transf = fespace->GetBdrElementTransformation(i); //Get this associated ElementTransformation from the mesh object
+        // ^Above is same as just calling GetBdrElementTransformation from Mesh
+
+        const IntegrationRule &ir = fe->GetNodes(); // Get nodes of the bdr element
+
+        // Loop through this bdr element's DOFs
+        for (int j = 0; j < fe->GetDof(); j++)
+        {
+            const IntegrationPoint &ip = ir.IntPoint(j);
+            transf->SetIntPoint(&ip); // Set integration pt to get appropriate Jacobian
+
+            // Get the wall normal vector
+            Vector normal(transf->Jacobian().Height());
+            CalcOrtho(transf->Jacobian(), normal);
+
+            // Get the gradient of temperature
+            Vector grad_T(normal.Size());
+            T_gf->GetGradient(*transf, grad_T);
+
+            // Get local thermal conductivity (NOTE: assumed here again of isotropic thermal conductivity)
+            double k = cond_model->GetLocalConductivity(T_gf->GetValue(*transf, ip));
+
+            // Calculate + set value of heat
+            nodal_wall_heatfluxes[nodal_index] = grad_T * nor / nor.Norml2();       
+            nodal_index++;
+        }
+    }
 }
 
 void preCICEBC::InitCoefficient()
