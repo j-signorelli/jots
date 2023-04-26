@@ -154,8 +154,8 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid, int num_procs)
     //----------------------------------------------------------------------
     // Setup BCs
     if (user_input->UsingpreCICE())
-        dt = 0.0; // Declare dt before sending it
-        user_input->ReadAndInitBCs(T_gf, interface, dt);
+        dt = 0.0; // Declare dt before sending it (in event that cannot reference undefined variable)
+        user_input->ReadAndInitBCs(T_gf, interface, dt); // TODO: maybe instead create a SolverState class that I can alternatively just send ptr to instead
     else
         user_input->ReadAndInitBCs();
 
@@ -275,11 +275,11 @@ void JOTSDriver::Run()
 
     double preCICE_dt = 0;
 
-    // Initialize preCICE
+    // Initialize preCICE if using it
     if (user_input->UsingpreCICE())
         preCICE_dt = interface->initialize();
 
-    while (time < tf)//Main Solver Loop
+    while ( (!user_input->UsingpreCICE && time < tf) || (user_input->UsingpreCICE && interface->isCouplingOngoing()))//Main Solver Loop - use short-circuiting
     {
         // Apply the BCs + calculate thermal conductivities
         oper->PreprocessIteration(T, time);
@@ -294,7 +294,16 @@ void JOTSDriver::Run()
             paraview_dc.Save();
         }
 
+        // Advance preCICE if using it
+        if (user_input->UsingpreCICE)
+        {
+            interface->advance(preCICE_dt);
+            if (preCICE_dt < dt)
+                dt = preCICE_dt;
+        }
+
         // Step in time - time automatically updated
+        // NOTE: Do NOT use any ODE-Solvers that update dt
         ode_solver->Step(T, time, dt);
         it_num += 1;
 
@@ -321,6 +330,9 @@ void JOTSDriver::Run()
             paraview_dc.Save();
         }
     }
+
+    interface->finalize();
+
 
 }
 
