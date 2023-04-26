@@ -78,7 +78,7 @@ void Config::ReadpreCICE()
         preCICE_config_file = property_tree.get<string>("preCICE.Config_File");
     }
 }
-void Config::ReadAndInitBCs(ParGridFunction* in_T_gf, SolverInterface* interface)
+void Config::ReadAndInitBCs(ParGridFunction* in_T_gf, SolverInterface* interface, double& dt)
 {
     // Read BoundaryConditions
     bc_count = property_tree.get_child("BoundaryConditions").size();
@@ -121,11 +121,11 @@ void Config::ReadAndInitBCs(ParGridFunction* in_T_gf, SolverInterface* interface
                 break;
             case BOUNDARY_CONDITION::PRECICE_HEATFLUX:
                 value = stod(bc_info[1].c_str());
-                boundary_conditions[index] = new preCICEHeatFluxBC(attr, interface, in_T_gf, cond_model, use_restart, preCICE_mesh_name, value);
+                boundary_conditions[index] = new preCICEHeatFluxBC(attr, interface, in_T_gf, cond_model, dt, use_restart, preCICE_mesh_name, value);
                 break;
             case BOUNDARY_CONDITION::PRECICE_ISOTHERMAL:
                 value = stod(bc_info[1].c_str());
-                boundary_conditions[index] = new preCICEIsothermalBC(attr, interface, in_T_gf, cond_model, use_restart, preCICE_mesh_name, value);
+                boundary_conditions[index] = new preCICEIsothermalBC(attr, interface, in_T_gf, cond_model, dt, use_restart, preCICE_mesh_name, value);
                 break;
         }
 

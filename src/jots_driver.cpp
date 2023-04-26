@@ -154,7 +154,8 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid, int num_procs)
     //----------------------------------------------------------------------
     // Setup BCs
     if (user_input->UsingpreCICE())
-        user_input->ReadAndInitBCs(T_gf, interface);
+        dt = 0.0; // Declare dt before sending it
+        user_input->ReadAndInitBCs(T_gf, interface, dt);
     else
         user_input->ReadAndInitBCs();
 
@@ -251,7 +252,7 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid, int num_procs)
 void JOTSDriver::Run()
 {   
     double time = user_input->GetStartTime();
-    double dt = user_input->Getdt();
+    dt = user_input->Getdt();
     double tf = user_input->GetFinalTime();
     int it_num = 0;
 

@@ -66,7 +66,7 @@ class Config
         void ReadAndInitMatProps();
         void ReadIC();
         void ReadpreCICE();
-        void ReadAndInitBCs(mfem::ParGridFunction* in_T_gf=nullptr, precice::SolverInterface* interface=nullptr);
+        void ReadAndInitBCs(mfem::ParGridFunction* in_T_gf=nullptr, precice::SolverInterface* interface=nullptr, double& dt=0.0);
         void ReadTimeInt();
         void ReadLinSolSettings();
         void ReadOutput();

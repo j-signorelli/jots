@@ -30,6 +30,7 @@ class JOTSDriver
         
         ConductionOperator* oper;
 
+        double dt;
 
     public:
         JOTSDriver(const char* input_file, int myid, int num_procs);

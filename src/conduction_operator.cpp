@@ -49,7 +49,7 @@ void ConductionOperator::PreprocessBCs()
    Array<int> dbc_bdr(user_input->GetBCCount());
    dbc_bdr = 0; // Start w/ all attributes set to non-essential = 0
 
-   // Create bdr_attr_marker arrays and iniitalize dbc list
+   // Create bdr_attr_marker arrays and initialize dbc list
    all_bdr_attr_markers = new Array<int>[user_input->GetBCCount()];
    for (size_t i = 0; i < user_input->GetBCCount(); i++)
    {
