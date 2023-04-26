@@ -25,7 +25,7 @@ void Config::ReadFESetup()
 
 }
 
-void Config::ReadAndInitMatProps()
+void Config::ReadAndInitMatProps(ConductivityModel* in_cond)
 {
     // Read MaterialProperties
     density = property_tree.get<double>("MaterialProperties.Density");
@@ -35,7 +35,7 @@ void Config::ReadAndInitMatProps()
     {
         case CONDUCTIVITY_MODEL::UNIFORM:
             //double kappa = property_tree.get<double>("MaterialProperties.Kappa");
-            cond_model = new UniformCond(property_tree.get<double>("MaterialProperties.k"));
+            in_cond = new UniformCond(property_tree.get<double>("MaterialProperties.k"));
             break;
         /* TODO
         case CONDUCTIVITY_MODEL::LINEARIZED:

@@ -63,7 +63,7 @@ class Config
 
         // Note that these Read functions below are designed to be called in this order
         void ReadFESetup();
-        void ReadAndInitMatProps();
+        void ReadAndInitMatProps(ConductivityModel* in_cond);
         void ReadIC();
         void ReadpreCICE();
         void ReadAndInitBCs(double& dt, BoundaryCondition** in_bcs, mfem::ParGridFunction* in_T_gf=nullptr, precice::SolverInterface* interface=nullptr); // Instantiate in_bcs
@@ -83,15 +83,11 @@ class Config
         
         double GetCp() const { return Cp; }
 
-        ConductivityModel* GetConductivityModel() const { return cond_model; }
-
         bool UsesRestart() const { return use_restart; }
 
         std::string GetRestartFile() const { return restart_file; }
 
         double GetInitialTemp() const { return initial_temp; } 
-
-        //BoundaryCondition** GetBCs() const { return boundary_conditions; }
 
         int GetBCCount() const {return bc_count;};
 

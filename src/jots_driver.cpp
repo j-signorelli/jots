@@ -96,14 +96,14 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid, int num_procs)
 
     T_gf = new ParGridFunction(fespace);
     //----------------------------------------------------------------------
-    user_input->ReadAndInitMatProps();
+    user_input->ReadAndInitMatProps(cond_model);
     // Print the material properties and conductivity model
     if (rank == 0)
     {   
         cout << "\n";
         cout << "Density: " << user_input->GetDensity() << endl;
         cout << "Specific Heat Cp: " << user_input->GetCp() << endl;
-        cout << "Thermal Conductivity Model: " << user_input->GetConductivityModel()->GetInitString() << endl;
+        cout << "Thermal Conductivity Model: " << cond_model->GetInitString() << endl;
     }
     //----------------------------------------------------------------------
     user_input->ReadIC();
@@ -268,7 +268,7 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid, int num_procs)
         cout << line << endl;
         cout << "Initializing operator... ";
     }
-    oper = new ConductionOperator(user_input, boundary_conditions, *fespace, user_input->GetStartTime());// Needs BCs, FESpace, and initial time
+    oper = new ConductionOperator(user_input, boundary_conditions, cond_model, *fespace, user_input->GetStartTime());// Needs BCs, FESpace, and initial time
     if (rank == 0)
         cout << "Done!" << endl;
 }
@@ -363,6 +363,7 @@ void JOTSDriver::Run()
 JOTSDriver::~JOTSDriver()
 {
     delete interface;
+    delete cond_model;
     for (size_t i = 0; i < user_input->GetBCCount(); i++)
         delete boundary_conditions[i];
     delete[] boundary_conditions;

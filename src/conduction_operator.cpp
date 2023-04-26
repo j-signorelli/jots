@@ -12,7 +12,7 @@ using namespace std;
  *
  *  Class ConductionOperator represents the right-hand side of the above ODE.
  */
-ConductionOperator::ConductionOperator(Config* in_config, BoundaryCondition** in_bcs, ParFiniteElementSpace &f, double t_0)
+ConductionOperator::ConductionOperator(Config* in_config, BoundaryCondition** in_bcs, ConductivityModel* in_cond, ParFiniteElementSpace &f, double t_0)
    :  TimeDependentOperator(f.GetTrueVSize(), t_0),
       fespace(f),
       k_coeff(NULL),
@@ -32,7 +32,8 @@ ConductionOperator::ConductionOperator(Config* in_config, BoundaryCondition** in
       A_e(NULL),
       rhs(height),
       user_input(in_config),
-      boundary_conditions(in_bcs)
+      boundary_conditions(in_bcs),
+      cond_model(in_cond)
 {
 
    PreprocessBCs();
@@ -98,7 +99,7 @@ void ConductionOperator::PreprocessStiffness()
    k = new ParBilinearForm(&fespace);
 
    // Get thermal conductivity coefficient
-   k_coeff = user_input->GetConductivityModel()->GetCoefficient();
+   k_coeff = cond_model->GetCoefficient();
    
    // Add domain integrator to the bilinear form
    k->AddDomainIntegrator(new DiffusionIntegrator(*k_coeff));
@@ -228,7 +229,7 @@ void ConductionOperator::SetThermalConductivities(const Vector &u, double curr_t
 
    // Update matrix K IF TIME-DEPENDENT k Or if not yet instantiated
    // TODO:
-   if (!K || !user_input->GetConductivityModel()->IsConstant())
+   if (!K || !cond_model->IsConstant())
    {  
 
 
