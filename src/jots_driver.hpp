@@ -19,6 +19,9 @@ class JOTSDriver
         precice::SolverInterface* interface;
 
         Config* user_input;
+        BoundaryCondition** boundary_conditions;
+        ConductivityModel* cond_model;
+
         int dim;
         mfem::ODESolver* ode_solver;
         mfem::ParMesh* pmesh;

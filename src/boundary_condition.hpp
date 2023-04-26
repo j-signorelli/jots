@@ -107,11 +107,11 @@ class preCICEBC : public BoundaryCondition
         preCICEBC(int attr, BOUNDARY_CONDITION in_type, precice::SolverInterface* in, const mfem::ParGridFunction* in_T_gf, ConductivityModel* in_cond, double& in_dt, bool is_restart, std::string mesh_name, double in_value, std::string read_data_name, std::string write_data_name);
         bool IsConstant() const { return false; };
         void InitCoefficient();
+        void UpdateCoeff();
 
         virtual void GetInitialReadDataFxn() = 0; // Function to get initial read data from restarted state of T_gf
         virtual void GetWriteDataFxn() = 0;
 
-        virtual void UpdateCoeff() = 0;
 
         virtual bool IsEssential() const = 0;
         virtual std::string GetInitString() const = 0;

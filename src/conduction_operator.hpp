@@ -21,7 +21,8 @@ class ConductionOperator : public TimeDependentOperator
 {
 protected:
    Config* user_input; // Not allocated here
-   
+   BoundaryCondition** boundary_conditions; // Not allocated here
+
    ParFiniteElementSpace &fespace;
    Array<int> ess_tdof_list; // list of essential true dofs
    Array<int>* all_bdr_attr_markers;
@@ -65,7 +66,7 @@ protected:
    void CalculateRHS(const Vector &u) const;
 
 public:
-   ConductionOperator(Config* in_config, ParFiniteElementSpace &f, double t_0);
+   ConductionOperator(Config* in_config, BoundaryCondition** in_bcs, ParFiniteElementSpace &f, double t_0);
 
    void Mult(const Vector &u, Vector &du_dt) const;
    

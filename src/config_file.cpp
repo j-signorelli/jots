@@ -78,11 +78,11 @@ void Config::ReadpreCICE()
         preCICE_config_file = property_tree.get<string>("preCICE.Config_File");
     }
 }
-void Config::ReadAndInitBCs(ParGridFunction* in_T_gf, SolverInterface* interface, double& dt)
+void Config::ReadAndInitBCs(double& dt, BoundaryCondition** in_bcs, ParGridFunction* in_T_gf, SolverInterface* interface)
 {
     // Read BoundaryConditions
     bc_count = property_tree.get_child("BoundaryConditions").size();
-    boundary_conditions = new BoundaryCondition*[bc_count];
+    in_bcs = new BoundaryCondition*[bc_count];
     
     // Assume no preCICE, update later if yes
     with_preCICE = false;
@@ -113,19 +113,19 @@ void Config::ReadAndInitBCs(ParGridFunction* in_T_gf, SolverInterface* interface
         {
             case BOUNDARY_CONDITION::HEATFLUX:
                 value = stod(bc_info[1].c_str());
-                boundary_conditions[index] = new UniformHeatFluxBC(attr, value);
+                in_bcs[index] = new UniformHeatFluxBC(attr, value);
                 break;
             case BOUNDARY_CONDITION::ISOTHERMAL:
                 value = stod(bc_info[1].c_str());
-                boundary_conditions[index] = new UniformIsothermalBC(attr, value);
+                in_bcs[index] = new UniformIsothermalBC(attr, value);
                 break;
             case BOUNDARY_CONDITION::PRECICE_HEATFLUX:
                 value = stod(bc_info[1].c_str());
-                boundary_conditions[index] = new preCICEHeatFluxBC(attr, interface, in_T_gf, cond_model, dt, use_restart, preCICE_mesh_name, value);
+                in_bcs[index] = new preCICEHeatFluxBC(attr, interface, in_T_gf, cond_model, dt, use_restart, preCICE_mesh_name, value);
                 break;
             case BOUNDARY_CONDITION::PRECICE_ISOTHERMAL:
                 value = stod(bc_info[1].c_str());
-                boundary_conditions[index] = new preCICEIsothermalBC(attr, interface, in_T_gf, cond_model, dt, use_restart, preCICE_mesh_name, value);
+                in_bcs[index] = new preCICEIsothermalBC(attr, interface, in_T_gf, cond_model, dt, use_restart, preCICE_mesh_name, value);
                 break;
         }
 
@@ -162,31 +162,6 @@ void Config::ReadOutput()
 
 }
 
-void Config::ReorderBCs(mfem::Array<int> bdr_attributes)
-{
-    // Loop through bdr_attributes, swap pointers in the BoundaryConditions array as needed
-    for (int i = 0; i < bdr_attributes.Size(); i++)
-    {
-        if (bdr_attributes[i] == boundary_conditions[i]->GetBdrAttr())
-            continue;
-        else
-        {
-            BoundaryCondition* temp = boundary_conditions[i];
-
-            for (int j = 0; j < bc_count; j++)
-            {
-                if (bdr_attributes[i] == boundary_conditions[j]->GetBdrAttr())
-                {
-                    boundary_conditions[i] = boundary_conditions[j];
-                    boundary_conditions[j] = temp;
-                    j = bc_count;
-
-                }
-            }
-
-        }
-    }
-}
 
 ODESolver* Config::GetODESolver() const
 {
@@ -281,8 +256,4 @@ string Config::GetPrecString() const
 Config::~Config()
 {
     delete cond_model;
-    for (size_t i = 0; i < bc_count; i++)
-        delete boundary_conditions[i];
-
-    delete[] boundary_conditions;
 }

@@ -12,7 +12,7 @@ using namespace std;
  *
  *  Class ConductionOperator represents the right-hand side of the above ODE.
  */
-ConductionOperator::ConductionOperator(Config* in_config, ParFiniteElementSpace &f, double t_0)
+ConductionOperator::ConductionOperator(Config* in_config, BoundaryCondition** in_bcs, ParFiniteElementSpace &f, double t_0)
    :  TimeDependentOperator(f.GetTrueVSize(), t_0),
       fespace(f),
       k_coeff(NULL),
@@ -31,7 +31,8 @@ ConductionOperator::ConductionOperator(Config* in_config, ParFiniteElementSpace 
       K_e(NULL),
       A_e(NULL),
       rhs(height),
-      user_input(in_config)
+      user_input(in_config),
+      boundary_conditions(in_bcs)
 {
 
    PreprocessBCs();
@@ -59,7 +60,7 @@ void ConductionOperator::PreprocessBCs()
       all_bdr_attr_markers[i] = bdr_attr;
 
       // Update DBC list if essential
-      if (user_input->GetBCs()[i]->IsEssential())
+      if (boundary_conditions[i]->IsEssential())
          dbc_bdr[i] = 1;
    }
 
@@ -73,12 +74,12 @@ void ConductionOperator::PreprocessBCs()
    for (size_t i = 0; i < user_input->GetBCCount(); i++)
    {  
       // Initialize coefficients for all BCs
-      user_input->GetBCs()[i]->InitCoefficient();
+      boundary_conditions[i]->InitCoefficient();
    
       // Add Neumann BCs to linear form b
-      if (! user_input->GetBCs()[i]->IsEssential())
+      if (! boundary_conditions[i]->IsEssential())
       {
-         b->AddBoundaryIntegrator(new BoundaryLFIntegrator(*user_input->GetBCs()[i]->GetCoeffPtr()), all_bdr_attr_markers[i]);// Add boundary integrator to boundary
+         b->AddBoundaryIntegrator(new BoundaryLFIntegrator(*boundary_conditions[i]->GetCoeffPtr()), all_bdr_attr_markers[i]);// Add boundary integrator to boundary
       }
    }
 
@@ -188,18 +189,18 @@ void ConductionOperator::ApplyBCs(Vector &u, double curr_time)
    bool d_changed = false;
    for (size_t i = 0; i < user_input->GetBCCount(); i++)
    {
-      if (!user_input->GetBCs()[i]->IsConstant()) // If not constant in time
+      if (!boundary_conditions[i]->IsConstant()) // If not constant in time
       {
          // Update coefficients (could be preCICE calls, could be SetTime calls, etc.)
-         user_input->GetBCs()[i]->UpdateCoeff();
+         boundary_conditions[i]->UpdateCoeff();
          n_changed = true;
       }
 
-      if (user_input->GetBCs()[i]->IsEssential())
+      if (boundary_conditions[i]->IsEssential())
       {
          // Project correct values on boundary for essential BCs
          d_changed = true;
-         temp_u_gf.ProjectBdrCoefficient(*user_input->GetBCs()[i]->GetCoeffPtr(), all_bdr_attr_markers[i]);
+         temp_u_gf.ProjectBdrCoefficient(*boundary_conditions[i]->GetCoeffPtr(), all_bdr_attr_markers[i]);
       }
    }
 

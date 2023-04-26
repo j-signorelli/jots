@@ -41,7 +41,7 @@ class Config
         std::string preCICE_config_file;
         std::string preCICE_mesh_name;
 
-        BoundaryCondition** boundary_conditions; /*!< \brief Array containing BoundaryConditions objects, value = ptr to BoundaryCondition object */
+        //BoundaryCondition** boundary_conditions; /*!< \brief Array containing BoundaryConditions objects, value = ptr to BoundaryCondition object */
         size_t bc_count;        
 
         TIME_SCHEME time_scheme;      /*!< \brief Time integration scheme to use */
@@ -66,7 +66,7 @@ class Config
         void ReadAndInitMatProps();
         void ReadIC();
         void ReadpreCICE();
-        void ReadAndInitBCs(mfem::ParGridFunction* in_T_gf=nullptr, precice::SolverInterface* interface=nullptr, double& dt=0.0);
+        void ReadAndInitBCs(double& dt, BoundaryCondition** in_bcs, mfem::ParGridFunction* in_T_gf=nullptr, precice::SolverInterface* interface=nullptr); // Instantiate in_bcs
         void ReadTimeInt();
         void ReadLinSolSettings();
         void ReadOutput();
@@ -91,7 +91,7 @@ class Config
 
         double GetInitialTemp() const { return initial_temp; } 
 
-        BoundaryCondition** GetBCs() const { return boundary_conditions; }
+        //BoundaryCondition** GetBCs() const { return boundary_conditions; }
 
         int GetBCCount() const {return bc_count;};
 
@@ -130,8 +130,6 @@ class Config
         int GetRestartFreq() const { return restart_freq; }
 
         int GetVisFreq() const { return vis_freq; }
-
-        void ReorderBCs(const mfem::Array<int> bdr_attributes);
 
         ~Config();
 

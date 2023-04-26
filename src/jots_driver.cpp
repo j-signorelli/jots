@@ -153,11 +153,14 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid, int num_procs)
         interface = nullptr;
     //----------------------------------------------------------------------
     // Setup BCs
+    dt = 0.0; // Declare dt before sending it (in event that cannot reference undefined variable)
     if (user_input->UsingpreCICE())
+    {
         dt = 0.0; // Declare dt before sending it (in event that cannot reference undefined variable)
-        user_input->ReadAndInitBCs(T_gf, interface, dt); // TODO: maybe instead create a SolverState class that I can alternatively just send ptr to instead
+        user_input->ReadAndInitBCs(dt, boundary_conditions, T_gf, interface); // TODO: maybe instead create a SolverState class that I can alternatively just send ptr to instead
+    }
     else
-        user_input->ReadAndInitBCs();
+        user_input->ReadAndInitBCs(dt, boundary_conditions);
 
     if (rank == 0)
         cout << "\n";
@@ -177,7 +180,7 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid, int num_procs)
 
         for (size_t j = 0; j < user_input->GetBCCount(); j++)
         {
-            if (attr == user_input->GetBCs()[j]->GetBdrAttr())
+            if (attr == boundary_conditions[j]->GetBdrAttr())
             {
                 one_to_one = true;
                 j = user_input->GetBCCount();
@@ -192,11 +195,32 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid, int num_procs)
     }
 
     // Reorder BC array in Config to match bdr_attributes (ensures consistency when setting them)
-    user_input->ReorderBCs(pmesh->bdr_attributes);
+    // Loop through bdr_attributes, swap pointers in the BoundaryConditions array as needed
+    for (int i = 0; i < pmesh->bdr_attributes.Size(); i++)
+    {
+        if (pmesh->bdr_attributes[i] == boundary_conditions[i]->GetBdrAttr())
+            continue;
+        else
+        {
+            BoundaryCondition* temp = boundary_conditions[i];
+
+            for (int j = 0; j < user_input->GetBCCount(); j++)
+            {
+                if (pmesh->bdr_attributes[i] == boundary_conditions[j]->GetBdrAttr())
+                {
+                    boundary_conditions[i] = boundary_conditions[j];
+                    boundary_conditions[j] = temp;
+                    j = user_input->GetBCCount();
+
+                }
+            }
+
+        }
+    }
     // Print BCs - they will just be sent to ConductionOperator
     for (size_t i = 0; i < user_input->GetBCCount(); i++)
     {   
-        BoundaryCondition* bc = user_input->GetBCs()[i];
+        BoundaryCondition* bc = boundary_conditions[i];
 
         if (rank == 0)
         {
@@ -244,7 +268,7 @@ JOTSDriver::JOTSDriver(const char* input_file, int myid, int num_procs)
         cout << line << endl;
         cout << "Initializing operator... ";
     }
-    oper = new ConductionOperator(user_input, *fespace, user_input->GetStartTime());// Needs BCs, FESpace, and initial time
+    oper = new ConductionOperator(user_input, boundary_conditions, *fespace, user_input->GetStartTime());// Needs BCs, FESpace, and initial time
     if (rank == 0)
         cout << "Done!" << endl;
 }
@@ -279,7 +303,7 @@ void JOTSDriver::Run()
     if (user_input->UsingpreCICE())
         preCICE_dt = interface->initialize();
 
-    while ( (!user_input->UsingpreCICE && time < tf) || (user_input->UsingpreCICE && interface->isCouplingOngoing()))//Main Solver Loop - use short-circuiting
+    while ( (!user_input->UsingpreCICE() && time < tf) || (user_input->UsingpreCICE() && interface->isCouplingOngoing()))//Main Solver Loop - use short-circuiting
     {
         // Apply the BCs + calculate thermal conductivities
         oper->PreprocessIteration(T, time);
@@ -295,7 +319,7 @@ void JOTSDriver::Run()
         }
 
         // Advance preCICE if using it
-        if (user_input->UsingpreCICE)
+        if (user_input->UsingpreCICE())
         {
             interface->advance(preCICE_dt);
             if (preCICE_dt < dt)
@@ -339,6 +363,9 @@ void JOTSDriver::Run()
 JOTSDriver::~JOTSDriver()
 {
     delete interface;
+    for (size_t i = 0; i < user_input->GetBCCount(); i++)
+        delete boundary_conditions[i];
+    delete[] boundary_conditions;
     delete user_input;
     delete ode_solver;
     delete pmesh;

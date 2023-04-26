@@ -31,8 +31,7 @@ preCICEBC::preCICEBC(int attr, BOUNDARY_CONDITION in_type, SolverInterface* in, 
   restart(is_restart),
   bdr_elem_indices(0),
   bdr_dof_indices(0),
-  initial_value(in_value)
-  coeff_gf(in_T_gf->ParFESpace()),
+  initial_value(in_value),
   coeff_values(0)
 {
     // Method from GridFunction::AccumulateAndCountBdrValues used
@@ -109,7 +108,7 @@ preCICEBC::preCICEBC(int attr, BOUNDARY_CONDITION in_type, SolverInterface* in, 
     for (int i = 0; i < coords_temp.Size(); i++)
         coords[i] = coords_temp[i];
 
-    num_dofs = bdr_dof_indices.Size()
+    num_dofs = bdr_dof_indices.Size();
     // Get mesh ID
     meshID = interface->getMeshID(mesh_name);
 
@@ -127,6 +126,8 @@ preCICEBC::preCICEBC(int attr, BOUNDARY_CONDITION in_type, SolverInterface* in, 
     // If data sent from other participant, this will be updated in first call to UpdateCoeff
     coeff_values.SetSize(num_dofs);
     coeff_values = initial_value;
+
+    coeff_gf = new ParGridFunction(in_T_gf->ParFESpace());
 }
 
 void preCICEBC::GetBdrTemperatures(const ParGridFunction* T_gf, const Array<int> in_bdr_elem_indices, double* nodal_temperatures)
@@ -190,10 +191,10 @@ void preCICEBC::GetBdrWallHeatFlux(const mfem::ParGridFunction* T_gf, const Cond
             T_gf->GetGradient(*transf, grad_T);
 
             // Get local thermal conductivity (NOTE: assumed here again of isotropic thermal conductivity)
-            double k = cond_model->GetLocalConductivity(T_gf->GetValue(*transf, ip));
+            double k = in_cond->GetLocalConductivity(T_gf->GetValue(*transf, ip));
 
             // Calculate + set value of heat
-            nodal_wall_heatfluxes[nodal_index] = grad_T * nor / nor.Norml2();       
+            nodal_wall_heatfluxes[nodal_index] = grad_T * normal / normal.Norml2();       
             nodal_index++;
         }
     }
@@ -215,14 +216,14 @@ void preCICEBC::InitCoefficient()
         if (!restart) // If not restart, use initial specified temperature value
         {
             for (int i = 0; i < num_dofs;i++)
-                readDataArr[i] = initial_value
+                readDataArr[i] = initial_value;
 
         } else // Else get the actual currently set values
         {
-            GetInitialReadDataFxn(readDataArr);
+            GetInitialReadDataFxn();
         }
         interface->writeBlockScalarData(readDataID, num_dofs, vertexIDs, readDataArr);
-        interface->markActionFulfilled(precice::constants::actionWriteInitialData()));
+        interface->markActionFulfilled(precice::constants::actionWriteInitialData());
     }
 
     interface->initializeData();
