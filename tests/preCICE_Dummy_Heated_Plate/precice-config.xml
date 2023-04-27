@@ -39,7 +39,7 @@
       <read-data name="Temperature" mesh="Solid-Mesh" />
     </participant>
 
-    <m2n:sockets from="Dummy" to="JOTS" network="ib0" exchange-directory=".."/>
+    <m2n:sockets from="Dummy" to="JOTS" exchange-directory=".."/>
 
     <coupling-scheme:serial-explicit>
       <participants first="JOTS" second="Dummy" />

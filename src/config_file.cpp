@@ -8,102 +8,77 @@ using namespace precice;
 
 Config::Config(const char* in_file) : input_file(in_file)
 {   
-
-    // Parse ini file
+    // Parse ini file, setting property_tree
     bp::read_ini(input_file, property_tree);
 
-    // Set all member variables using values from tree (implemented in member fxns - must be called separately)
+    // Read in everything (setting default values if needed):
+    ReadFESetup();
+    ReadMatProps();
+    ReadIC();
+    ReadPrecice();
+    ReadBCs();
+    ReadTimeInt();
+    ReadLinSolSettings();
+    ReadOutput();
+}
+
+void SetInputStringVector(string in, vector<string>& output); // Comma delineated string --> no whitespace string vector
+{
+    boost::algorithm::split(output, in, boost::algorithm::is_any_of(","));
+    
+    for (int i = 0; i < bc_info.size(); i++)
+        boost::algorithm::trim(output[i]);// Trim whitespaces
+    
 }
 
 void Config::ReadFESetup()
 {
     // Read FiniteElementSetup
-    mesh_file = property_tree.get<string>("FiniteElementSetup.Mesh_File");
-    fe_order = property_tree.get<int>("FiniteElementSetup.FE_Order");
-    serial_refine = property_tree.get<int>("FiniteElementSetup.Serial_Refine");
-    parallel_refine = property_tree.get<int>("FiniteElementSetup.Parallel_Refine");
+    mesh_file = property_tree.get("FiniteElementSetup.Mesh_File", "mesh_name.mesh");
+    fe_order = property_tree.get("FiniteElementSetup.FE_Order", 1);
+    serial_refine = property_tree.get("FiniteElementSetup.Serial_Refine", 0);
+    parallel_refine = property_tree.get("FiniteElementSetup.Parallel_Refine", 0);
 
 }
 
-void Config::ReadAndInitMatProps(ConductivityModel*& in_cond)
+void Config::ReadMatProps()
 {
     // Read MaterialProperties
-    density = property_tree.get<double>("MaterialProperties.Density");
-    Cp = property_tree.get<double>("MaterialProperties.Specific_Heat_Cp");
-    CONDUCTIVITY_MODEL model = Conductivity_Model_Map.at(property_tree.get<string>("MaterialProperties.Thermal_Conductivity_Model"));
-    switch (model)
-    {
-        case CONDUCTIVITY_MODEL::UNIFORM:
-            //double kappa = property_tree.get<double>("MaterialProperties.Kappa");
-            in_cond = new UniformCond(property_tree.get<double>("MaterialProperties.k"));
-            break;
-        /* TODO
-        case CONDUCTIVITY_MODEL::LINEARIZED:
-            cond_model = new LinearizedCond(property_tree.get<double>("MaterialProperties.k"), property_tree.get<double>("MaterialProperties.alpha"));
-            break;
-        */
-    }
+    density = property_tree.get("MaterialProperties.Density", 1.0);
+    Cp = property_tree.get("MaterialProperties.Specific_Heat_Cp", 1000.0);
+    SetInputStringVector(property_tree.get("MaterialProperties.Thermal_Conductivity_Model", "Constant, 100"), conductivity_info);
 }
 
-void Config::ReadAndInitIC(SolverState*& in_state)
+void Config::ReadIC()
 {
     // Read InitialCondition
-    BINARY_CHOICE restart_choice = Binary_Choice_Map.at(property_tree.get<string>("InitialCondition.Use_Restart"));
+    BINARY_CHOICE restart_choice = Binary_Choice_Map.at(property_tree.get("InitialCondition.Use_Restart", "No"));
     use_restart = restart_choice == BINARY_CHOICE::YES ? true : false;
-    
-    // TODO: update to automatically time retrieve from restarts, but for now:
-    in_state->SetTime(0);
-    in_state->SetItNum(0);
-
-    ParGridFunction temp_gf(in_state->GetParFESpace());
-
-    if (!use_restart)
-    {
-        // Grab initial temperature field set
-        initial_temp = property_tree.get<double>("InitialCondition.Initial_Temperature");
-    
-        //Create constant coefficient of initial temperature
-        ConstantCoefficient T_0(initial_temp);
-
-
-        // Project that coefficient onto the GridFunction
-        temp_gf.ProjectCoefficient(T_0);
-
-    }
-    else
-    {
-        // Else need to read in restart file - save file name
-        restart_file = property_tree.get<string>("InitialCondition.Restart_File");
-    
-        // TODO:
-    }
-
-    // Set true vector
-    temp_gf.GetTrueDofs(in_state->GetTRef());
+    restart_file = property_tree.get("InitialCondition.Restart_File", "");
+    initial_temp = property_tree.get<double>("InitialCondition.Initial_Temperature", 100.0);
 
 }
-void Config::ReadpreCICE()
+void Config::ReadPrecice()
 {
     // If no preCICE section detected, then do nothing + set with_preCICE
     if (property_tree.find("preCICE") == property_tree.not_found())
     {
-        with_preCICE = false;
+        with_precice = false;
+        precice_participant_name = "";
+        precice_config_file = "";
     }
     else // else preCICE section exists, read in info
     {
-        with_preCICE = true;
-        preCICE_participant_name = property_tree.get<string>("preCICE.Participant_Name");
-        preCICE_config_file = property_tree.get<string>("preCICE.Config_File");
-        preCICE_mesh_name = property_tree.get<string>("preCICE.Interface_Mesh_Name");
+        with_precice = true;
+        precice_participant_name = property_tree.get("preCICE.Participant_Name", "jots");
+        precice_config_file = property_tree.get("preCICE.Config_File", "../precice-config.xml");
     }
 }
-void Config::ReadAndInitBCs(BoundaryCondition**& in_bcs, const ConductivityModel* in_cond, const SolverState* in_state, SolverInterface* in_interface)
+void Config::ReadBCs()
 {
     // Read BoundaryConditions
     bc_count = property_tree.get_child("BoundaryConditions").size();
-    in_bcs = new BoundaryCondition*[bc_count];
 
-    int index = 0;
     BOOST_FOREACH(const bp::ptree::value_type &v , property_tree.get_child("BoundaryConditions"))
     {   
         // Get the attribute:
@@ -111,43 +86,11 @@ void Config::ReadAndInitBCs(BoundaryCondition**& in_bcs, const ConductivityModel
         int attr = atoi(&s_attr);
 
         // Get the BC type:
-        vector<string> bc_info;
-        boost::algorithm::split(bc_info, v.second.data(), boost::algorithm::is_any_of(","));
+        vector<string> single_bc_info;
+        SetInputStringVector(v.second.data(), single_bc_info);
         
-        // Clear out any leading or trailing white space
-        boost::algorithm::trim(bc_info[0]);
-        boost::algorithm::trim(bc_info[1]);
-
-        // Get the value set
-        //double value =  stod(bc_info[1].c_str());
-
-        // Set the BC
-        BOUNDARY_CONDITION type = Boundary_Condition_Map.at(bc_info[0]);
-
-        double value;
-        switch (type)
-        {
-            case BOUNDARY_CONDITION::HEATFLUX:
-                value = stod(bc_info[1].c_str());
-                in_bcs[index] = new UniformHeatFluxBC(attr, value);
-                break;
-            case BOUNDARY_CONDITION::ISOTHERMAL:
-                value = stod(bc_info[1].c_str());
-                in_bcs[index] = new UniformIsothermalBC(attr, value);
-                break;
-            case BOUNDARY_CONDITION::PRECICE_HEATFLUX:
-                value = stod(bc_info[1].c_str());
-                in_bcs[index] = new preCICEHeatFluxBC(attr, in_state, in_interface, in_cond, use_restart, preCICE_mesh_name, value);
-                break;
-            case BOUNDARY_CONDITION::PRECICE_ISOTHERMAL:
-                value = stod(bc_info[1].c_str());
-                in_bcs[index] = new preCICEIsothermalBC(attr, in_state, in_interface, in_cond, use_restart, preCICE_mesh_name, value);
-                break;
-        }
-
-        index++;
-        
-        
+        // Add to bc_info
+        bc_info.push_back(make_pair(attr, single_bc_info));
         
     }
 }
@@ -155,26 +98,26 @@ void Config::ReadAndInitBCs(BoundaryCondition**& in_bcs, const ConductivityModel
 void Config::ReadTimeInt()
 {
     // Read TimeIntegration
-    time_scheme = Time_Scheme_Map.at(property_tree.get<string>("TimeIntegration.Time_Scheme"));
-    dt = property_tree.get<double>("TimeIntegration.Delta_Time");
-    tf = property_tree.get<double>("TimeIntegration.Final_Time");
+    time_scheme = Time_Scheme_Map.at(property_tree.get("TimeIntegration.Time_Scheme", "Euler_Implicit"));
+    dt = property_tree.get("TimeIntegration.Delta_Time", 0.1);
+    tf = property_tree.get("TimeIntegration.Final_Time", 10.0);
 }
 
 void Config::ReadLinSolSettings()
 {
     // Read LinearSolverSettings
-    solver = Solver_Map.at(property_tree.get<string>("LinearSolverSettings.Solver"));
-    prec = Preconditioner_Map.at(property_tree.get<string>("LinearSolverSettings.Preconditioner"));
-    abs_tol = property_tree.get<double>("LinearSolverSettings.Absolute_Tolerance");
-    rel_tol = property_tree.get<double>("LinearSolverSettings.Relative_Tolerance");
-    max_iter = property_tree.get<int>("LinearSolverSettings.Max_Iterations");
+    solver = Solver_Map.at(property_tree.get("LinearSolverSettings.Solver", "FGMRES"));
+    prec = Preconditioner_Map.at(property_tree.get("LinearSolverSettings.Preconditioner", "Chebyshev"));
+    abs_tol = property_tree.get("LinearSolverSettings.Absolute_Tolerance", 1e-16);
+    rel_tol = property_tree.get("LinearSolverSettings.Relative_Tolerance", 1e-10);
+    max_iter = property_tree.get("LinearSolverSettings.Max_Iterations", 100);
 }
 
 void Config::ReadOutput()
 {
     //Read Output
-    restart_freq = property_tree.get<int>("Output.Restart_Freq");
-    vis_freq = property_tree.get<int>("Output.Visualization_Freq");
+    restart_freq = property_tree.get("Output.Restart_Freq", 10);
+    vis_freq = property_tree.get("Output.Visualization_Freq", 10);
 
 }
 

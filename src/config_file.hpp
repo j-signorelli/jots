@@ -30,18 +30,18 @@ class Config
         
         double density;
         double Cp;
-        
+        std::vector<std::string> conductivity_info;
+
         bool use_restart;             /*!< \brief Boolean indicating if restart file should be loaded up as initial condition */
         std::string restart_file;          /*!< \brief Restart file to load + use; only read if use_restart is true */
         double initial_temp;          /*!< \brief Initial temperature field to set; only used if use_restart is false */
 
-        bool with_preCICE;
-        std::string preCICE_participant_name;
-        std::string preCICE_config_file;
-        std::string preCICE_mesh_name;
+        bool with_precice;
+        std::string precice_participant_name;
+        std::string precice_config_file;
 
         size_t bc_count;        
-
+        std::vector<std::pair<int, std::vector<std::string>>> bc_info // Array of pairs where first value is attribute, second is string vector for that BC
         TIME_SCHEME time_scheme;      /*!< \brief Time integration scheme to use */
         double t0;                    /*!< \brief Starting time */
         double tf;                    /*!< \brief Final time to run to */
@@ -56,18 +56,19 @@ class Config
         int restart_freq;             /*!< \brief Frequency to output restart files (iterations per output) */
         int vis_freq;                 /*!< \brief Frequency to output Paraview files (iterations per output) */
 
-    public:
-        Config(const char* in_file);
+        void SetInputStringVector(std::string in, std::vector<std::string>& output); // Comma delineated string --> no whitespace string vector
 
-        // Note that these Read(AndInit) functions below are designed to be called mostly in this order
         void ReadFESetup();
-        void ReadAndInitMatProps(ConductivityModel*& in_cond);
-        void ReadAndInitIC(SolverState*& in_state);
-        void ReadpreCICE();
-        void ReadAndInitBCs(BoundaryCondition**& in_bcs, const ConductivityModel* in_cond, const SolverState* in_state, precice::SolverInterface* in_interface); // Instantiate in_bcs
+        void ReadMatProps();
+        void ReadIC();
+        void ReadPrecice();
+        void ReadBCs();
         void ReadTimeInt();
         void ReadLinSolSettings();
         void ReadOutput();
+
+    public:
+        Config(const char* in_file);
 
         std::string GetMeshFile() const { return mesh_file; }
 
@@ -81,6 +82,8 @@ class Config
         
         double GetCp() const { return Cp; }
 
+        std::vector<std::string> GetCondInfo() const { return conductivity_info; };
+        
         bool UsesRestart() const { return use_restart; }
 
         std::string GetRestartFile() const { return restart_file; }
@@ -89,19 +92,17 @@ class Config
 
         int GetBCCount() const {return bc_count;};
 
-        bool UsingpreCICE() const { return with_preCICE; };
+        bool UsingPrecice() const { return with_precice; };
 
-        std::string GetpreCICEParticipantName() const { return preCICE_participant_name; };
+        std::string GetPreciceParticipantName() const { return precice_participant_name; };
         
-        std::string GetpreCICEConfigFile() const { return preCICE_config_file; };
-
-        std::string GetpreCICEMeshName() const { return preCICE_mesh_name; };
+        std::string GetPreciceConfigFile() const { return precice_config_file; };
+    
+        std::pair<int, std::vector<std::string>> GetBCInfo(int i) const { return bc_info[i]; };
 
         mfem::ODESolver* GetODESolver() const; // Returns ODESolver that must be deleted by caller!
         
         std::string GetTimeSchemeString() const;
-
-        double GetStartTime() const { return t0; }
 
         double GetFinalTime() const { return tf; }
 

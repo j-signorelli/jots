@@ -3,17 +3,12 @@
 using namespace mfem;
 using namespace std;
 
-SolverState::SolverState(mfem::ParFiniteElementSpace* f)
-: it_num(0),
-  time(0.0),
-  dt(0.0),
-  tf(0.0),
-  fespace(f)
+SolverState::SolverState(mfem::ParGridFunction initial_gf, int in_it, double in_time, double in_dt, const double in_tf);
+: it_num(in_int),
+  time(in_time,
+  dt(in_dt),
+  tf(in_tf),
+  fespace(*initial_gf.ParFESpace())
 {
-    T_gf = new ParGridFunction(fespace);
-}
-
-SolverState::~SolverState()
-{
-    delete T_gf;
+    initial_gf.SetTrueDofs(T);
 }

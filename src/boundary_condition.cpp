@@ -18,48 +18,64 @@ string UniformHeatFluxBC::GetInitString() const
     return sstm.str();
 }
 
+string PreciceIsothermalBC::GetInitString() const
+{
+    stringstream sstm;
+    sstm << "preCICE Isothermal --- Mesh: " << meshName << " --- Default Value: " << default_value;
+    return sstm.str();
+}
 
-preCICEBC::preCICEBC(int attr, BOUNDARY_CONDITION in_type, const SolverState* in_state, SolverInterface* in_interface, const ConductivityModel* in_cond, bool is_restart, string mesh_name, double in_value, string read_data_name, string write_data_name) 
+string PreciceHeatFluxBC::GetInitString() const
+{
+    stringstream sstm;
+    sstm << "preCICE Heat Flux --- Mesh: " << meshName << " --- Default Value: " << default_value;
+    return sstm.str();
+}
+
+preCICEBC::preCICEBC(const int attr, const BOUNDARY_CONDITION in_type, const bool is_restart, const string mesh_name, const double in_value, const string in_read, const string in_write) 
 : BoundaryCondition(attr, in_type),
-  curr_state(in_state),
-  interface(in_interface),
-  cond_model(in_cond),
-  readDataName(read_data_name),
-  writeDataName(write_data_name),
+  fespace(f),
+  mesh_name(in_mesh),
   restart(is_restart),
+  default_value(in_value),
+  read_data_name(in_read),
+  write_data_name(in_write),
+  dim(f.GetMesh()->Dimension()),
+  coords(nullptr),
+  vertex_ids(nullptr),
+  read_data_arr(nullptr),
+  write_data_arr(nullptr),
+
   bdr_elem_indices(0),
   bdr_dof_indices(0),
-  initial_value(in_value),
-  coeff_values(0)
+  //coeff_values(0),
+
 {
     // Method from GridFunction::AccumulateAndCountBdrValues used
+    // Get and save coordinate array of all vertices, all bdr elements, and all bdr dof indices
 
     const FiniteElement *fe;
     ElementTransformation *transf;
 
-    ParFiniteElementSpace* fespace = curr_state->GetParFESpace();
-
-    int dim = fespace->GetMesh()->Dimension();
-
     Array<double> coords_temp(0);
 
     // Loop through all boundary elements
-    for (int i = 0; i < fespace->GetNBE(); i++)
+    for (int i = 0; i < fespace.GetNBE(); i++)
     {   
         // Skip over elements not on this BCs boundary
-        if (fespace->GetBdrAttribute(i) != attr)
+        if (fespace.GetBdrAttribute(i) != attr)
             continue;
         
         // Save boundary element index
         bdr_elem_indices.Append(i);
 
-        fe = fespace->GetBE(i); // Get bdr element used at this boundary face i
-        transf = fespace->GetBdrElementTransformation(i); // Get bdr elem transformation - the actual definition of this particular BE
+        fe = fespace.GetBE(i); // Get bdr element used at this boundary face i
+        transf = fespace.GetBdrElementTransformation(i); // Get bdr elem transformation - the actual definition of this particular BE
 
-        const IntegrationRule &ir = fe->GetNodes(); // Get nodes of the bdr element
+        const IntegrationRule &ir = fe.GetNodes(); // Get nodes of the bdr element
 
         Array<int> bdr_elem_dofs;
-        fespace->GetBdrElementDofs(i, bdr_elem_dofs); // Get bdr element dofs
+        fespace.GetBdrElementDofs(i, bdr_elem_dofs); // Get bdr element dofs
 
         // Append bdr_elem_dofs to boundary_dofs member variable
         bdr_dof_indices.Append(bdr_elem_dofs);
@@ -68,7 +84,6 @@ preCICEBC::preCICEBC(int attr, BOUNDARY_CONDITION in_type, const SolverState* in
         for (int j = 0; j < fe->GetDof(); j++)
         {
             const IntegrationPoint &ip = ir.IntPoint(j);
-            transf->SetIntPoint(&ip); // TODO: Why is this necessary for Transform?? Should see if relevant for me - See Coefficient::Eval documentation
             
             // Set x,y,z of each dof into respective arrays
             Vector coord(3);
@@ -109,11 +124,19 @@ preCICEBC::preCICEBC(int attr, BOUNDARY_CONDITION in_type, const SolverState* in
         coords[i] = coords_temp[i];
 
     num_dofs = bdr_dof_indices.Size();
+
+    // Create arrays for everything else needed
+    vertexIDs = new int[num_dofs];
+    readDataArr = new double[num_dofs];
+    writeDataArr = new double[num_dofs];
+    
+    /*
     // Get mesh ID
     meshID = interface->getMeshID(mesh_name);
 
     // Set mesh vertices
-    interface->setMeshVertices(meshID, num_dofs, coords, vertexIDs);
+    vertexIDs = new int[num_dofs];
+    interface->setMeshVertices(meshID, num_dofs, coords, vertexIDs); // THIS IS WHERE IT IS BREAKING
 
     // Get read + write data IDs
     readDataID = interface->getDataID(readDataName, meshID);
@@ -122,11 +145,14 @@ preCICEBC::preCICEBC(int attr, BOUNDARY_CONDITION in_type, const SolverState* in
     // Create arrays for read/write of preCICE data
     readDataArr = new double[num_dofs];
     writeDataArr = new double[num_dofs];
+    */
+
     // Set coeff_values to initialization value for now
     // If data sent from other participant, this will be updated in first call to UpdateCoeff
-    coeff_values.SetSize(num_dofs);
-    coeff_values = initial_value;
+    coeff_dof_values.SetSize(num_dofs);
+    coeff_dof_values = initial_value;
 
+    // Create grid function for coefficient
     coeff_gf = new ParGridFunction(fespace);
 }
 
@@ -212,10 +238,6 @@ preCICEBC::~preCICEBC()
 void preCICEBC::InitCoefficient()
 {   
 
-
-    // TODO: This must be moved out of here -- only works for single preCICE BC
-    if (interface->isActionRequired(precice::constants::actionWriteInitialData()))
-    {
         if (!restart) // If not restart, use initial specified temperature value
         {
             for (int i = 0; i < num_dofs;i++)

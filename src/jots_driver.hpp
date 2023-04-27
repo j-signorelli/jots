@@ -4,10 +4,12 @@
 #include "mfem/mfem.hpp"
 #include "precice/SolverInterface.hpp"
 
+#include "option_structure.hpp"
 #include "config_file.hpp"
 #include "conduction_operator.hpp"
 #include "conductivity_model.hpp"
 #include "solver_state.hpp"
+#include "precice_adapter.hpp"
 
 class JOTSDriver
 {
@@ -19,7 +21,7 @@ class JOTSDriver
 
         int dim;
 
-        precice::SolverInterface* interface;
+        PreciceAdapter* adapter;
 
         Config* user_input;
         BoundaryCondition** boundary_conditions;
