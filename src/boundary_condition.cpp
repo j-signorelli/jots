@@ -212,23 +212,27 @@ preCICEBC::~preCICEBC()
 void preCICEBC::InitCoefficient()
 {   
 
-    // Suffer performance loss by just sending anyways for now
-   //if (interface->isActionRequired(precice::constants::actionWriteInitialData()))
-    //{
+
+    // TODO: This must be moved out of here -- only works for single preCICE BC
+    if (interface->isActionRequired(precice::constants::actionWriteInitialData()))
+    {
         if (!restart) // If not restart, use initial specified temperature value
         {
             for (int i = 0; i < num_dofs;i++)
-                readDataArr[i] = initial_value;
+                writeDataArr[i] = initial_value; 
+                // TODO: Need to get actual write value
+                // If isothermal wall, need to update GF and send heat flux
+                // If heatflux wall, no changes. Send temperature from T_gf
 
         } else // Else get the actual currently set values
         {
-            GetInitialReadDataFxn();
+            GetInitialWriteDataFxn();
         }
-        interface->writeBlockScalarData(readDataID, num_dofs, vertexIDs, readDataArr);
-    //    interface->markActionFulfilled(precice::constants::actionWriteInitialData());
-    //}
+        interface->writeBlockScalarData(writeDataID, num_dofs, vertexIDs, writeDataArr);
+        interface->markActionFulfilled(precice::constants::actionWriteInitialData());
+    }
 
-    //interface->initializeData();
+    interface->initializeData();
 
     // TODO: may need to add in sleep of some sort here. Was issue in SU2 py wrapper adapter
 
@@ -242,25 +246,26 @@ void preCICEBC::InitCoefficient()
 void preCICEBC::UpdateCoeff()
 {   
 
-    // Suffer performance loss by just sending + recieving always anyways for now
+
+    // TODO: if statements must be moved out of here. This currently only works for single preCICE BC:
 
     // Write data if it is needed
     // This isn't required but would save time if subcycling
     // Note that deltaT must not be updated from prior timestep
-    //if (interface->isWriteDataRequired(curr_state->Getdt()))
-    //{
+    if (interface->isWriteDataRequired(curr_state->Getdt()))
+    {
         GetWriteDataFxn();
         interface->writeBlockScalarData(readDataID, num_dofs, vertexIDs, writeDataArr);
-    //}
+    }
 
     // Retrieve data from preCICE
-    //if (interface->isReadDataAvailable())
-    //{
+    if (interface->isReadDataAvailable())
+    {
         interface->readBlockScalarData(readDataID, num_dofs, vertexIDs, readDataArr);
 
         // Update the GridFunction bdr values
         coeff_gf->SetSubVector(bdr_dof_indices, readDataArr);
-    //}
+    }
     // NOTE: Cannot call advance here as would be called twice if multiple preCICE BCs implemented later on
     // Also cannot call reload and save as would be repeating it for multiple preCICE BCs
 }

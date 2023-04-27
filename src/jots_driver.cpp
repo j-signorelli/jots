@@ -133,7 +133,7 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
             cout << "preCICE Config File: " << user_input->GetpreCICEConfigFile() << endl;
         }
         interface = new SolverInterface(user_input->GetpreCICEParticipantName(), user_input->GetpreCICEConfigFile(), rank, size);
-
+        cout << "INTERFACE INSTANTIATED" << endl;
         if (interface->getDimensions() != dim)
             MFEM_ABORT("preCICE dimensions and mesh file dimensions are not the same!");
     

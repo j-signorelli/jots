@@ -111,7 +111,7 @@ class preCICEBC : public BoundaryCondition
         void InitCoefficient();
         void UpdateCoeff();
 
-        virtual void GetInitialReadDataFxn() = 0; // Function to get initial read data from restarted state of T_gf
+        virtual void GetInitialWriteDataFxn() = 0; // Function to get initial read data from restarted state of T_gf
         virtual void GetWriteDataFxn() = 0;
 
 
@@ -129,8 +129,8 @@ class preCICEIsothermalBC : public preCICEBC
     protected:
 
     public:
-        preCICEIsothermalBC(int attr, const SolverState* in_state, precice::SolverInterface* in_interface, const ConductivityModel* in_cond, bool is_restart, std::string mesh_name, double in_value) : preCICEBC(attr, BOUNDARY_CONDITION::PRECICE_ISOTHERMAL, in_state, in_interface, in_cond, is_restart, mesh_name, in_value, TEMPERATURE, HEATFLUX) {};
-        void GetInitialReadDataFxn() { GetBdrTemperatures(curr_state->GetGF(), bdr_elem_indices, readDataArr); };
+        preCICEIsothermalBC(int attr, const SolverState* in_state, precice::SolverInterface* in_interface, const ConductivityModel* in_cond, bool is_restart, std::string mesh_name, double in_value) : preCICEBC(attr, BOUNDARY_CONDITION::PRECICE_ISOTHERMAL, in_state, in_interface, in_cond, is_restart, mesh_name, in_value, "Temperature", "Heat-Flux") {}; // TODO: Understand why I cannot do as done below. I get bad_alloc error
+        void GetInitialWriteDataFxn() { GetBdrTemperatures(curr_state->GetGF(), bdr_elem_indices, readDataArr); }; // SHOULD BE HEAT FLUX
         void GetWriteDataFxn() { GetBdrWallHeatFlux(curr_state->GetGF(), cond_model, bdr_elem_indices, writeDataArr); };
         bool IsEssential() const { return true; };
         std::string GetInitString() const {return "";};
@@ -144,7 +144,7 @@ class preCICEHeatFluxBC : public preCICEBC
 
     public:
         preCICEHeatFluxBC(int attr, const SolverState* in_state, precice::SolverInterface* in_interface, const ConductivityModel* in_cond, bool is_restart, std::string mesh_name, double in_value) : preCICEBC(attr, BOUNDARY_CONDITION::PRECICE_HEATFLUX, in_state, in_interface, in_cond, is_restart, mesh_name, in_value, HEATFLUX, TEMPERATURE) {};
-        void GetInitialReadDataFxn() { GetBdrWallHeatFlux(curr_state->GetGF(), cond_model, bdr_elem_indices, readDataArr); };
+        void GetInitialWriteDataFxn() { GetBdrWallHeatFlux(curr_state->GetGF(), cond_model, bdr_elem_indices, readDataArr); }; // SHOULD BE TEMPERATURE
         void GetWriteDataFxn() { GetBdrTemperatures(curr_state->GetGF(), bdr_elem_indices, readDataArr); };
         
         bool IsEssential() const { return false; };

@@ -32,10 +32,10 @@ static const std::map<std::string, TIME_SCHEME> Time_Scheme_Map = {{"Euler_Impli
 
 enum class BOUNDARY_CONDITION
 {
-  HEATFLUX = 0,
-  ISOTHERMAL = 1,
-  PRECICE_HEATFLUX = 2,
-  PRECICE_ISOTHERMAL = 3
+  HEATFLUX,
+  ISOTHERMAL,
+  PRECICE_HEATFLUX,
+  PRECICE_ISOTHERMAL
 };
 
 static const std::map<std::string, BOUNDARY_CONDITION> Boundary_Condition_Map = {{"HeatFlux", BOUNDARY_CONDITION::HEATFLUX},

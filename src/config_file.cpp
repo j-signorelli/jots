@@ -94,6 +94,7 @@ void Config::ReadpreCICE()
         with_preCICE = true;
         preCICE_participant_name = property_tree.get<string>("preCICE.Participant_Name");
         preCICE_config_file = property_tree.get<string>("preCICE.Config_File");
+        preCICE_mesh_name = property_tree.get<string>("preCICE.Interface_Mesh_Name");
     }
 }
 void Config::ReadAndInitBCs(BoundaryCondition**& in_bcs, const ConductivityModel* in_cond, const SolverState* in_state, SolverInterface* in_interface)
@@ -101,10 +102,7 @@ void Config::ReadAndInitBCs(BoundaryCondition**& in_bcs, const ConductivityModel
     // Read BoundaryConditions
     bc_count = property_tree.get_child("BoundaryConditions").size();
     in_bcs = new BoundaryCondition*[bc_count];
-    
-    // Assume no preCICE, update later if yes
-    with_preCICE = false;
-    
+
     int index = 0;
     BOOST_FOREACH(const bp::ptree::value_type &v , property_tree.get_child("BoundaryConditions"))
     {   
@@ -125,7 +123,7 @@ void Config::ReadAndInitBCs(BoundaryCondition**& in_bcs, const ConductivityModel
 
         // Set the BC
         BOUNDARY_CONDITION type = Boundary_Condition_Map.at(bc_info[0]);
-        
+
         double value;
         switch (type)
         {
