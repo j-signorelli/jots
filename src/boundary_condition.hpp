@@ -6,6 +6,7 @@
 
 #include "option_structure.hpp"
 #include "conductivity_model.hpp"
+#include "solver_state.hpp"
 
 class BoundaryCondition
 {
@@ -70,12 +71,13 @@ class preCICEBC : public BoundaryCondition
     private:
     protected:
 
+        const std::string TEMPERATURE = "Temperature";
+        const std::string HEATFLUX = "Heat-Flux";
+
         precice::SolverInterface* interface; // Not allocated here
 
-        mfem::ParFiniteElementSpace* fespace; // Not allocated here
-        const mfem::ParGridFunction* T_gf; // Ptr to main solution GridFunction - Not allocated here, required for obtaining write data
         const ConductivityModel* cond_model; // Ptr to conductivity model - not allocated here
-        double& deltaT; // Reference to deltaT
+        const SolverState* curr_state; // Ptr to solver state -- not allocated here
 
         std::string readDataName;
         std::string writeDataName;
@@ -104,7 +106,7 @@ class preCICEBC : public BoundaryCondition
         static void GetBdrWallHeatFlux(const mfem::ParGridFunction* T_gf, const ConductivityModel* in_cond, const mfem::Array<int> in_bdr_elem_indices, double* nodal_wall_heatfluxes); // Precondition same above
 
     public:
-        preCICEBC(int attr, BOUNDARY_CONDITION in_type, precice::SolverInterface* in, const mfem::ParGridFunction* in_T_gf, ConductivityModel* in_cond, double& in_dt, bool is_restart, std::string mesh_name, double in_value, std::string read_data_name, std::string write_data_name);
+        preCICEBC(int attr, BOUNDARY_CONDITION in_type, const SolverState* in_state, precice::SolverInterface* in_interface, const ConductivityModel* in_cond, bool is_restart, std::string mesh_name, double in_value, std::string read_data_name, std::string write_data_name);
         bool IsConstant() const { return false; };
         void InitCoefficient();
         void UpdateCoeff();
@@ -127,9 +129,9 @@ class preCICEIsothermalBC : public preCICEBC
     protected:
 
     public:
-        preCICEIsothermalBC(int attr, precice::SolverInterface* in, mfem::ParGridFunction* in_T_gf, ConductivityModel* in_cond, double& in_dt,  bool is_restart, std::string mesh_name, double in_value) : preCICEBC(attr, BOUNDARY_CONDITION::PRECICE_ISOTHERMAL, in, in_T_gf, in_cond, in_dt, is_restart, mesh_name, in_value, "Temperature", "Heat-Flux") {}; // TODO: Generalize strings!!!
-        void GetInitialReadDataFxn() { GetBdrTemperatures(T_gf, bdr_elem_indices, readDataArr); };
-        void GetWriteDataFxn() { GetBdrWallHeatFlux(T_gf, cond_model, bdr_elem_indices, writeDataArr); };
+        preCICEIsothermalBC(int attr, const SolverState* in_state, precice::SolverInterface* in_interface, const ConductivityModel* in_cond, bool is_restart, std::string mesh_name, double in_value) : preCICEBC(attr, BOUNDARY_CONDITION::PRECICE_ISOTHERMAL, in_state, in_interface, in_cond, is_restart, mesh_name, in_value, TEMPERATURE, HEATFLUX) {};
+        void GetInitialReadDataFxn() { GetBdrTemperatures(curr_state->GetGF(), bdr_elem_indices, readDataArr); };
+        void GetWriteDataFxn() { GetBdrWallHeatFlux(curr_state->GetGF(), cond_model, bdr_elem_indices, writeDataArr); };
         bool IsEssential() const { return true; };
         std::string GetInitString() const {return "";};
 };
@@ -141,9 +143,9 @@ class preCICEHeatFluxBC : public preCICEBC
     protected:
 
     public:
-        preCICEHeatFluxBC(int attr, precice::SolverInterface* in, mfem::ParGridFunction* in_T_gf, ConductivityModel* in_cond, double& in_dt, bool is_restart, std::string mesh_name, double in_value) : preCICEBC(attr, BOUNDARY_CONDITION::PRECICE_HEATFLUX, in, in_T_gf, in_cond, in_dt, is_restart, mesh_name, in_value, "Heat-Flux", "Temperature") {};
-        void GetInitialReadDataFxn() { GetBdrWallHeatFlux(T_gf, cond_model, bdr_elem_indices, readDataArr); };
-        void GetWriteDataFxn() { GetBdrTemperatures(T_gf, bdr_elem_indices, readDataArr); };
+        preCICEHeatFluxBC(int attr, const SolverState* in_state, precice::SolverInterface* in_interface, const ConductivityModel* in_cond, bool is_restart, std::string mesh_name, double in_value) : preCICEBC(attr, BOUNDARY_CONDITION::PRECICE_HEATFLUX, in_state, in_interface, in_cond, is_restart, mesh_name, in_value, HEATFLUX, TEMPERATURE) {};
+        void GetInitialReadDataFxn() { GetBdrWallHeatFlux(curr_state->GetGF(), cond_model, bdr_elem_indices, readDataArr); };
+        void GetWriteDataFxn() { GetBdrTemperatures(curr_state->GetGF(), bdr_elem_indices, readDataArr); };
         
         bool IsEssential() const { return false; };
         std::string GetInitString() const {return "";};

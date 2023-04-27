@@ -19,13 +19,11 @@ string UniformHeatFluxBC::GetInitString() const
 }
 
 
-preCICEBC::preCICEBC(int attr, BOUNDARY_CONDITION in_type, SolverInterface* in, const ParGridFunction* in_T_gf, ConductivityModel* in_cond, double& in_dt, bool is_restart, string mesh_name, double in_value, string read_data_name, string write_data_name) 
+preCICEBC::preCICEBC(int attr, BOUNDARY_CONDITION in_type, const SolverState* in_state, SolverInterface* in_interface, const ConductivityModel* in_cond, bool is_restart, string mesh_name, double in_value, string read_data_name, string write_data_name) 
 : BoundaryCondition(attr, in_type),
-  interface(in),
-  fespace(in_T_gf->ParFESpace()),
-  T_gf(in_T_gf),
+  curr_state(in_state),
+  interface(in_interface),
   cond_model(in_cond),
-  deltaT(in_dt),
   readDataName(read_data_name),
   writeDataName(write_data_name),
   restart(is_restart),
@@ -38,6 +36,8 @@ preCICEBC::preCICEBC(int attr, BOUNDARY_CONDITION in_type, SolverInterface* in, 
 
     const FiniteElement *fe;
     ElementTransformation *transf;
+
+    ParFiniteElementSpace* fespace = curr_state->GetParFESpace();
 
     int dim = fespace->GetMesh()->Dimension();
 
@@ -127,7 +127,7 @@ preCICEBC::preCICEBC(int attr, BOUNDARY_CONDITION in_type, SolverInterface* in, 
     coeff_values.SetSize(num_dofs);
     coeff_values = initial_value;
 
-    coeff_gf = new ParGridFunction(in_T_gf->ParFESpace());
+    coeff_gf = new ParGridFunction(fespace);
 }
 
 void preCICEBC::GetBdrTemperatures(const ParGridFunction* T_gf, const Array<int> in_bdr_elem_indices, double* nodal_temperatures)
@@ -210,9 +210,11 @@ preCICEBC::~preCICEBC()
 }
 
 void preCICEBC::InitCoefficient()
-{
-    if (interface->isActionRequired(precice::constants::actionWriteInitialData()))
-    {
+{   
+
+    // Suffer performance loss by just sending anyways for now
+   //if (interface->isActionRequired(precice::constants::actionWriteInitialData()))
+    //{
         if (!restart) // If not restart, use initial specified temperature value
         {
             for (int i = 0; i < num_dofs;i++)
@@ -223,14 +225,14 @@ void preCICEBC::InitCoefficient()
             GetInitialReadDataFxn();
         }
         interface->writeBlockScalarData(readDataID, num_dofs, vertexIDs, readDataArr);
-        interface->markActionFulfilled(precice::constants::actionWriteInitialData());
-    }
+    //    interface->markActionFulfilled(precice::constants::actionWriteInitialData());
+    //}
 
-    interface->initializeData();
+    //interface->initializeData();
 
     // TODO: may need to add in sleep of some sort here. Was issue in SU2 py wrapper adapter
 
-    coeff_gf = new ParGridFunction(fespace);
+    coeff_gf = new ParGridFunction(curr_state->GetParFESpace());
     coeff = new GridFunctionCoefficient(coeff_gf);
     // Do not need to reset coeff_gf to coeff, just update it!
     // (coeff takes ptr to coeff_gf) 
@@ -240,22 +242,25 @@ void preCICEBC::InitCoefficient()
 void preCICEBC::UpdateCoeff()
 {   
 
+    // Suffer performance loss by just sending + recieving always anyways for now
+
     // Write data if it is needed
     // This isn't required but would save time if subcycling
     // Note that deltaT must not be updated from prior timestep
-    if (interface->isWriteDataRequired(deltaT))
-    {
+    //if (interface->isWriteDataRequired(curr_state->Getdt()))
+    //{
         GetWriteDataFxn();
         interface->writeBlockScalarData(readDataID, num_dofs, vertexIDs, writeDataArr);
-    }
+    //}
 
     // Retrieve data from preCICE
-    if (interface->isReadDataAvailable())
-    {
+    //if (interface->isReadDataAvailable())
+    //{
         interface->readBlockScalarData(readDataID, num_dofs, vertexIDs, readDataArr);
 
         // Update the GridFunction bdr values
         coeff_gf->SetSubVector(bdr_dof_indices, readDataArr);
-    }
+    //}
     // NOTE: Cannot call advance here as would be called twice if multiple preCICE BCs implemented later on
+    // Also cannot call reload and save as would be repeating it for multiple preCICE BCs
 }

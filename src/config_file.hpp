@@ -13,7 +13,7 @@
 #include "option_structure.hpp"
 #include "boundary_condition.hpp"
 #include "conductivity_model.hpp"
-
+#include "solver_state.hpp"
 
 class Config
 {
@@ -30,8 +30,7 @@ class Config
         
         double density;
         double Cp;
-        ConductivityModel* cond_model;                 /*!< \brief Thermal conductivity model of material */
-
+        
         bool use_restart;             /*!< \brief Boolean indicating if restart file should be loaded up as initial condition */
         std::string restart_file;          /*!< \brief Restart file to load + use; only read if use_restart is true */
         double initial_temp;          /*!< \brief Initial temperature field to set; only used if use_restart is false */
@@ -41,7 +40,6 @@ class Config
         std::string preCICE_config_file;
         std::string preCICE_mesh_name;
 
-        //BoundaryCondition** boundary_conditions; /*!< \brief Array containing BoundaryConditions objects, value = ptr to BoundaryCondition object */
         size_t bc_count;        
 
         TIME_SCHEME time_scheme;      /*!< \brief Time integration scheme to use */
@@ -61,12 +59,12 @@ class Config
     public:
         Config(const char* in_file);
 
-        // Note that these Read functions below are designed to be called in this order
+        // Note that these Read(AndInit) functions below are designed to be called mostly in this order
         void ReadFESetup();
-        void ReadAndInitMatProps(ConductivityModel* in_cond);
-        void ReadIC();
+        void ReadAndInitMatProps(ConductivityModel*& in_cond);
+        void ReadAndInitIC(SolverState*& in_state);
         void ReadpreCICE();
-        void ReadAndInitBCs(double& dt, BoundaryCondition** in_bcs, mfem::ParGridFunction* in_T_gf=nullptr, precice::SolverInterface* interface=nullptr); // Instantiate in_bcs
+        void ReadAndInitBCs(BoundaryCondition**& in_bcs, const ConductivityModel* in_cond, const SolverState* in_state, precice::SolverInterface* in_interface); // Instantiate in_bcs
         void ReadTimeInt();
         void ReadLinSolSettings();
         void ReadOutput();
@@ -126,8 +124,6 @@ class Config
         int GetRestartFreq() const { return restart_freq; }
 
         int GetVisFreq() const { return vis_freq; }
-
-        ~Config();
 
     protected:
 

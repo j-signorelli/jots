@@ -25,7 +25,7 @@ void Config::ReadFESetup()
 
 }
 
-void Config::ReadAndInitMatProps(ConductivityModel* in_cond)
+void Config::ReadAndInitMatProps(ConductivityModel*& in_cond)
 {
     // Read MaterialProperties
     density = property_tree.get<double>("MaterialProperties.Density");
@@ -45,24 +45,42 @@ void Config::ReadAndInitMatProps(ConductivityModel* in_cond)
     }
 }
 
-void Config::ReadIC()
+void Config::ReadAndInitIC(SolverState*& in_state)
 {
     // Read InitialCondition
     BINARY_CHOICE restart_choice = Binary_Choice_Map.at(property_tree.get<string>("InitialCondition.Use_Restart"));
     use_restart = restart_choice == BINARY_CHOICE::YES ? true : false;
-    // TODO: update to automatically retrieve from restarts, but for now:
-    t0 = 0;
+    
+    // TODO: update to automatically time retrieve from restarts, but for now:
+    in_state->SetTime(0);
+    in_state->SetItNum(0);
+
+    ParGridFunction temp_gf(in_state->GetParFESpace());
 
     if (!use_restart)
     {
         // Grab initial temperature field set
         initial_temp = property_tree.get<double>("InitialCondition.Initial_Temperature");
+    
+        //Create constant coefficient of initial temperature
+        ConstantCoefficient T_0(initial_temp);
+
+
+        // Project that coefficient onto the GridFunction
+        temp_gf.ProjectCoefficient(T_0);
+
     }
     else
     {
         // Else need to read in restart file - save file name
         restart_file = property_tree.get<string>("InitialCondition.Restart_File");
+    
+        // TODO:
     }
+
+    // Set true vector
+    temp_gf.GetTrueDofs(in_state->GetTRef());
+
 }
 void Config::ReadpreCICE()
 {
@@ -78,7 +96,7 @@ void Config::ReadpreCICE()
         preCICE_config_file = property_tree.get<string>("preCICE.Config_File");
     }
 }
-void Config::ReadAndInitBCs(double& dt, BoundaryCondition** in_bcs, ParGridFunction* in_T_gf, SolverInterface* interface)
+void Config::ReadAndInitBCs(BoundaryCondition**& in_bcs, const ConductivityModel* in_cond, const SolverState* in_state, SolverInterface* in_interface)
 {
     // Read BoundaryConditions
     bc_count = property_tree.get_child("BoundaryConditions").size();
@@ -121,11 +139,11 @@ void Config::ReadAndInitBCs(double& dt, BoundaryCondition** in_bcs, ParGridFunct
                 break;
             case BOUNDARY_CONDITION::PRECICE_HEATFLUX:
                 value = stod(bc_info[1].c_str());
-                in_bcs[index] = new preCICEHeatFluxBC(attr, interface, in_T_gf, cond_model, dt, use_restart, preCICE_mesh_name, value);
+                in_bcs[index] = new preCICEHeatFluxBC(attr, in_state, in_interface, in_cond, use_restart, preCICE_mesh_name, value);
                 break;
             case BOUNDARY_CONDITION::PRECICE_ISOTHERMAL:
                 value = stod(bc_info[1].c_str());
-                in_bcs[index] = new preCICEIsothermalBC(attr, interface, in_T_gf, cond_model, dt, use_restart, preCICE_mesh_name, value);
+                in_bcs[index] = new preCICEIsothermalBC(attr, in_state, in_interface, in_cond, use_restart, preCICE_mesh_name, value);
                 break;
         }
 
@@ -251,9 +269,4 @@ string Config::GetPrecString() const
             return "Chebyshev";
             break;
     }
-}
-
-Config::~Config()
-{
-    delete cond_model;
 }

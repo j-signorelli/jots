@@ -12,7 +12,7 @@ using namespace std;
  *
  *  Class ConductionOperator represents the right-hand side of the above ODE.
  */
-ConductionOperator::ConductionOperator(Config* in_config, BoundaryCondition** in_bcs, ConductivityModel* in_cond, ParFiniteElementSpace &f, double t_0)
+ConductionOperator::ConductionOperator(const Config* in_config, BoundaryCondition** in_bcs, ConductivityModel* in_cond, ParFiniteElementSpace &f, double t_0)
    :  TimeDependentOperator(f.GetTrueVSize(), t_0),
       fespace(f),
       k_coeff(NULL),
@@ -168,17 +168,17 @@ void ConductionOperator::PreprocessSolver()
 
 }
 
-void ConductionOperator::PreprocessIteration(Vector &u, double curr_time)
+void ConductionOperator::PreprocessIteration(Vector &u)
 {
    // Apply BCs
-   ApplyBCs(u, curr_time);
+   ApplyBCs(u);
 
    //Calculate thermal conductivities
-   SetThermalConductivities(u, curr_time);
+   SetThermalConductivities(u);
 
 }
 
-void ConductionOperator::ApplyBCs(Vector &u, double curr_time)
+void ConductionOperator::ApplyBCs(Vector &u)
 {
 
    // Update time-dependent coefficients with current time
@@ -224,7 +224,7 @@ void ConductionOperator::ApplyBCs(Vector &u, double curr_time)
 
 }
 
-void ConductionOperator::SetThermalConductivities(const Vector &u, double curr_time)
+void ConductionOperator::SetThermalConductivities(const Vector &u)
 {    
 
    // Update matrix K IF TIME-DEPENDENT k Or if not yet instantiated
@@ -238,7 +238,7 @@ void ConductionOperator::SetThermalConductivities(const Vector &u, double curr_t
       delete K_e;
 
 
-      k_coeff->SetTime(curr_time);     
+      k_coeff->SetTime(0);     
       k->Update(); // delete old data (M and M_e)
       k->Assemble(0);
       k->Finalize(0);
