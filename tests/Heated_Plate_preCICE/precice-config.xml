@@ -26,6 +26,11 @@
     <participant name="Dummy">
       <use-mesh name="Dummy-Mesh" provide="yes"/>
       <use-mesh name="Solid-Mesh" from="JOTS"/>
+      <mapping:nearest-neighbor 
+        direction="read"
+        from="Solid-Mesh"
+        to="Dummy-Mesh"
+        constraint="consistent"/>
       <write-data name="Temperature" mesh="Dummy-Mesh" />
       <read-data  name="Heat-Flux" mesh="Dummy-Mesh" />
     </participant>
@@ -33,8 +38,11 @@
     <participant name="JOTS">
       <use-mesh name="Dummy-Mesh" from="Dummy"/>
       <use-mesh name="Solid-Mesh" provide="yes"/>
-      <mapping:nearest-neighbor   direction="write" from="Solid-Mesh" to="Dummy-Mesh" constraint="consistent"/>
-      <mapping:nearest-neighbor direction="read"  from="Dummy-Mesh" to="Solid-Mesh" constraint="consistent" />
+      <mapping:nearest-neighbor 
+        direction="read"
+        from="Dummy-Mesh"
+        to="Solid-Mesh"
+        constraint="consistent"/>
       <write-data name="Heat-Flux" mesh="Solid-Mesh" />
       <read-data name="Temperature" mesh="Solid-Mesh" />
     </participant>

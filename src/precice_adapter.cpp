@@ -74,7 +74,7 @@ void PreciceAdapter::WriteData(const mfem::Vector T, const ConductivityModel* co
     for (int  i = 0; i < num_bcs; i++)
     {
         precice_bcs[i]->RetrieveWriteData(T, cond_model);
-        interface->writeBlockScalarData(precice_bcs[i]->read_data_id, precice_bcs[i]->num_dofs, precice_bcs[i]->vertex_ids, precice_bcs[i]->write_data_arr);
+        interface->writeBlockScalarData(precice_bcs[i]->write_data_id, precice_bcs[i]->num_dofs, precice_bcs[i]->vertex_ids, precice_bcs[i]->write_data_arr);
     }
 }
 

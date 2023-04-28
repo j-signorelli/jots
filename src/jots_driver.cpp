@@ -382,6 +382,8 @@ void JOTSDriver::Run()
         // Advance preCICE if using it
         if (user_input->UsingPrecice())
         {
+            if (rank == 0)
+                cout << line << endl;
             adapter->Interface()->advance(precice_dt);
             if (precice_dt < dt)
                 dt = precice_dt;
@@ -392,27 +394,24 @@ void JOTSDriver::Run()
         previous_time = time;
 
         ode_solver->Step(T, time, dt);
-        
-
-        // Print current timestep information:
-        if (rank == 0)
-            printf("Step #%10i || Time: %10.5g out of %-10.5g || dt: %10.5g \n", it_num, time, tf, dt);
-            //|| Rank 0 Max Temperature: %10.3g \n", it_num, time, tf,  dt, T.Max());
-            //cout << "Step #" << it_num << " || t = " << time << "||" << "Rank 0 Max T: " << T.Max() << endl;
-        
-        if (T.Max() > 1e10)
-        {
-            MFEM_ABORT("JOTS has blown up");
-            return;
-        }
+        it_num++;        
 
         if (user_input->UsingPrecice() && adapter->Interface()->isWriteDataRequired(dt))
         {
             adapter->WriteData(T, cond_model);
         }
 
+        // Print current timestep information:
+        if (rank == 0)
+            printf("Step #%10i || Time: %10.5g out of %-10.5g || dt: %10.5g \n", it_num, time, tf, dt);
+            //|| Rank 0 Max Temperature: %10.3g \n", it_num, time, tf,  dt, T.Max());
+            //cout << "Step #" << it_num << " || t = " << time << "||" << "Rank 0 Max T: " << T.Max() << endl;
+        if (T.Max() > 1e10)
+        {
+            MFEM_ABORT("JOTS has blown up");
+            return;
+        }
 
-        it_num++;
         if (it_num % user_input->GetVisFreq() == 0) // TODO: VisFreq must be nonzero
         {
             if (rank == 0)

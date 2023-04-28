@@ -29,14 +29,15 @@ mesh_id = interface.get_mesh_id(mesh_name)
 dimensions = interface.get_dimensions()
 
 vertices = np.zeros((num_vertices, dimensions))
-read_data = np.zeros((num_vertices, dimensions))
-write_data = np.zeros((num_vertices, dimensions))
+read_data = np.zeros((num_vertices))
+write_data = np.zeros((num_vertices))
 
-for x in range(num_vertices):
-    for y in range(0, dimensions):
-        vertices[x, y] = x+solver_process_index
-        read_data[x, y] = x+solver_process_index
-        write_data[x, y] = 310
+x = np.linspace(0,1,num_vertices)
+for i in range(num_vertices):
+    vertices[i,0] = x[i]
+    vertices[i,1] = -0.25
+    read_data[i] = i+solver_process_index
+    write_data[i] = 310
 
 vertex_ids = interface.set_mesh_vertices(mesh_id, vertices)
 read_data_id = interface.get_data_id(read_data_name, mesh_id)
@@ -46,7 +47,6 @@ write_data_id = interface.get_data_id(write_data_name, mesh_id)
 dt = interface.initialize()
 
 if (interface.is_action_required(precice.action_write_initial_data())):
-
     interface.write_block_scalar_data(write_data_id, vertex_ids, write_data)
     interface.mark_action_fulfilled(precice.action_write_initial_data())
 
@@ -60,11 +60,11 @@ while interface.is_coupling_ongoing():
             precice.action_write_iteration_checkpoint())
 
     if interface.is_read_data_available():
-        read_data = interface.read_block_vector_data(read_data_id, vertex_ids)
+        read_data = interface.read_block_scalar_data(read_data_id, vertex_ids)
 
 
     if interface.is_write_data_required(dt):
-        interface.write_block_vector_data(
+        interface.write_block_scalar_data(
             write_data_id, vertex_ids, write_data)
 
     print("DUMMY ({}): Advancing in time".format(solver_process_index))
