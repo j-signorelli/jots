@@ -21,12 +21,12 @@ class PreciceAdapter
         int dim;
 
         mfem::Vector old_state_T;
-        
+
     public:
 
         static const std::string cowid;
         static const std::string cowic;
-        static const std::string corid;
+        static const std::string coric;
 
         PreciceAdapter(const std::string in_part_name, const std::string in_config, const int r, const int s);
 
