@@ -6,7 +6,7 @@ using namespace mfem;
 
 const string PreciceAdapter::cowid = precice::constants::actionWriteInitialData();
 const string PreciceAdapter::cowic = precice::constants::actionWriteIterationCheckpoint();
-const string PreciceAdapter::corid = precice::constants::actionReadIterationCheckpoint();
+const string PreciceAdapter::coric = precice::constants::actionReadIterationCheckpoint();
 
 PreciceAdapter::PreciceAdapter(string in_part_name, string in_config, const int r, const int s)
 : precice_bcs(nullptr),

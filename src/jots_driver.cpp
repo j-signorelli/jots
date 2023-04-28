@@ -411,12 +411,12 @@ void JOTSDriver::Run()
 
 
             // Implicit coupling
-            if (adapter->Interface()->isActionRequired(PreciceAdapter::corid))
+            if (adapter->Interface()->isActionRequired(PreciceAdapter::coric))
             {
                 time = previous_time;
                 it_num--;
                 adapter->ReloadOldState(T);
-                adapter->Interface()->markActionFulfilled(PreciceAdapter::cowic);
+                adapter->Interface()->markActionFulfilled(PreciceAdapter::coric);
                 continue;
             }
         }
