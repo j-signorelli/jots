@@ -129,8 +129,10 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
     if (rank == 0)
         cout << "Thermal Conductivity Model: " << cond_model->GetInitString() << endl;
     //----------------------------------------------------------------------
-    // Print initial condition info + prepare initial condition gridfunction
-    ParGridFunction temp_IC(fespace);
+    // Create solution GF
+    T_gf = new ParGridFunction(fespace);
+    //----------------------------------------------------------------------
+    // Print initial condition info + set T_gf
     double start_time = 0;
     int it_num = 0;
     if (rank == 0)
@@ -138,7 +140,7 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
     if (!user_input->UsesRestart()) // If not using restart
     {
         ConstantCoefficient coeff_IC(user_input->GetInitialTemp());
-        temp_IC.ProjectCoefficient(coeff_IC);
+        T_gf->ProjectCoefficient(coeff_IC);
         
         if (rank == 0)
             cout << "Non-restart simulation --> Initial temperature field: " << user_input->GetInitialTemp() << endl;
@@ -307,8 +309,7 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
         cout << "Visualization Frequency: " << user_input->GetVisFreq() << endl;
     }
     //---------------------------------------------------------------------
-    // Create grid function for outputting stuff and main solution vector
-    T_gf = new ParGridFunction(fespace);
+    // Create main solution vector from IC
     T_gf->GetTrueDofs(T);
     //----------------------------------------------------------------------
     // Instantiate ConductionOperator, sending all necessary parameters

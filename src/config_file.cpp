@@ -46,7 +46,7 @@ void Config::ReadMatProps()
     // Read MaterialProperties
     density = property_tree.get("MaterialProperties.Density", 1.0);
     Cp = property_tree.get("MaterialProperties.Specific_Heat_Cp", 1000.0);
-    SetInputStringVector(property_tree.get("MaterialProperties.Thermal_Conductivity_Model", "Constant, 100"), conductivity_info);
+    SetInputStringVector(property_tree.get("MaterialProperties.Thermal_Conductivity_Model", "Uniform, 100"), conductivity_info);
 }
 
 void Config::ReadIC()
