@@ -4,6 +4,8 @@
 #include "mfem/mfem.hpp"
 
 #include "config_file.hpp"
+#include "boundary_condition.hpp"
+#include "conductivity_model.hpp"
 
 using namespace mfem;
 

@@ -2,70 +2,92 @@
 
 using namespace std;
 using namespace precice;
+using namespace mfem;
+
+const string PreciceAdapter::cowid = precice::constants::actionWriteInitialData();
+const string PreciceAdapter::cowic = precice::constants::actionWriteIterationCheckpoint();
+const string PreciceAdapter::corid = precice::constants::actionReadIterationCheckpoint();
 
 PreciceAdapter::PreciceAdapter(string in_part_name, string in_config, const int r, const int s)
-: saved_state(nullptr),
-  precice_bcs(nullptr),
+: precice_bcs(nullptr),
   participant_name(in_part_name),
   config_file(in_config),
   rank(r),
   size(s)
 {
     interface = new SolverInterface(participant_name, config_file, rank, size);
-    dim = interface->getDimensions()
+    dim = interface->getDimensions();
 }
 
 void PreciceAdapter::AddPreciceBCs(BoundaryCondition** in_bcs, vector<int> precice_bc_indices)
 {
-    num_bcs = precice_bc_indices.size()
-    precice_bcs = new BoundaryCondition*[num_bcs];
+    num_bcs = precice_bc_indices.size();
+    precice_bcs = new PreciceBC*[num_bcs];
 
     // Add BCs to list
     for (int i = 0; i < num_bcs; i++)
     {
-        precice_bcs[i] = (*PreciceBC)in_bcs[precice_bc_indices[i]];
+        precice_bcs[i] = dynamic_cast<PreciceBC*>(in_bcs[precice_bc_indices[i]]);
 
         // Set mesh ID
-        int mesh_idid = interface->getMeshID(precice_bcs[i]->GetMeshName());
-        precice_bcs[i]->SetMeshID(id);
+        int mesh_id = interface->getMeshID(precice_bcs[i]->mesh_name);
+        precice_bcs[i]->mesh_id = mesh_id;
 
         // Set mesh vertices
-        interface->setMeshVertices(mesh_id, precice_bcs[i]->GetCoords());
+        interface->setMeshVertices(mesh_id, precice_bcs[i]->num_dofs, precice_bcs[i]->coords, precice_bcs[i]->vertex_ids);
 
         // Set read/write data IDs
-        string read_data_name = precice_bcs[i]->GetReadDataName();
-        string write_data_name = precice_bcs[i]->GetWriteDataName();
-        precice_bcs[i]->SetReadDataID(interface->getDataID(read_data_name, mesh_id));
-        precice_bcs[i]->SetWriteDataID(interface->getDataID(write_data_name, mesh_id));
+        precice_bcs[i]->read_data_id = interface->getDataID(precice_bcs[i]->read_data_name, mesh_id);
+        precice_bcs[i]->write_data_id = interface->getDataID(precice_bcs[i]->write_data_name, mesh_id);
     }
 
 }
 
-
-
-void PreciceAdapter::SaveOldState(const SolverState* state)
+void PreciceAdapter::WriteInitialData(const Vector T, const ConductivityModel* cond_model)
 {
-    // create new solver state object if it doesn't exist
-    if (saved_state == nullptr)
-    {
-        saved_state = new SolverState(state->GetParFESpace());
-        // Set the final time - this won't change throughout the simulation
-        saved_state->SetFinalTime(state->SetFinalTime());
-    }
+    // For isothermal wall, sending heat flux
+    //      If restart, get heatflux from state, send as is.
+    //      If not restart, must project coeff first, then get heat flux, then send
 
-    // Save all values of relevance
-    saved_state->SetItNum(state->GetItNum());
-    saved_state->SetTime(state->GetTime());
-    saved_state->GetTRef() = state->GetTRef(); // This copies data
+    // For heatflux wall, sending temperature
+    //      If restart, get temperature from state and send
+    //      If not restart, not at all any difference.
+    for (int i = 0; i < num_bcs; i++)
+    {
+        precice_bcs[i]->RetrieveInitialWriteData(T, cond_model);
+
+        interface->writeBlockScalarData(precice_bcs[i]->write_data_id, precice_bcs[i]->num_dofs, precice_bcs[i]->vertex_ids, precice_bcs[i]->write_data_arr);
+    }
+}
+
+void PreciceAdapter::GetReadData()
+{
+    for (int i = 0; i < num_bcs; i++)
+    {
+        interface->readBlockScalarData(precice_bcs[i]->read_data_id, precice_bcs[i]->num_dofs, precice_bcs[i]->vertex_ids, precice_bcs[i]->read_data_arr); 
+        precice_bcs[i]->update_flag = true;
+    }
+}
+
+void PreciceAdapter::WriteData(const mfem::Vector T, const ConductivityModel* cond_model)
+{
+    for (int  i = 0; i < num_bcs; i++)
+    {
+        precice_bcs[i]->RetrieveWriteData(T, cond_model);
+        interface->writeBlockScalarData(precice_bcs[i]->read_data_id, precice_bcs[i]->num_dofs, precice_bcs[i]->vertex_ids, precice_bcs[i]->write_data_arr);
+    }
+}
+
+void PreciceAdapter::SaveOldState(const Vector T)
+{
 
 }
-void ReloadOldState(SolverState* state) const
+void PreciceAdapter::ReloadOldState(Vector& T) const
 {
 
 }
 
 PreciceAdapter::~PreciceAdapter()
 {
-    delete saved_state;
-    delete[] preCICE_BCs;
+    delete[] precice_bcs;
 }

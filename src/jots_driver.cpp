@@ -11,12 +11,12 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
   user_input(nullptr),
   boundary_conditions(nullptr),
   cond_model(nullptr),
-  state(nullptr),
   ode_solver(nullptr),
   pmesh(nullptr),
   fe_coll(nullptr),
   fespace(nullptr),
-  oper(nullptr)
+  oper(nullptr),
+  T_gf(nullptr)
 {   
     if (rank == 0)
     {
@@ -111,14 +111,14 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
     //----------------------------------------------------------------------
     // Create ConductivityModel object
     vector<string> cond_info = user_input->GetCondInfo();
-    switch (Conductivity_Model_Map.at(bc_info[0]))
+    switch (Conductivity_Model_Map.at(cond_info[0]))
     {
         /* TODO: Linear
         case CONDUCTIVITYMODEL::L
             break;
         */
         case CONDUCTIVITY_MODEL::UNIFORM: // Uniform conductivity
-            cond_model = new UniformCond(stod(bc_info[1].c_str()));
+            cond_model = new UniformCond(stod(cond_info[1].c_str()));
             break;
         default:
             MFEM_ABORT("Unknown/Invalid thermal conductivity model specified");
@@ -137,7 +137,8 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
         cout << "\n";
     if (!user_input->UsesRestart()) // If not using restart
     {
-        temp_IC.ProjectCoefficient(user_input->GetInitialTemp());
+        ConstantCoefficient coeff_IC(user_input->GetInitialTemp());
+        temp_IC.ProjectCoefficient(coeff_IC);
         
         if (rank == 0)
             cout << "Non-restart simulation --> Initial temperature field: " << user_input->GetInitialTemp() << endl;
@@ -165,8 +166,11 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
     
     }
     //----------------------------------------------------------------------
-    // Create SolverState object for holding simulation info
-    state = new SolverState(temp_IC, it_num, start_time, user_input->Getdt(), user_input->GetFinalTime());
+    // Set time stuff
+    it_num = 0;
+    time = 0.0;
+    dt = user_input->Getdt();
+    tf = user_input->GetFinalTime();
     //----------------------------------------------------------------------
     // Print any precice info + instantiate adapter object if needed
     if (user_input->UsingPrecice())
@@ -238,27 +242,28 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
     for (int i = 0; i < user_input->GetBCCount(); i++)
     {
         pair<int, vector<string>> bc = user_input->GetBCInfo(bdr_index[i]);
-
+        double value;
+        string mesh_name;
         switch (Boundary_Condition_Map.at(bc.second[0]))
         {
             case BOUNDARY_CONDITION::ISOTHERMAL:
-                double uniform_value = stod(bc.second[1].c_str())
-                boundary_conditions[i] =  new UniformIsothermalBC(bc.first, uniform_value);
+                value = stod(bc.second[1].c_str());
+                boundary_conditions[i] =  new UniformIsothermalBC(bc.first, value);
                 break;
             case BOUNDARY_CONDITION::HEATFLUX:
-                double uniform_value = stod(bc.second[1].c_str())
-                boundary_conditions[i] =  new UniformHeatFluxBC(bc.first, uniform_value);
+                value = stod(bc.second[1].c_str());
+                boundary_conditions[i] =  new UniformHeatFluxBC(bc.first, value);
                 break;
             case BOUNDARY_CONDITION::PRECICE_ISOTHERMAL:
-                string mesh_name = bc.second[1];
-                double initial_value = stod(bc.second[2].c_str())
-                boundary_conditions[i] =  new PreciceIsothermalBC(bc.first, fespace, mesh_name, user_input->UsesRestart(), initial_value);
+                mesh_name = bc.second[1];
+                value = stod(bc.second[2].c_str());
+                boundary_conditions[i] =  new PreciceIsothermalBC(bc.first, *fespace, mesh_name, user_input->UsesRestart(), value);
                 precice_bc_indices.push_back(i);
                 break;
             case BOUNDARY_CONDITION::PRECICE_HEATFLUX:
-                string mesh_name = bc.second[1];
-                double initial_value = stod(bc.second[2].c_str())
-                boundary_conditions[i] =  new PreciceHeatFluxBC(bc.first, fespace, mesh_name, user_input->UsesRestart(), initial_value);
+                mesh_name = bc.second[1];
+                value = stod(bc.second[2].c_str());
+                boundary_conditions[i] =  new PreciceHeatFluxBC(bc.first, *fespace, mesh_name, user_input->UsesRestart(), value);
                 precice_bc_indices.push_back(i);
                 break;
             default:
@@ -301,6 +306,10 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
         cout << "Restart Frequency: " << user_input->GetRestartFreq() << endl;
         cout << "Visualization Frequency: " << user_input->GetVisFreq() << endl;
     }
+    //---------------------------------------------------------------------
+    // Create grid function for outputting stuff and main solution vector
+    T_gf = new ParGridFunction(fespace);
+    T_gf->GetTrueDofs(T);
     //----------------------------------------------------------------------
     // Instantiate ConductionOperator, sending all necessary parameters
     if (rank == 0)
@@ -308,7 +317,7 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
         cout << line << endl;
         cout << "Initializing operator... ";
     }
-    oper = new ConductionOperator(user_input, boundary_conditions, cond_model, *fespace, state->GetTime());
+    oper = new ConductionOperator(user_input, boundary_conditions, cond_model, *fespace, time);
     if (rank == 0)
         cout << "Done!" << endl;
 }
@@ -333,68 +342,89 @@ void JOTSDriver::Run()
     paraview_dc.SetHighOrderOutput(true);
 
     double precice_dt = 0;
-
-    // If using precice: initialize + get/send initial data
+    double previous_time = 0;
+    // If using precice: initialize + get/send initial data if needed
+    // Make actual precice interface calls directly here for readability/clarity
     if (user_input->UsingPrecice())
     {
-        precice_dt = adapter->Initialize();
-        adapter->SendInitialData();
-        adapter->InitializeData();
+        precice_dt = adapter->Interface()->initialize();
+        if (adapter->Interface()->isActionRequired(PreciceAdapter::cowid))
+        {
+            adapter->WriteInitialData(T, cond_model);
+            adapter->Interface()->markActionFulfilled(PreciceAdapter::cowid);
+        }
+        adapter->Interface()->initializeData();
     }
 
-    while ( (!user_input->UsingpreCICE() && state->GetTime() < state->GetFinalTime()) 
-        || (user_input->UsingpreCICE() && interface->isCouplingOngoing()))//Main Solver Loop - use short-circuiting
+    while ( (!user_input->UsingPrecice() && time < tf) 
+        || (user_input->UsingPrecice() && adapter->Interface()->isCouplingOngoing()))//Main Solver Loop - use short-circuiting
     {
+        
+        if (user_input->UsingPrecice() && adapter->Interface()->isReadDataAvailable())
+        {
+            adapter->GetReadData();
+        }
+
         // Apply the BCs to state + calculate thermal conductivities
-        oper->PreprocessIteration(state->GetTRef());
+        oper->PreprocessIteration(T);
 
         // Output IC:
-        if (state->GetItNum() == 0)
-        {   // TODO: Output class probably
-            paraview_dc.SetCycle(state->GetItNum());
-            paraview_dc.SetTime(state->GetTime());
-            paraview_dc.RegisterField("Temperature",state->GetGF());
+        if (it_num == 0)
+        {   // TODO: Output class
+            T_gf->SetFromTrueDofs(T);
+            paraview_dc.SetCycle(it_num);
+            paraview_dc.SetTime(time);
+            paraview_dc.RegisterField("Temperature",T_gf);
             paraview_dc.Save();
         }
 
         // Advance preCICE if using it
-        if (user_input->UsingpreCICE())
+        if (user_input->UsingPrecice())
         {
-            interface->advance(preCICE_dt);
-            if (preCICE_dt < state->Getdt())
-                state->Setdt(preCICE_dt);
+            adapter->Interface()->advance(precice_dt);
+            if (precice_dt < dt)
+                dt = precice_dt;
         }
 
         // Step in time - time automatically updated
         // NOTE: Do NOT use ANY ODE-Solvers that update dt
-        ode_solver->Step(state->GetTRef(), state->GetTimeRef(), state->GetdtRef());
-        state->SetItNum(state->GetItNum() + 1);
+        previous_time = time;
+
+        ode_solver->Step(T, time, dt);
+        
 
         // Print current timestep information:
         if (rank == 0)
-            printf("Step #%10i || Time: %10.5g out of %-10.5g || dt: %10.5g \n", state->GetItNum(), state->GetTime(), state->GetFinalTime(),  state->Getdt());
+            printf("Step #%10i || Time: %10.5g out of %-10.5g || dt: %10.5g \n", it_num, time, tf, dt);
             //|| Rank 0 Max Temperature: %10.3g \n", it_num, time, tf,  dt, T.Max());
             //cout << "Step #" << it_num << " || t = " << time << "||" << "Rank 0 Max T: " << T.Max() << endl;
         
-        if (state->GetTRef().Max() > 1e10)
+        if (T.Max() > 1e10)
         {
             MFEM_ABORT("JOTS has blown up");
             return;
         }
 
-        if (state->GetItNum() % user_input->GetVisFreq() == 0) // TODO: VisFreq must be nonzero
+        if (user_input->UsingPrecice() && adapter->Interface()->isWriteDataRequired(dt))
+        {
+            adapter->WriteData(T, cond_model);
+        }
+
+
+        it_num++;
+        if (it_num % user_input->GetVisFreq() == 0) // TODO: VisFreq must be nonzero
         {
             if (rank == 0)
                 cout << line << endl << "Saving Paraview Data..." << endl << line << endl;
             // Save data in the ParaView format
-            state->UpdateGF();
-            paraview_dc.SetCycle(state->GetItNum());
-            paraview_dc.SetTime(state->GetTime());
+            T_gf->SetFromTrueDofs(T);
+            paraview_dc.SetCycle(it_num);
+            paraview_dc.SetTime(time);
             paraview_dc.Save();
         }
     }
-    if (user_input->UsingpreCICE())
-        interface->finalize();
+    if (user_input->UsingPrecice())
+        adapter->Interface()->finalize();
 
 
 }
@@ -407,7 +437,6 @@ JOTSDriver::~JOTSDriver()
         delete boundary_conditions[i];
     delete[] boundary_conditions;
     delete user_input;
-    delete state;
     delete ode_solver;
     delete pmesh;
     delete fe_coll;

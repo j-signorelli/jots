@@ -22,11 +22,11 @@ Config::Config(const char* in_file) : input_file(in_file)
     ReadOutput();
 }
 
-void SetInputStringVector(string in, vector<string>& output); // Comma delineated string --> no whitespace string vector
+void Config::SetInputStringVector(string in, vector<string>& output) // Comma delineated string --> no whitespace string vector
 {
     boost::algorithm::split(output, in, boost::algorithm::is_any_of(","));
     
-    for (int i = 0; i < bc_info.size(); i++)
+    for (int i = 0; i < output.size(); i++)
         boost::algorithm::trim(output[i]);// Trim whitespaces
     
 }

@@ -3,7 +3,6 @@ add_library(jotsLib conduction_operator.cpp
 			  config_file.cpp
 			  boundary_condition.cpp
 			  conductivity_model.cpp
-			  solver_state.cpp
 			  precice_adapter.cpp
 			  jots_driver.cpp)
 

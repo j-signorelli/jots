@@ -11,9 +11,6 @@
 #include "precice/SolverInterface.hpp"
 
 #include "option_structure.hpp"
-#include "boundary_condition.hpp"
-#include "conductivity_model.hpp"
-#include "solver_state.hpp"
 
 class Config
 {
@@ -41,7 +38,7 @@ class Config
         std::string precice_config_file;
 
         size_t bc_count;        
-        std::vector<std::pair<int, std::vector<std::string>>> bc_info // Array of pairs where first value is attribute, second is string vector for that BC
+        std::vector<std::pair<int, std::vector<std::string>>> bc_info; // Array of pairs where first value is attribute, second is string vector for that BC
         TIME_SCHEME time_scheme;      /*!< \brief Time integration scheme to use */
         double t0;                    /*!< \brief Starting time */
         double tf;                    /*!< \brief Final time to run to */
