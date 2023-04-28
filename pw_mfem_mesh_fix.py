@@ -29,8 +29,8 @@ def main():
     reading_elements = False
     reading_boundaries = False
 
-    w = open(options.filename, "w")
-    f = open(str("fixed_" + options.filename), "r")
+    w = open(str("fixed_" + options.filename), "w")
+    f = open(options.filename, "r")
 
     for i, line in enumerate(f):
         
