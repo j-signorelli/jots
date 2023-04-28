@@ -80,11 +80,11 @@ void PreciceAdapter::WriteData(const mfem::Vector T, const ConductivityModel* co
 
 void PreciceAdapter::SaveOldState(const Vector T)
 {
-
+    old_state_T = T;
 }
 void PreciceAdapter::ReloadOldState(Vector& T) const
 {
-
+    T = old_state_T;
 }
 
 PreciceAdapter::~PreciceAdapter()

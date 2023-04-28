@@ -20,6 +20,8 @@ class PreciceAdapter
         const int size;
         int dim;
 
+        mfem::Vector old_state_T;
+        
     public:
 
         static const std::string cowid;

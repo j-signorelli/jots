@@ -360,10 +360,13 @@ void JOTSDriver::Run()
     while ( (!user_input->UsingPrecice() && time < tf) 
         || (user_input->UsingPrecice() && adapter->Interface()->isCouplingOngoing()))//Main Solver Loop - use short-circuiting
     {
-        
-        if (user_input->UsingPrecice() && adapter->Interface()->isReadDataAvailable())
+
+        if (user_input->UsingPrecice())
         {
-            adapter->GetReadData();
+            if (adapter->Interface()->isActionRequired(PreciceAdapter::cowic))
+                adapter->SaveOldState(T);
+            if (adapter->Interface()->isReadDataAvailable())
+                adapter->GetReadData();
         }
 
         // Apply the BCs to state + calculate thermal conductivities
@@ -379,12 +382,9 @@ void JOTSDriver::Run()
             paraview_dc.Save();
         }
 
-        // Advance preCICE if using it
+        // Update timestep if needed
         if (user_input->UsingPrecice())
         {
-            if (rank == 0)
-                cout << line << endl;
-            adapter->Interface()->advance(precice_dt);
             if (precice_dt < dt)
                 dt = precice_dt;
         }
@@ -393,13 +393,31 @@ void JOTSDriver::Run()
         // NOTE: Do NOT use ANY ODE-Solvers that update dt
         previous_time = time;
 
-        ode_solver->Step(T, time, dt);
-        it_num++;        
+        ode_solver->Step(T, time, dt);        
+        it_num++;
 
-        if (user_input->UsingPrecice() && adapter->Interface()->isWriteDataRequired(dt))
+        if (user_input->UsingPrecice())
         {
-            adapter->WriteData(T, cond_model);
+            if (adapter->Interface()->isWriteDataRequired(dt))
+                adapter->WriteData(T, cond_model);
+
+            // Advance preCICE
+            if (rank == 0)
+                cout << line << endl;
+            adapter->Interface()->advance(precice_dt);
+
+
+            // Implicit coupling
+            if (adapter->Interface()->isActionRequired(PreciceAdapter::corid))
+            {
+                time = previous_time;
+                it_num--;
+                adapter->ReloadOldState(T);
+                continue;
+            }
         }
+
+        
 
         // Print current timestep information:
         if (rank == 0)
