@@ -364,7 +364,10 @@ void JOTSDriver::Run()
         if (user_input->UsingPrecice())
         {
             if (adapter->Interface()->isActionRequired(PreciceAdapter::cowic))
+            {
                 adapter->SaveOldState(T);
+                adapter->Interface()->markActionFulfilled(PreciceAdapter::cowic);
+            }
             if (adapter->Interface()->isReadDataAvailable())
                 adapter->GetReadData();
         }
@@ -413,6 +416,7 @@ void JOTSDriver::Run()
                 time = previous_time;
                 it_num--;
                 adapter->ReloadOldState(T);
+                adapter->Interface()->markActionFulfilled(PreciceAdapter::cowic);
                 continue;
             }
         }
