@@ -65,6 +65,14 @@ void PreciceAdapter::GetReadData()
     for (int i = 0; i < num_bcs; i++)
     {
         interface->readBlockScalarData(precice_bcs[i]->read_data_id, precice_bcs[i]->num_dofs, precice_bcs[i]->vertex_ids, precice_bcs[i]->read_data_arr); 
+        
+        // If Neumann, negate incoming values
+        if (precice_bcs[i]->IsEssential())
+        {
+            for (int j = 0; j < precice_bcs[i]->num_dofs; j++)
+                precice_bcs[i]->read_data_arr[j] *= -1;
+        }
+        
         precice_bcs[i]->update_flag = true;
     }
 }
