@@ -54,6 +54,10 @@ PreciceBC::PreciceBC(const int attr, const BOUNDARY_CONDITION in_type, ParFinite
     // Method from GridFunction::AccumulateAndCountBdrValues used
     // Get and save coordinate array of all vertices, all bdr elements, and all bdr dof indices
 
+    //Get all bdr tdofs and create new array/vector of only true dofs from above
+    //Array<int> bdr_tdofs;
+    //fespace->GetBoundaryTrueDofs(bdr_tdofs, 1);
+
     const FiniteElement *fe;
     ElementTransformation *transf;
 
@@ -98,9 +102,8 @@ PreciceBC::PreciceBC(const int attr, const BOUNDARY_CONDITION in_type, ParFinite
 
         }
     }
-
-    /* TODO: Remove if unnecessary later. (If ghost nodes values are correct, then below unnecessary)
-    // Now get all bdr tdofs and create new array/vector of only true dofs from above
+    /*
+    //Now get all bdr tdofs and create new array/vector of only true dofs from above
     Array<int> bdr_tdofs;
     fespace->GetBoundaryTrueDofs(bdr_tdofs, 1);
     bool tdof = false;
@@ -114,10 +117,11 @@ PreciceBC::PreciceBC(const int attr, const BOUNDARY_CONDITION in_type, ParFinite
                 j = bdr_tdofs.Size();
             }
         }
-        if (!tdof)
-            cout << "NON-TRUE DOF: " << boundary_dofs[i] << endl;
+        //if (!tdof)
+        //    cout << "NON-TRUE DOF: " << boundary_dofs[i] << endl;
     }
     */
+   // ^ TODO After functioning in serial
 
     // Get coordinates as single double* array
     coords = new double[coords_temp.Size()];
@@ -262,7 +266,7 @@ void PreciceBC::GetBdrWallHeatFlux(const mfem::ParGridFunction* T_gf, const Cond
             double k = in_cond->GetLocalConductivity(T_gf->GetValue(*transf, ip));
 
             // Calculate + set value of heat
-            nodal_wall_heatfluxes[nodal_index] = grad_T * normal / normal.Norml2();       
+            nodal_wall_heatfluxes[nodal_index] = k * (grad_T * normal) / normal.Norml2();       
             nodal_index++;
         }
     }

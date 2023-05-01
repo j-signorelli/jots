@@ -81,9 +81,12 @@ void Config::ReadBCs()
 
     BOOST_FOREACH(const bp::ptree::value_type &v , property_tree.get_child("BoundaryConditions"))
     {   
-        // Get the attribute:
-        char s_attr = v.first.back();
-        int attr = atoi(&s_attr);
+        // Get the attribute, split by "_" and get the final element
+        vector<string> label;
+        boost::algorithm::split(label, v.first, boost::algorithm::is_any_of("_"));
+
+        string s_attr = label.back();
+        int attr = stoi(s_attr);
 
         // Get the BC type:
         vector<string> single_bc_info;

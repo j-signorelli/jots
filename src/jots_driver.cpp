@@ -231,7 +231,7 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
             if (rank == 0)
             {
                 stringstream sstm;
-                sstm << "No matching boundary attribute in mesh file for attribute " << attr;
+                sstm << "No matching boundary attribute in config file for attribute " << attr;
                 MFEM_ABORT(sstm.str());
             }
             return;
@@ -357,6 +357,15 @@ void JOTSDriver::Run()
         adapter->Interface()->initializeData();
     }
 
+    // Output IC
+    if (it_num == 0)
+    {
+        //T_gf->SetFromTrueDofs(T);
+        paraview_dc.SetCycle(it_num);
+        paraview_dc.SetTime(time);
+        paraview_dc.RegisterField("Temperature",T_gf);
+        paraview_dc.Save();
+    }
     while ( (!user_input->UsingPrecice() && time < tf) 
         || (user_input->UsingPrecice() && adapter->Interface()->isCouplingOngoing()))//Main Solver Loop - use short-circuiting
     {
@@ -375,16 +384,6 @@ void JOTSDriver::Run()
         // Apply the BCs to state + calculate thermal conductivities
         oper->PreprocessIteration(T);
 
-        // Output IC:
-        if (it_num == 0)
-        {   // TODO: Output class
-            T_gf->SetFromTrueDofs(T);
-            paraview_dc.SetCycle(it_num);
-            paraview_dc.SetTime(time);
-            paraview_dc.RegisterField("Temperature",T_gf);
-            paraview_dc.Save();
-        }
-
         // Update timestep if needed
         if (user_input->UsingPrecice())
         {
@@ -395,7 +394,6 @@ void JOTSDriver::Run()
         // Step in time - time automatically updated
         // NOTE: Do NOT use ANY ODE-Solvers that update dt
         previous_time = time;
-
         ode_solver->Step(T, time, dt);        
         it_num++;
 
@@ -405,9 +403,7 @@ void JOTSDriver::Run()
                 adapter->WriteData(T, cond_model);
 
             // Advance preCICE
-            if (rank == 0)
-                cout << line << endl;
-            adapter->Interface()->advance(precice_dt);
+            adapter->Interface()->advance(dt);
 
 
             // Implicit coupling
@@ -417,7 +413,7 @@ void JOTSDriver::Run()
                 it_num--;
                 adapter->ReloadOldState(T);
                 adapter->Interface()->markActionFulfilled(PreciceAdapter::coric);
-                continue;
+                continue; // skip printing of timestep info AND outputting
             }
         }
 
@@ -428,12 +424,15 @@ void JOTSDriver::Run()
             printf("Step #%10i || Time: %10.5g out of %-10.5g || dt: %10.5g \n", it_num, time, tf, dt);
             //|| Rank 0 Max Temperature: %10.3g \n", it_num, time, tf,  dt, T.Max());
             //cout << "Step #" << it_num << " || t = " << time << "||" << "Rank 0 Max T: " << T.Max() << endl;
+        
+        // Check if blew up
         if (T.Max() > 1e10)
         {
             MFEM_ABORT("JOTS has blown up");
             return;
         }
 
+        // Output
         if (it_num % user_input->GetVisFreq() == 0) // TODO: VisFreq must be nonzero
         {
             if (rank == 0)
@@ -445,6 +444,8 @@ void JOTSDriver::Run()
             paraview_dc.Save();
         }
     }
+
+    // Finalize preCICE if used
     if (user_input->UsingPrecice())
         adapter->Interface()->finalize();
 
