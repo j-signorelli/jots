@@ -173,7 +173,7 @@ void PreciceIsothermalBC::RetrieveInitialWriteData(const mfem::Vector T, const C
     //      If not restart, must project coeff onto initialization first, then get heat flux, then send
     //      If restart, do nothing
     temp_gf->SetFromTrueDofs(T);
-    if (!restart)
+    if (!restart) // TODO: I don't think this is necessary. See what SU2 does. it may not enforce BCs for initialization.
     {
         ConstantCoefficient temp_coeff(default_value);
         temp_gf->ProjectCoefficient(temp_coeff, bdr_dof_indices);// TODO: can I just setsubvector for H1??

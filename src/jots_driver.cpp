@@ -358,6 +358,7 @@ void JOTSDriver::Run()
     }
 
     // Output IC
+    /*
     if (it_num == 0)
     {
         //T_gf->SetFromTrueDofs(T);
@@ -366,6 +367,10 @@ void JOTSDriver::Run()
         paraview_dc.RegisterField("Temperature",T_gf);
         paraview_dc.Save();
     }
+    */
+
+    paraview_dc.RegisterField("Temperature",T_gf);
+
     while ( (!user_input->UsingPrecice() && time < tf) 
         || (user_input->UsingPrecice() && adapter->Interface()->isCouplingOngoing()))//Main Solver Loop - use short-circuiting
     {
@@ -395,7 +400,6 @@ void JOTSDriver::Run()
         // NOTE: Do NOT use ANY ODE-Solvers that update dt
         previous_time = time;
         ode_solver->Step(T, time, dt);        
-        it_num++;
 
         if (user_input->UsingPrecice())
         {
@@ -410,7 +414,6 @@ void JOTSDriver::Run()
             if (adapter->Interface()->isActionRequired(PreciceAdapter::coric))
             {
                 time = previous_time;
-                it_num--;
                 adapter->ReloadOldState(T);
                 adapter->Interface()->markActionFulfilled(PreciceAdapter::coric);
                 continue; // skip printing of timestep info AND outputting
@@ -432,17 +435,19 @@ void JOTSDriver::Run()
             return;
         }
 
-        // Output
-        if (it_num % user_input->GetVisFreq() == 0) // TODO: VisFreq must be nonzero
+        // Output (output IC if there)
+        if (it_num == 0 || it_num % user_input->GetVisFreq() == 0) // TODO: VisFreq must be nonzero
         {
             if (rank == 0)
-                cout << line << endl << "Saving Paraview Data..." << endl << line << endl;
+                cout << line << endl << "Saving Paraview Data: Cycle " << it_num << endl << line << endl;
             // Save data in the ParaView format
             T_gf->SetFromTrueDofs(T);
             paraview_dc.SetCycle(it_num);
             paraview_dc.SetTime(time);
             paraview_dc.Save();
         }
+
+        it_num++; // iterate
     }
 
     // Finalize preCICE if used
