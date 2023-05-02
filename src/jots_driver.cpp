@@ -344,6 +344,20 @@ void JOTSDriver::Run()
 
     double precice_dt = 0;
     double previous_time = 0;
+
+            // Output IC
+        if (it_num == 0)
+        {
+            if (rank == 0)
+                cout << line << endl << "Saving Paraview Data: Cycle " << it_num << endl << line << endl;
+            T_gf->SetFromTrueDofs(T);
+            paraview_dc.SetCycle(it_num);
+            //paraview_dc.SetTime(time);
+            paraview_dc.RegisterField("Temperature",T_gf);
+            paraview_dc.Save();
+        }
+
+
     // If using precice: initialize + get/send initial data if needed
     // Make actual precice interface calls directly here for readability/clarity
     if (user_input->UsingPrecice())
@@ -374,18 +388,6 @@ void JOTSDriver::Run()
 
         // Apply the BCs to state + calculate thermal conductivities
         oper->PreprocessIteration(T);
-
-        // Output IC w/ BCs
-        if (it_num == 0)
-        {
-            if (rank == 0)
-                cout << line << endl << "Saving Paraview Data: Cycle " << it_num << endl << line << endl;
-            T_gf->SetFromTrueDofs(T);
-            paraview_dc.SetCycle(it_num);
-            paraview_dc.SetTime(time);
-            paraview_dc.RegisterField("Temperature",T_gf);
-            paraview_dc.Save();
-        }
 
 
         // Update timestep if needed
@@ -426,7 +428,7 @@ void JOTSDriver::Run()
 
         // Print current timestep information:
         if (rank == 0)
-            printf("Step #%10i || Time: %10.5g out of %-10.5g || dt: %10.5g \n", it_num, previous_time, tf, dt);
+            printf("Step #%10i || Time: %10.5g out of %-10.5g || dt: %10.5g \n", it_num, time, tf, dt);
             //|| Rank 0 Max Temperature: %10.3g \n", it_num, time, tf,  dt, T.Max());
             //cout << "Step #" << it_num << " || t = " << time << "||" << "Rank 0 Max T: " << T.Max() << endl;
         
@@ -445,7 +447,7 @@ void JOTSDriver::Run()
             // Save data in the ParaView format
             T_gf->SetFromTrueDofs(T);
             paraview_dc.SetCycle(it_num);
-            paraview_dc.SetTime(time);
+            //paraview_dc.SetTime(time);
             paraview_dc.Save();
         }
 
