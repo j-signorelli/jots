@@ -357,20 +357,6 @@ void JOTSDriver::Run()
         adapter->Interface()->initializeData();
     }
 
-    // Output IC
-    /*
-    if (it_num == 0)
-    {
-        //T_gf->SetFromTrueDofs(T);
-        paraview_dc.SetCycle(it_num);
-        paraview_dc.SetTime(time);
-        paraview_dc.RegisterField("Temperature",T_gf);
-        paraview_dc.Save();
-    }
-    */
-
-    paraview_dc.RegisterField("Temperature",T_gf);
-
     while ( (!user_input->UsingPrecice() && time < tf) 
         || (user_input->UsingPrecice() && adapter->Interface()->isCouplingOngoing()))//Main Solver Loop - use short-circuiting
     {
@@ -389,6 +375,19 @@ void JOTSDriver::Run()
         // Apply the BCs to state + calculate thermal conductivities
         oper->PreprocessIteration(T);
 
+        // Output IC w/ BCs
+        if (it_num == 0)
+        {
+            if (rank == 0)
+                cout << line << endl << "Saving Paraview Data: Cycle " << it_num << endl << line << endl;
+            T_gf->SetFromTrueDofs(T);
+            paraview_dc.SetCycle(it_num);
+            paraview_dc.SetTime(time);
+            paraview_dc.RegisterField("Temperature",T_gf);
+            paraview_dc.Save();
+        }
+
+
         // Update timestep if needed
         if (user_input->UsingPrecice())
         {
@@ -400,6 +399,8 @@ void JOTSDriver::Run()
         // NOTE: Do NOT use ANY ODE-Solvers that update dt
         previous_time = time;
         ode_solver->Step(T, time, dt);        
+        it_num++; // increment it_num
+
 
         if (user_input->UsingPrecice())
         {
@@ -414,6 +415,7 @@ void JOTSDriver::Run()
             if (adapter->Interface()->isActionRequired(PreciceAdapter::coric))
             {
                 time = previous_time;
+                it_num--;
                 adapter->ReloadOldState(T);
                 adapter->Interface()->markActionFulfilled(PreciceAdapter::coric);
                 continue; // skip printing of timestep info AND outputting
@@ -424,7 +426,7 @@ void JOTSDriver::Run()
 
         // Print current timestep information:
         if (rank == 0)
-            printf("Step #%10i || Time: %10.5g out of %-10.5g || dt: %10.5g \n", it_num, time, tf, dt);
+            printf("Step #%10i || Time: %10.5g out of %-10.5g || dt: %10.5g \n", it_num, previous_time, tf, dt);
             //|| Rank 0 Max Temperature: %10.3g \n", it_num, time, tf,  dt, T.Max());
             //cout << "Step #" << it_num << " || t = " << time << "||" << "Rank 0 Max T: " << T.Max() << endl;
         
@@ -435,7 +437,7 @@ void JOTSDriver::Run()
             return;
         }
 
-        // Output (output IC if there)
+        // Output
         if (it_num == 0 || it_num % user_input->GetVisFreq() == 0) // TODO: VisFreq must be nonzero
         {
             if (rank == 0)
@@ -447,7 +449,6 @@ void JOTSDriver::Run()
             paraview_dc.Save();
         }
 
-        it_num++; // iterate
     }
 
     // Finalize preCICE if used
