@@ -133,8 +133,6 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
     T_gf = new ParGridFunction(fespace);
     //----------------------------------------------------------------------
     // Print initial condition info + set T_gf
-    double start_time = 0;
-    int it_num = 0;
     if (rank == 0)
         cout << "\n";
     if (!user_input->UsesRestart()) // If not using restart
