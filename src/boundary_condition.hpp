@@ -1,5 +1,6 @@
 #pragma once
 #include <sstream>
+#include <cmath>
 
 #include "mfem.hpp"
 #include "precice/SolverInterface.hpp"
@@ -47,26 +48,46 @@ class UniformConstantBC : public BoundaryCondition
         virtual std::string GetInitString() const = 0;
 };
 
-class UniformIsothermalBC : public UniformConstantBC
+class UniformConstantIsothermalBC : public UniformConstantBC
 {
     private:
     protected:
     public:
-        UniformIsothermalBC(const int attr, const double const_value) : UniformConstantBC(attr, BOUNDARY_CONDITION::ISOTHERMAL, const_value){};
+        UniformConstantIsothermalBC(const int attr, const double const_value) : UniformConstantBC(attr, BOUNDARY_CONDITION::ISOTHERMAL, const_value){};
         bool IsEssential() const { return true; };
         std::string GetInitString() const;
 };
 
-class UniformHeatFluxBC : public UniformConstantBC
+class UniformConstantHeatFluxBC : public UniformConstantBC
 {
     private:
     protected:
     public:
-        UniformHeatFluxBC(const int attr, const double const_value) : UniformConstantBC(attr, BOUNDARY_CONDITION::HEATFLUX, const_value){};
+        UniformConstantHeatFluxBC(const int attr, const double const_value) : UniformConstantBC(attr, BOUNDARY_CONDITION::HEATFLUX, const_value){};
         bool IsEssential() const { return false; };
         std::string GetInitString() const;
 };
 
+class UniformSinusoidalIsothermalBC : public BoundaryCondition
+{   
+    private:
+    protected:
+        const double amplitude;
+        const double ang_freq;
+        const double phase;
+        const double vert_shift;
+
+        const double& time_ref; // reference to the time
+
+    public:
+        UniformSinusoidalIsothermalBC(const int attr, const double& in_tref, const double in_amp, const double in_angfreq, const double in_phase, const double in_vert) : BoundaryCondition(attr, BOUNDARY_CONDITION::SINUSOIDAL_ISOTHERMAL), time_ref(in_tref), amplitude(in_amp), ang_freq(in_angfreq), phase(in_phase), vert_shift(in_vert) {};
+        bool IsConstant() const { return false; }
+        bool IsEssential() const { return true; }
+        void InitCoefficient();
+        void UpdateCoeff();
+        std::string GetInitString() const;
+
+};
 
 class PreciceBC : public BoundaryCondition
 {

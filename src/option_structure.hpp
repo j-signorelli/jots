@@ -34,12 +34,14 @@ enum class BOUNDARY_CONDITION
 {
   HEATFLUX,
   ISOTHERMAL,
+  SINUSOIDAL_ISOTHERMAL,
   PRECICE_HEATFLUX,
   PRECICE_ISOTHERMAL
 };
 
 static const std::map<std::string, BOUNDARY_CONDITION> Boundary_Condition_Map = {{"HeatFlux", BOUNDARY_CONDITION::HEATFLUX},
                                                                        {"Isothermal", BOUNDARY_CONDITION::ISOTHERMAL},
+                                                                       {"Sinusoidal_Isothermal", BOUNDARY_CONDITION::SINUSOIDAL_ISOTHERMAL},
                                                                        {"preCICE_HeatFlux",  BOUNDARY_CONDITION::PRECICE_HEATFLUX},
                                                                        {"preCICE_Isothermal", BOUNDARY_CONDITION::PRECICE_ISOTHERMAL}};
 

@@ -4,17 +4,24 @@ using namespace std;
 using namespace mfem;
 using namespace precice;
 
-string UniformIsothermalBC::GetInitString() const
+string UniformConstantIsothermalBC::GetInitString() const
 {   
     stringstream sstm;
     sstm << "Isothermal --- Value: " << uniform_value;
     return sstm.str();
 }
 
-string UniformHeatFluxBC::GetInitString() const
+string UniformConstantHeatFluxBC::GetInitString() const
 {   
     stringstream sstm;
     sstm << "Heat Flux --- Value: " << uniform_value;
+    return sstm.str();
+}
+
+string UniformSinusoidalIsothermalBC::GetInitString() const
+{
+    stringstream sstm;
+    sstm << "Sinusoidal Isothermal --- T = " << amplitude << "*sin(" << ang_freq << "t + " << phase << ") + " << vert_shift;
     return sstm.str();
 }
 
@@ -30,6 +37,15 @@ string PreciceHeatFluxBC::GetInitString() const
     stringstream sstm;
     sstm << "preCICE Heat Flux --- Mesh: " << mesh_name << " --- Default Value: " << default_value;
     return sstm.str();
+}
+void UniformSinusoidalIsothermalBC::InitCoefficient()
+{   
+    function<double(const Vector&, double)> TDF = [=](const Vector&x, double t) -> double { return amplitude*sin(ang_freq*t + phase) + vert_shift;};
+    coeff = new FunctionCoefficient(TDF);//
+}
+void UniformSinusoidalIsothermalBC::UpdateCoeff()
+{ 
+    coeff->SetTime(time_ref);
 }
 
 PreciceBC::PreciceBC(const int attr, const BOUNDARY_CONDITION in_type, ParFiniteElementSpace& f, const string in_mesh, const bool is_restart, const double in_value, const string in_read, const string in_write) 

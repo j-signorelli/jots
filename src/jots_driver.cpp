@@ -244,15 +244,19 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
         pair<int, vector<string>> bc = user_input->GetBCInfo(bdr_index[i]);
         double value;
         string mesh_name;
+        double amp;
+        double afreq;
+        double phase;
+        double shift;
         switch (Boundary_Condition_Map.at(bc.second[0]))
         {
             case BOUNDARY_CONDITION::ISOTHERMAL:
                 value = stod(bc.second[1].c_str());
-                boundary_conditions[i] =  new UniformIsothermalBC(bc.first, value);
+                boundary_conditions[i] =  new UniformConstantIsothermalBC(bc.first, value);
                 break;
             case BOUNDARY_CONDITION::HEATFLUX:
                 value = stod(bc.second[1].c_str());
-                boundary_conditions[i] =  new UniformHeatFluxBC(bc.first, value);
+                boundary_conditions[i] =  new UniformConstantHeatFluxBC(bc.first, value);
                 break;
             case BOUNDARY_CONDITION::PRECICE_ISOTHERMAL:
                 mesh_name = bc.second[1];
@@ -266,6 +270,12 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
                 boundary_conditions[i] =  new PreciceHeatFluxBC(bc.first, *fespace, mesh_name, user_input->UsesRestart(), value);
                 precice_bc_indices.push_back(i);
                 break;
+            case BOUNDARY_CONDITION::SINUSOIDAL_ISOTHERMAL:
+                amp = stod(bc.second[1].c_str());
+                afreq = stod(bc.second[2].c_str());
+                phase = stod(bc.second[3].c_str());
+                shift = stod(bc.second[4].c_str());
+                boundary_conditions[i] = new UniformSinusoidalIsothermalBC(bc.first, time, amp, afreq, phase, shift);
             default:
                 MFEM_ABORT("Invalid/Unknown boundary condition specified");
                 return;
