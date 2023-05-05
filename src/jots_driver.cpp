@@ -276,8 +276,9 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
                 phase = stod(bc.second[3].c_str());
                 shift = stod(bc.second[4].c_str());
                 boundary_conditions[i] = new UniformSinusoidalIsothermalBC(bc.first, time, amp, afreq, phase, shift);
+                break;
             default:
-                MFEM_ABORT("Invalid/Unknown boundary condition specified");
+                MFEM_ABORT("Invalid/Unknown boundary condition specified: '" + bc.second[0] + "'");
                 return;
         }
     }
@@ -360,7 +361,7 @@ void JOTSDriver::Run()
                 cout << line << endl << "Saving Paraview Data: Cycle " << it_num << endl << line << endl;
             T_gf->SetFromTrueDofs(T);
             paraview_dc.SetCycle(it_num);
-            //paraview_dc.SetTime(time);
+            paraview_dc.SetTime(time);
             paraview_dc.RegisterField("Temperature",T_gf);
             paraview_dc.Save();
         }
@@ -455,7 +456,7 @@ void JOTSDriver::Run()
             // Save data in the ParaView format
             T_gf->SetFromTrueDofs(T);
             paraview_dc.SetCycle(it_num);
-            //paraview_dc.SetTime(time);
+            paraview_dc.SetTime(time);
             paraview_dc.Save();
         }
 
