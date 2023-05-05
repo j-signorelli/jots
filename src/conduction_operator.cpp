@@ -227,8 +227,8 @@ void ConductionOperator::ApplyBCs(Vector &u)
 void ConductionOperator::SetThermalConductivities(const Vector &u)
 {    
 
-   // Update matrix K IF TIME-DEPENDENT k Or if not yet instantiated
-   // TODO:
+   // Update matrix K IF TIME-DEPENDENT k or if not instantiated yet
+   // TODO: Fix all this, but: Is calling Update() deleting the DiffusionIntegrator???
    if (!K || !cond_model->IsConstant())
    {  
 
