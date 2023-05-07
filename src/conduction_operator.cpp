@@ -237,8 +237,6 @@ void ConductionOperator::SetThermalConductivities(const Vector &u)
       delete K;
       delete K_e;
 
-
-      k_coeff->SetTime(0);     
       k->Update(); // delete old data (M and M_e)
       k->Assemble(0);
       k->Finalize(0);
@@ -308,6 +306,7 @@ void ConductionOperator::ImplicitSolve(const double dt,
    A_e = Add(1.0, *M_e, dt, *K_e);
 
    du_dt.SetSubVector(ess_tdof_list, 0.0); // **Assume essential DOFs du_dt = 0.0
+                                           // Could this above be the issue^^?
 
    // Eliminate BCs from RHS given LHS
    A->EliminateBC(*A_e, ess_tdof_list, du_dt, rhs);
