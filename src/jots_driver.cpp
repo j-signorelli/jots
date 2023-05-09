@@ -437,8 +437,10 @@ void JOTSDriver::Run()
 
         // Print current timestep information:
         if (rank == 0)
-            printf("Step #%10i || Time: %10.5g out of %-10.5g || dt: %10.5g \n", it_num, time, tf, dt);
-            //|| Rank 0 Max Temperature: %10.3g \n", it_num, time, tf,  dt, T.Max());
+        {
+            //printf("Step #%10i || Time: %10.5g out of %-10.5g || dt: %10.5g \n", it_num, time, tf, dt);
+            
+        }    //|| Rank 0 Max Temperature: %10.3g \n", it_num, time, tf,  dt, T.Max());
             //cout << "Step #" << it_num << " || t = " << time << "||" << "Rank 0 Max T: " << T.Max() << endl;
         
         // Check if blew up

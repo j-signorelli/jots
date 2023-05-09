@@ -13,7 +13,7 @@
 class JOTSDriver
 {
     protected:
-        const std::string line = "-------------------------------------------------------------------------------";
+        const std::string line = "-------------------------------------------------------------------";
 
 	    const int rank;
         const int size;

@@ -103,7 +103,17 @@ void ConductionOperator::PreprocessStiffness()
    
    // Add domain integrator to the bilinear form
    k->AddDomainIntegrator(new DiffusionIntegrator(*k_coeff));
+   
+   k->Assemble(0);
+   k->Finalize(0);
 
+
+   // Create full stiffness matrix w/o removed essential DOFs
+   K_full = k->ParallelAssemble();
+   K = new HypreParMatrix(*K_full);
+
+   // Create stiffness matrix w/ removed essential DOFs
+   K_e = k->ParallelEliminateTDofs(ess_tdof_list, *K);
 
 }
 
@@ -128,8 +138,8 @@ void ConductionOperator::PreprocessSolver()
    M_full = m->ParallelAssemble();
    M = new HypreParMatrix(*M_full);
    
-   // Create stiffness matrix w/ removed essential DOFs + remove from M
-   M_e = k->ParallelEliminateTDofs(ess_tdof_list, *M);
+   // Create mass matrix w/ removed essential DOFs + save eliminated portion
+   M_e = m->ParallelEliminateTDofs(ess_tdof_list, *M);
 
    //----------------------------------------------------------------
    // Prepare explicit solver
@@ -229,6 +239,7 @@ void ConductionOperator::SetThermalConductivities(const Vector &u)
 
    // Update matrix K IF TIME-DEPENDENT k or if not instantiated yet
    // TODO: Fix all this, but: Is calling Update() deleting the DiffusionIntegrator???
+   /*
    if (!K || !cond_model->IsConstant())
    {  
 
@@ -237,7 +248,10 @@ void ConductionOperator::SetThermalConductivities(const Vector &u)
       delete K;
       delete K_e;
 
-      k->Update(); // delete old data (M and M_e)
+      //k->Update(); // delete old data (M and M_e)
+
+      // TODO: update conduction coefficient
+
       k->Assemble(0);
       k->Finalize(0);
 
@@ -250,6 +264,7 @@ void ConductionOperator::SetThermalConductivities(const Vector &u)
       K_e = k->ParallelEliminateTDofs(ess_tdof_list, *K);
 
    }
+   */
 }
 
 void ConductionOperator::CalculateRHS(const Vector &u) const
