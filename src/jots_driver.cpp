@@ -352,19 +352,22 @@ void JOTSDriver::Run()
     paraview_dc.SetHighOrderOutput(true);
 
     double precice_dt = 0;
-    double previous_time = 0;
 
-            // Output IC
-        if (it_num == 0)
-        {
-            if (rank == 0)
-                cout << line << endl << "Saving Paraview Data: Cycle " << it_num << endl << line << endl;
-            T_gf->SetFromTrueDofs(T);
-            paraview_dc.SetCycle(it_num);
-            paraview_dc.SetTime(time);
-            paraview_dc.RegisterField("Temperature",T_gf);
-            paraview_dc.Save();
-        }
+    // Implicit coupling:
+    double precice_saved_time = 0;
+    double precice_saved_it_num = 0;
+
+        // Output IC
+    if (it_num == 0)
+    {
+        if (rank == 0)
+            cout << line << endl << "Saving Paraview Data: Cycle " << it_num << endl << line << endl;
+        T_gf->SetFromTrueDofs(T);
+        paraview_dc.SetCycle(it_num);
+        paraview_dc.SetTime(time);
+        paraview_dc.RegisterField("Temperature",T_gf);
+        paraview_dc.Save();
+    }
 
 
     // If using precice: initialize + get/send initial data if needed
@@ -388,6 +391,8 @@ void JOTSDriver::Run()
         {
             if (adapter->Interface()->isActionRequired(PreciceAdapter::cowic))
             {
+                precice_saved_time = time;
+                precice_saved_it_num = it_num;
                 adapter->SaveOldState(T);
                 adapter->Interface()->markActionFulfilled(PreciceAdapter::cowic);
             }
@@ -408,7 +413,6 @@ void JOTSDriver::Run()
 
         // Step in time - time automatically updated
         // NOTE: Do NOT use ANY ODE-Solvers that update dt
-        previous_time = time;
         ode_solver->Step(T, time, dt);        
         it_num++; // increment it_num
 
@@ -428,8 +432,8 @@ void JOTSDriver::Run()
             // Implicit coupling
             if (adapter->Interface()->isActionRequired(PreciceAdapter::coric))
             {
-                time = previous_time;
-                it_num--;
+                time = precice_saved_time;
+                it_num = precice_saved_it_num;
                 adapter->ReloadOldState(T);
                 adapter->Interface()->markActionFulfilled(PreciceAdapter::coric);
                 continue; // skip printing of timestep info AND outputting
