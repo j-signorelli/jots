@@ -277,6 +277,13 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
                 shift = stod(bc.second[4].c_str());
                 boundary_conditions[i] = new UniformSinusoidalIsothermalBC(bc.first, time, amp, afreq, phase, shift);
                 break;
+            case BOUNDARY_CONDITION::SINUSOIDAL_HEATFLUX:
+                amp = stod(bc.second[1].c_str());
+                afreq = stod(bc.second[2].c_str());
+                phase = stod(bc.second[3].c_str());
+                shift = stod(bc.second[4].c_str());
+                boundary_conditions[i] = new UniformSinusoidalHeatFluxBC(bc.first, time, amp, afreq, phase, shift);
+                break;
             default:
                 MFEM_ABORT("Invalid/Unknown boundary condition specified: '" + bc.second[0] + "'");
                 return;

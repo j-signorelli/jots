@@ -25,6 +25,13 @@ string UniformSinusoidalIsothermalBC::GetInitString() const
     return sstm.str();
 }
 
+string UniformSinusoidalHeatFluxBC::GetInitString() const
+{
+    stringstream sstm;
+    sstm << "Sinusoidal Heat Flux --- q_wall = " << amplitude << "*sin(" << ang_freq << "t + " << phase << ") + " << vert_shift;
+    return sstm.str();
+}
+
 string PreciceIsothermalBC::GetInitString() const
 {
     stringstream sstm;
@@ -38,12 +45,12 @@ string PreciceHeatFluxBC::GetInitString() const
     sstm << "preCICE Heat Flux --- Mesh: " << mesh_name << " --- Default Value: " << default_value;
     return sstm.str();
 }
-void UniformSinusoidalIsothermalBC::InitCoefficient()
+void UniformSinusoidalBC::InitCoefficient()
 {   
     function<double(const Vector&, double)> TDF = [=](const Vector&x, double t) -> double { return amplitude*sin(ang_freq*t + phase) + vert_shift;};
-    coeff = new FunctionCoefficient(TDF);//
+    coeff = new FunctionCoefficient(TDF);
 }
-void UniformSinusoidalIsothermalBC::UpdateCoeff()
+void UniformSinusoidalBC::UpdateCoeff()
 { 
     coeff->SetTime(time_ref);
 }

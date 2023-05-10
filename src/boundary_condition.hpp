@@ -68,7 +68,7 @@ class UniformConstantHeatFluxBC : public UniformConstantBC
         std::string GetInitString() const;
 };
 
-class UniformSinusoidalIsothermalBC : public BoundaryCondition
+class UniformSinusoidalBC : public BoundaryCondition
 {   
     private:
     protected:
@@ -80,11 +80,33 @@ class UniformSinusoidalIsothermalBC : public BoundaryCondition
         const double& time_ref; // reference to the time
 
     public:
-        UniformSinusoidalIsothermalBC(const int attr, const double& in_tref, const double in_amp, const double in_angfreq, const double in_phase, const double in_vert) : BoundaryCondition(attr, BOUNDARY_CONDITION::SINUSOIDAL_ISOTHERMAL), time_ref(in_tref), amplitude(in_amp), ang_freq(in_angfreq), phase(in_phase), vert_shift(in_vert) {};
+        UniformSinusoidalBC(const int attr, BOUNDARY_CONDITION in_type, const double& in_tref, const double in_amp, const double in_angfreq, const double in_phase, const double in_vert) : BoundaryCondition(attr, in_type), time_ref(in_tref), amplitude(in_amp), ang_freq(in_angfreq), phase(in_phase), vert_shift(in_vert) {};
         bool IsConstant() const { return false; }
-        bool IsEssential() const { return true; }
         void InitCoefficient();
         void UpdateCoeff();
+        virtual bool IsEssential() const = 0;
+        virtual std::string GetInitString() const = 0;
+
+};
+
+class UniformSinusoidalIsothermalBC : public UniformSinusoidalBC
+{   
+    private:
+    protected:
+    public:
+        UniformSinusoidalIsothermalBC(const int attr, const double& in_tref, const double in_amp, const double in_angfreq, const double in_phase, const double in_vert) : UniformSinusoidalBC(attr, BOUNDARY_CONDITION::SINUSOIDAL_ISOTHERMAL, in_tref, in_amp, in_angfreq, in_phase, in_vert) {};
+        bool IsEssential() const { return true; }
+        std::string GetInitString() const;
+
+};
+
+class UniformSinusoidalHeatFluxBC : public UniformSinusoidalBC
+{   
+    private:
+    protected:
+    public:
+        UniformSinusoidalHeatFluxBC(const int attr, const double& in_tref, const double in_amp, const double in_angfreq, const double in_phase, const double in_vert) : UniformSinusoidalBC(attr, BOUNDARY_CONDITION::SINUSOIDAL_HEATFLUX, in_tref, in_amp, in_angfreq, in_phase, in_vert) {};
+        bool IsEssential() const { return false; }
         std::string GetInitString() const;
 
 };
