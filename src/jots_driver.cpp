@@ -412,6 +412,9 @@ void JOTSDriver::Run()
         ode_solver->Step(T, time, dt);        
         it_num++; // increment it_num
 
+        // Leave solver if time now greater than tf
+        if (time > tf)
+            continue;
 
         if (user_input->UsingPrecice())
         {
@@ -438,8 +441,8 @@ void JOTSDriver::Run()
         // Print current timestep information:
         if (rank == 0)
         {
-            //printf("Step #%10i || Time: %10.5g out of %-10.5g || dt: %10.5g \n", it_num, time, tf, dt);
-            
+            printf("Step #%10i || Time: %10.5g out of %-10.5g || dt: %10.5g \n", it_num, time, tf, dt);
+                
         }    //|| Rank 0 Max Temperature: %10.3g \n", it_num, time, tf,  dt, T.Max());
             //cout << "Step #" << it_num << " || t = " << time << "||" << "Rank 0 Max T: " << T.Max() << endl;
         
