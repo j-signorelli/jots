@@ -121,9 +121,6 @@ class PreciceBC : public BoundaryCondition
         //const std::string TEMPERATURE = "Temperature";
         //const std::string HEATFLUX = "Heat-Flux";
 
-        //const ConductivityModel* cond_model; // Ptr to conductivity model - not allocated here
-        //const SolverState* curr_state; // Ptr to solver state -- not allocated here
-
         mfem::ParFiniteElementSpace& fespace;
 
         const std::string mesh_name;
