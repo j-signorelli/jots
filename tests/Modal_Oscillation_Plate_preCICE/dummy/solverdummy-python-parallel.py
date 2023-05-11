@@ -71,7 +71,6 @@ def main():
             read_data = interface.read_block_scalar_data(read_data_id, vertex_ids)
 
         print("DUMMY ({}): Advancing in time".format(solver_process_index))
-        dt = interface.advance(dt)
         time += dt
         
         write_data = temperature_mode(x,time)
@@ -80,7 +79,8 @@ def main():
             interface.write_block_scalar_data(
                 write_data_id, vertex_ids, write_data)
 
-
+        dt = interface.advance(dt)
+        
         if interface.is_action_required(
                 precice.action_read_iteration_checkpoint()):
             print("DUMMY ({}): Reading iteration checkpoint".format(solver_process_index))

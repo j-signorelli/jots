@@ -48,12 +48,18 @@
 
     <m2n:sockets from="Dummy" to="Solid"  exchange-directory=".." />
 
-    <coupling-scheme:serial-explicit>
+    <coupling-scheme:serial-implicit>
       <time-window-size value="0.01" />
       <max-time value="4.00" />
+      <max-iterations value="30" />
       <participants first="Dummy" second="Solid" />
       <exchange data="Temperature" mesh="Dummy-Mesh" from="Dummy" to="Solid" />
       <exchange data="Heat-Flux" mesh="Solid-Mesh" from="Solid" to="Dummy" />
-    </coupling-scheme:serial-explicit>
+      <relative-convergence-measure limit="1.0e-5" data="Temperature" mesh="Dummy-Mesh" />
+      <acceleration:aitken>
+        <data mesh="Solid-Mesh" name="Heat-Flux" />
+        <initial-relaxation value="0.5" />
+      </acceleration:aitken>
+    </coupling-scheme:serial-implicit>
   </solver-interface>
 </precice-configuration>
