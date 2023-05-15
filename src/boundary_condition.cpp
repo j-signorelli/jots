@@ -234,8 +234,8 @@ void PreciceBC::GetBdrTemperatures(const ParGridFunction* T_gf, const Array<int>
     int nodal_index = 0;
     for (int i = 0; i < in_bdr_elem_indices.Size(); i++)
     {
-        fe = fespace->GetBE(i); // Get FiniteElement
-        transf = fespace->GetBdrElementTransformation(i); //Get this associated ElementTransformation from the mesh object
+        fe = fespace->GetBE(in_bdr_elem_indices[i]); // Get FiniteElement
+        transf = fespace->GetBdrElementTransformation(in_bdr_elem_indices[i]); //Get this associated ElementTransformation from the mesh object
         // ^Above is same as just calling GetBdrElementTransformation from Mesh
 
         const IntegrationRule &ir = fe->GetNodes(); // Get nodes of the bdr element
@@ -265,8 +265,8 @@ void PreciceBC::GetBdrWallHeatFlux(const mfem::ParGridFunction* T_gf, const Cond
     int nodal_index = 0;
     for (int i = 0; i < in_bdr_elem_indices.Size(); i++)
     {
-        fe = fespace->GetBE(i); // Get FiniteElement
-        transf = fespace->GetBdrElementTransformation(i); //Get this associated ElementTransformation from the mesh object
+        fe = fespace->GetBE(in_bdr_elem_indices[i]); // Get FiniteElement
+        transf = fespace->GetBdrElementTransformation(in_bdr_elem_indices[i]); //Get this associated ElementTransformation from the mesh object
         // ^Above is same as just calling GetBdrElementTransformation from Mesh
 
         const IntegrationRule &ir = fe->GetNodes(); // Get nodes of the bdr element
@@ -289,7 +289,9 @@ void PreciceBC::GetBdrWallHeatFlux(const mfem::ParGridFunction* T_gf, const Cond
             double k = in_cond->GetLocalConductivity(T_gf->GetValue(*transf, ip));
 
             // Calculate + set value of heat
-            nodal_wall_heatfluxes[nodal_index] = k * (grad_T * normal) / normal.Norml2();       
+            nodal_wall_heatfluxes[nodal_index] = - k * (grad_T * normal) / normal.Norml2();
+
+
             nodal_index++;
         }
     }
