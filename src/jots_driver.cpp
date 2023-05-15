@@ -15,8 +15,7 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
   pmesh(nullptr),
   fe_coll(nullptr),
   fespace(nullptr),
-  oper(nullptr),
-  T_gf(nullptr)
+  oper(nullptr)
 {   
     if (rank == 0)
     {
@@ -130,7 +129,7 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
         cout << "Thermal Conductivity Model: " << cond_model->GetInitString() << endl;
     //----------------------------------------------------------------------
     // Create solution GF
-    T_gf = new ParGridFunction(fespace);
+    ParGridFunction temp_T_gf(fespace);
     //----------------------------------------------------------------------
     // Print initial condition info + set T_gf
     if (rank == 0)
@@ -138,7 +137,7 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
     if (!user_input->UsesRestart()) // If not using restart
     {
         ConstantCoefficient coeff_IC(user_input->GetInitialTemp());
-        T_gf->ProjectCoefficient(coeff_IC);
+        temp_T_gf.ProjectCoefficient(coeff_IC);
         
         if (rank == 0)
             cout << "Non-restart simulation --> Initial temperature field: " << user_input->GetInitialTemp() << endl;
@@ -326,7 +325,7 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
     }
     //---------------------------------------------------------------------
     // Create main solution vector from IC
-    T_gf->GetTrueDofs(T);
+    temp_T_gf.GetTrueDofs(T);
     //----------------------------------------------------------------------
     // Instantiate ConductionOperator, sending all necessary parameters
     if (rank == 0)
@@ -337,6 +336,9 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
     oper = new ConductionOperator(user_input, boundary_conditions, cond_model, *fespace, time);
     if (rank == 0)
         cout << "Done!" << endl;
+    //----------------------------------------------------------------------
+    // Instantiate OutputManager
+    output = new OutputManager(fespace, user_input->GetFEOrder(), user_input->GetDensity(), user_input->GetCp(), rank, T, cond_model);
 }
 
 void JOTSDriver::Run()
@@ -351,29 +353,18 @@ void JOTSDriver::Run()
     if (rank == 0)
         cout << " Done!" << endl;
 
-    // Set up Paraview
-    ParaViewDataCollection paraview_dc("Output", pmesh);
-    paraview_dc.SetPrefixPath("ParaView");
-    paraview_dc.SetLevelsOfDetail(user_input->GetFEOrder());
-    paraview_dc.SetDataFormat(VTKFormat::BINARY);
-    paraview_dc.SetHighOrderOutput(true);
-
     double precice_dt = 0;
 
     // Implicit coupling:
     double precice_saved_time = 0;
     double precice_saved_it_num = 0;
 
-        // Output IC
+    // Output IC
     if (it_num == 0)
     {
-        if (rank == 0)
-            cout << line << endl << "Saving Paraview Data: Cycle " << it_num << endl << line << endl;
-        T_gf->SetFromTrueDofs(T);
-        paraview_dc.SetCycle(it_num);
-        paraview_dc.SetTime(time);
-        paraview_dc.RegisterField("Temperature",T_gf);
-        paraview_dc.Save();
+        //if (rank == 0)
+        //    cout << line << endl << "Saving Paraview Data: Initial Condition" << it_num << endl << line << endl;
+        output->WriteVizOutput(it_num, time);
     }
 
 
@@ -469,11 +460,8 @@ void JOTSDriver::Run()
         {
             if (rank == 0)
                 cout << line << endl << "Saving Paraview Data: Cycle " << it_num << endl << line << endl;
-            // Save data in the ParaView format
-            T_gf->SetFromTrueDofs(T);
-            paraview_dc.SetCycle(it_num);
-            paraview_dc.SetTime(time);
-            paraview_dc.Save();
+            // Save data
+            output->WriteVizOutput(it_num, time);
         }
 
     }
@@ -497,5 +485,6 @@ JOTSDriver::~JOTSDriver()
     delete pmesh;
     delete fe_coll;
     delete oper;
+    delete output;
 
 }

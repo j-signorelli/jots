@@ -9,6 +9,7 @@
 #include "conduction_operator.hpp"
 #include "conductivity_model.hpp"
 #include "precice_adapter.hpp"
+#include "output_manager.hpp"
 
 class JOTSDriver
 {
@@ -36,8 +37,8 @@ class JOTSDriver
         mfem::ParFiniteElementSpace* fespace;
 
         ConductionOperator* oper;
+        OutputManager* output;
 
-        mfem::ParGridFunction* T_gf;
         mfem::Vector T;
 
 

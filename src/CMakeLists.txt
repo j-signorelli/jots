@@ -4,6 +4,7 @@ add_library(jotsLib conduction_operator.cpp
 			  boundary_condition.cpp
 			  conductivity_model.cpp
 			  precice_adapter.cpp
+			  output_manager.cpp
 			  jots_driver.cpp)
 
 # Link MFEM as conduction_operator needs it
