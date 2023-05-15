@@ -77,15 +77,10 @@ PreciceBC::PreciceBC(const int attr, const BOUNDARY_CONDITION in_type, ParFinite
     // Method from GridFunction::AccumulateAndCountBdrValues used
     // Get and save coordinate array of all vertices, all bdr elements, and all bdr dof indices
 
-    //Get all bdr tdofs and create new array/vector of only true dofs from above
-    //Array<int> bdr_tdofs;
-    //fespace->GetBoundaryTrueDofs(bdr_tdofs, 1);
-
     const FiniteElement *fe;
     ElementTransformation *transf;
 
     Array<double> coords_temp(0);
-
     // Loop through all boundary elements
     for (int i = 0; i < fespace.GetNBE(); i++)
     {   
@@ -104,7 +99,7 @@ PreciceBC::PreciceBC(const int attr, const BOUNDARY_CONDITION in_type, ParFinite
         Array<int> bdr_elem_dofs;
         fespace.GetBdrElementDofs(i, bdr_elem_dofs); // Get bdr element dofs
 
-        // Append bdr_elem_dofs to boundary_dofs member variable
+        // Append bdr_elem_dofs to bdr_dof_indices member variable
         bdr_dof_indices.Append(bdr_elem_dofs);
 
         // Loop through all bdr element dofs
@@ -125,8 +120,10 @@ PreciceBC::PreciceBC(const int attr, const BOUNDARY_CONDITION in_type, ParFinite
 
         }
     }
+    
     /*
-    //Now get all bdr tdofs and create new array/vector of only true dofs from above
+    // Remove any non-true DOFs + save to actual
+    // Get all bdr tdofs
     Array<int> bdr_tdofs;
     fespace->GetBoundaryTrueDofs(bdr_tdofs, 1);
     bool tdof = false;
@@ -136,12 +133,9 @@ PreciceBC::PreciceBC(const int attr, const BOUNDARY_CONDITION in_type, ParFinite
         {
             if (boundary_dofs[i] == bdr_tdofs[j])
             {
-                tdof = true;
                 j = bdr_tdofs.Size();
             }
         }
-        //if (!tdof)
-        //    cout << "NON-TRUE DOF: " << boundary_dofs[i] << endl;
     }
     */
    // ^ TODO After functioning in serial
