@@ -3,12 +3,6 @@
 using namespace std;
 using namespace mfem;
 
-Coefficient* UniformCond::GetCoefficient() const
-{
-    return new ConstantCoefficient(k);
-}
-
-
 string UniformCond::GetInitString() const
 {
     stringstream sstm;

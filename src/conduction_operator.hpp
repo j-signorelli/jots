@@ -28,7 +28,6 @@ protected:
    ParFiniteElementSpace &fespace;
    Array<int> ess_tdof_list; // list of essential true dofs
    Array<int>* all_bdr_attr_markers;
-   Coefficient* k_coeff; // TODO: move this to ConductivityModel
 
    IterativeSolver *expl_solver;    // Solver for explicit time integration
    HypreSmoother expl_prec; // Preconditioner for the mass matrix M

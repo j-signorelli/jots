@@ -15,7 +15,6 @@ using namespace std;
 ConductionOperator::ConductionOperator(const Config* in_config, BoundaryCondition** in_bcs, ConductivityModel* in_cond, ParFiniteElementSpace &f, double t_0)
    :  TimeDependentOperator(f.GetTrueVSize(), t_0),
       fespace(f),
-      k_coeff(NULL),
       impl_solver(NULL),
       expl_solver(NULL),
       m(NULL), 
@@ -85,7 +84,7 @@ void ConductionOperator::PreprocessBCs()
    }
 
 
-   // Assemble b - TODO: Verify that time-dependent coeffs don't crash if SetTime not called first
+   // Assemble b
    b->Assemble();
 
    // Set b_vec
@@ -98,22 +97,15 @@ void ConductionOperator::PreprocessStiffness()
    // Assemble the parallel bilinear form for stiffness matrix
    k = new ParBilinearForm(&fespace);
 
-   // Get thermal conductivity coefficient
-   k_coeff = cond_model->GetCoefficient();
+   // Initialize conductivity model coefficient
+   cond_model->InitCoefficient();
+
+   // Add domain integrator to the bilinear form with the cond_model coeff
+   k->AddDomainIntegrator(new DiffusionIntegrator(*cond_model->GetCoeffPtr()));
    
-   // Add domain integrator to the bilinear form
-   k->AddDomainIntegrator(new DiffusionIntegrator(*k_coeff));
-   
+   // Finalize
    k->Assemble(0);
    k->Finalize(0);
-
-
-   // Create full stiffness matrix w/o removed essential DOFs
-   K_full = k->ParallelAssemble();
-   K = new HypreParMatrix(*K_full);
-
-   // Create stiffness matrix w/ removed essential DOFs
-   K_e = k->ParallelEliminateTDofs(ess_tdof_list, *K);
 
 }
 
@@ -237,34 +229,34 @@ void ConductionOperator::ApplyBCs(Vector &u)
 void ConductionOperator::SetThermalConductivities(const Vector &u)
 {    
 
-   // Update matrix K IF TIME-DEPENDENT k or if not instantiated yet
-   // TODO: Fix all this, but: Is calling Update() deleting the DiffusionIntegrator???
-   /*
-   if (!K || !cond_model->IsConstant())
+   if (!cond_model->IsConstant()) // If coefficient changes in time
    {  
-
 
       delete K_full;
       delete K;
       delete K_e;
 
-      //k->Update(); // delete old data (M and M_e)
+      k->Update(); // delete old data (M and M_e)
 
-      // TODO: update conduction coefficient
+      // Update coefficient
+      cond_model->UpdateCoeff();
 
       k->Assemble(0);
       k->Finalize(0);
 
+   }
 
+   if (!K) // For constant k, this is still called on first timestep to initialize matrices
+   {
       // Create full stiffness matrix w/o removed essential DOFs
       K_full = k->ParallelAssemble();
       K = new HypreParMatrix(*K_full);
-   
+
       // Create stiffness matrix w/ removed essential DOFs
       K_e = k->ParallelEliminateTDofs(ess_tdof_list, *K);
 
    }
-   */
+
 }
 
 void ConductionOperator::CalculateRHS(const Vector &u) const
@@ -334,7 +326,6 @@ void ConductionOperator::ImplicitSolve(const double dt,
 ConductionOperator::~ConductionOperator()
 {
    delete[] all_bdr_attr_markers;
-   delete k_coeff;
    
    delete expl_solver;
    delete impl_solver;
