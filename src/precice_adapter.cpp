@@ -43,22 +43,6 @@ void PreciceAdapter::AddPreciceBCs(BoundaryCondition** in_bcs, vector<int> preci
 
 }
 
-void PreciceAdapter::WriteInitialData(const Vector T, const ConductivityModel* cond_model)
-{
-    // For isothermal wall, sending heat flux
-    //      If restart, get heatflux from state, send as is.
-    //      If not restart, must project coeff first, then get heat flux, then send
-
-    // For heatflux wall, sending temperature
-    //      If restart, get temperature from state and send
-    //      If not restart, not at all any difference.
-    for (int i = 0; i < num_bcs; i++)
-    {
-        precice_bcs[i]->RetrieveInitialWriteData(T, cond_model);
-
-        interface->writeBlockScalarData(precice_bcs[i]->write_data_id, precice_bcs[i]->num_dofs, precice_bcs[i]->vertex_ids, precice_bcs[i]->write_data_arr);
-    }
-}
 
 void PreciceAdapter::GetReadData()
 {

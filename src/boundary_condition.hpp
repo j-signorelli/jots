@@ -159,7 +159,6 @@ class PreciceBC : public BoundaryCondition
         void InitCoefficient();
         void UpdateCoeff();
 
-        virtual void RetrieveInitialWriteData(const mfem::Vector T, const ConductivityModel* cond_model) = 0;
         virtual void RetrieveWriteData(const mfem::Vector T, const ConductivityModel* cond_model) = 0;
 
 
@@ -177,7 +176,6 @@ class PreciceIsothermalBC : public PreciceBC
     protected:
     public:
         PreciceIsothermalBC(const int attr, mfem::ParFiniteElementSpace& f, const std::string in_mesh, const bool is_restart, const double in_value) : PreciceBC(attr, BOUNDARY_CONDITION::PRECICE_ISOTHERMAL, f, in_mesh, is_restart, in_value, "Temperature", "Heat-Flux") {};
-        void RetrieveInitialWriteData(const mfem::Vector T, const ConductivityModel* cond_model);
         void RetrieveWriteData(const mfem::Vector T, const ConductivityModel* cond_model);
         std::string GetInitString() const;
 
@@ -192,7 +190,6 @@ class PreciceHeatFluxBC : public PreciceBC
 
     public:
         PreciceHeatFluxBC(const int attr, mfem::ParFiniteElementSpace& f, const std::string in_mesh, const bool is_restart, const double in_value) : PreciceBC(attr, BOUNDARY_CONDITION::PRECICE_HEATFLUX, f, in_mesh, is_restart, in_value, "Heat-Flux", "Temperature") {};
-        void RetrieveInitialWriteData(const mfem::Vector T, const ConductivityModel* cond_model);
         void RetrieveWriteData(const mfem::Vector T, const ConductivityModel* cond_model);
         std::string GetInitString() const;
 

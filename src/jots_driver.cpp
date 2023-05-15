@@ -384,7 +384,7 @@ void JOTSDriver::Run()
         precice_dt = adapter->Interface()->initialize();
         if (adapter->Interface()->isActionRequired(PreciceAdapter::cowid))
         {
-            adapter->WriteInitialData(T, cond_model);
+            adapter->WriteData(T, cond_model);
             adapter->Interface()->markActionFulfilled(PreciceAdapter::cowid);
         }
         adapter->Interface()->initializeData();
@@ -465,7 +465,7 @@ void JOTSDriver::Run()
         }
 
         // Output
-        if (it_num == 0 || it_num % user_input->GetVisFreq() == 0) // TODO: VisFreq must be nonzero
+        if (user_input->GetVisFreq() != 0 && it_num % user_input->GetVisFreq() == 0)
         {
             if (rank == 0)
                 cout << line << endl << "Saving Paraview Data: Cycle " << it_num << endl << line << endl;

@@ -183,34 +183,12 @@ void PreciceBC::UpdateCoeff()
     }
 }
 
-// TODO: Can I somehow not send cond_model pointlessly? Maybe check if essential or something??
-void PreciceIsothermalBC::RetrieveInitialWriteData(const mfem::Vector T, const ConductivityModel* cond_model)
-{
-    // For isothermal wall, sending heat flux
-    //      If not restart, must project coeff onto initialization first, then get heat flux, then send
-    //      If restart, do nothing
-    temp_gf->SetFromTrueDofs(T);
-    if (!restart) // TODO: I don't think this is necessary. See what SU2 does. it may not enforce BCs for initialization.
-    {
-        ConstantCoefficient temp_coeff(default_value);
-        temp_gf->ProjectCoefficient(temp_coeff, bdr_dof_indices);// TODO: can I just setsubvector for H1??
-    }
-    GetBdrWallHeatFlux(temp_gf, cond_model, bdr_elem_indices, write_data_arr);
-}
-
 void PreciceIsothermalBC::RetrieveWriteData(const mfem::Vector T, const ConductivityModel* cond_model)
 {
     temp_gf->SetFromTrueDofs(T);
     GetBdrWallHeatFlux(temp_gf, cond_model, bdr_elem_indices, write_data_arr);
 }
 
-void PreciceHeatFluxBC::RetrieveInitialWriteData(const mfem::Vector T, const ConductivityModel* cond_model)
-{
-    // For heatflux wall, sending temperature
-    //      If restart, get temperature from state and send
-    //      If not restart, not at all any difference.
-    RetrieveWriteData(T, cond_model);
-}
 
 void PreciceHeatFluxBC::RetrieveWriteData(const mfem::Vector T, const ConductivityModel* cond_model)
 {
