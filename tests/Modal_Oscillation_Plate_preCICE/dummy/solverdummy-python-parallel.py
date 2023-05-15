@@ -21,7 +21,7 @@ def main():
     read_data_name = 'Heat-Flux'
     mesh_name = 'Dummy-Mesh'
 
-    num_vertices = 100  # Number of vertices
+    num_vertices = 1000  # Number of vertices
 
     comm = MPI.COMM_WORLD
     solver_process_index = comm.Get_rank()
