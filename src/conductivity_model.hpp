@@ -39,7 +39,7 @@ class UniformCond : public ConductivityModel
         std::string GetInitString() const;
         double GetLocalConductivity(const mfem::ElementTransformation& transf, const mfem::IntegrationPoint& ip) const { return k; };
 };
-/* TODO:
+/*
 class LinearizedCond : public ConductivityModel
 {
     private:

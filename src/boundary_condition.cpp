@@ -106,7 +106,6 @@ PreciceBC::PreciceBC(const int attr, const BOUNDARY_CONDITION in_type, ParFinite
         for (int j = 0; j < fe->GetDof(); j++)
         {
             const IntegrationPoint &ip = ir.IntPoint(j);
-            transf->SetIntPoint(&ip); // TODO: is this line unnecessary? See docs
 
             // Set x,y,z of each dof into respective arrays
             Vector coord(3);
@@ -120,25 +119,6 @@ PreciceBC::PreciceBC(const int attr, const BOUNDARY_CONDITION in_type, ParFinite
 
         }
     }
-    
-    /*
-    // Remove any non-true DOFs + save to actual
-    // Get all bdr tdofs
-    Array<int> bdr_tdofs;
-    fespace->GetBoundaryTrueDofs(bdr_tdofs, 1);
-    bool tdof = false;
-    for (int i = 0; i < boundary_dofs.Size(); i++)
-    {
-        for (int j = 0; j < bdr_tdofs.Size(); j++)
-        {
-            if (boundary_dofs[i] == bdr_tdofs[j])
-            {
-                j = bdr_tdofs.Size();
-            }
-        }
-    }
-    */
-   // ^ TODO After functioning in serial
 
     // Get coordinates as single double* array
     coords = new double[coords_temp.Size()];
@@ -216,12 +196,10 @@ void PreciceBC::GetBdrTemperatures(const ParGridFunction* T_gf, const Array<int>
         for (int j = 0; j < fe->GetDof(); j++)
         {
             const IntegrationPoint &ip = ir.IntPoint(j);
-            transf->SetIntPoint(&ip); // TODO: See above- is this line unnecessary?
 
             // Set the value
             nodal_temperatures[nodal_index] = T_gf->GetValue(*transf, ip);       
             nodal_index++;
-            // TODO: Can I just do GetSubVector on T for H1?
         }
     }
 }

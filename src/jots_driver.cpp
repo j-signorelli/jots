@@ -112,10 +112,6 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
     vector<string> cond_info = user_input->GetCondInfo();
     switch (Conductivity_Model_Map.at(cond_info[0]))
     {
-        /* TODO: Linear
-        case CONDUCTIVITYMODEL::L
-            break;
-        */
         case CONDUCTIVITY_MODEL::UNIFORM: // Uniform conductivity
             cond_model = new UniformCond(stod(cond_info[1].c_str()));
             break;
