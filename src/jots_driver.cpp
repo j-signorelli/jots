@@ -39,46 +39,86 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
     if (rank == 0)
       cout << "Configuration file " << input_file << " parsed successfully!" << endl;
     //----------------------------------------------------------------------
-    // Create serial mesh
-    const char* mesh_file = user_input->GetMeshFile().c_str();
-    Mesh* mesh = new Mesh(mesh_file, 1);//pass one to generate edges
-    dim = mesh->Dimension();
+    // Create solution GF
+    ParGridFunction* temp_T_gf;
     //----------------------------------------------------------------------
-    // Print mesh info
-    if (rank == 0)
+    // If non-restart:
+    if (!user_input->UsesRestart())
     {
-        cout << "\n";
-        cout << "Mesh File: " << mesh_file << endl;
-        cout << "Problem Dimension: " << dim << endl;
-    }
-    //----------------------------------------------------------------------
-    // Refine mesh in serial
-    int ser_ref = user_input->GetSerialRefine();
-    for (int lev = 0; lev < ser_ref; lev++)
-    {
-        mesh->UniformRefinement();
-    }
-    //----------------------------------------------------------------------
-    // Print serial refinements
-    if (rank == 0)
-        cout << "Serial refinements of mesh completed: " << ser_ref << endl;
-    //----------------------------------------------------------------------
-    // Complete parallel decomposition of serial mesh + refine parallel
-    pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
-    delete mesh;
+        //----------------------------------------------------------------------
+        // Create serial mesh
+        const char* mesh_file = user_input->GetMeshFile().c_str();
+        Mesh* mesh = new Mesh(mesh_file, 1);//pass one to generate edges
+        dim = mesh->Dimension();
+        //----------------------------------------------------------------------
+        // Print mesh info
+        if (rank == 0)
+        {
+            cout << "\n";
+            cout << "Mesh File: " << mesh_file << endl;
+            cout << "Problem Dimension: " << dim << endl;
+        }
+        //----------------------------------------------------------------------
+        // Refine mesh in serial
+        int ser_ref = user_input->GetSerialRefine();
+        for (int lev = 0; lev < ser_ref; lev++)
+        {
+            mesh->UniformRefinement();
+        }
+        //----------------------------------------------------------------------
+        // Print serial refinements
+        if (rank == 0)
+            cout << "Serial refinements of mesh completed: " << ser_ref << endl;
+        //----------------------------------------------------------------------
+        // Complete parallel decomposition of serial mesh + refine parallel
+        pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
+        delete mesh;
 
-    int par_ref = user_input->GetParallelRefine();
+        int par_ref = user_input->GetParallelRefine();
 
-    for (int lev = 0; lev < par_ref; lev++)
-    {
-        pmesh->UniformRefinement();
+        for (int lev = 0; lev < par_ref; lev++)
+        {
+            pmesh->UniformRefinement();
+        }
+        //----------------------------------------------------------------------
+        // Print parallel refinements
+        if (rank == 0)
+        {
+            cout << "Parallel refinements of mesh completed: " << par_ref << endl;
+        }
+        //----------------------------------------------------------------------
+        // Define parallel FE space on parallel mesh
+        fe_coll = new H1_FECollection(user_input->GetFEOrder(), dim);
+
+        fespace = new ParFiniteElementSpace(pmesh, fe_coll);
+        
+        //----------------------------------------------------------------------
+        // Create solution GF
+        temp_T_gf = new ParGridFunction(fespace);
+        
+        //----------------------------------------------------------------------
+        // Print initial condition info + set T_gf
+        ConstantCoefficient coeff_IC(user_input->GetInitialTemp());
+        temp_T_gf->ProjectCoefficient(coeff_IC);
+        
+        if (rank == 0)
+            cout << "Non-restart simulation --> Initial temperature field: " << user_input->GetInitialTemp() << endl;
+
     }
     //----------------------------------------------------------------------
-    // Print parallel refinements and mesh attributes from mesh file
+    // Else using restart:
+    else
+    {
+        // TODO
+        if (rank == 0)
+            cout << "Restarted simulation --> Input Restart file: " << user_input->GetInputRestartFile() << endl;
+
+    }
+    //----------------------------------------------------------------------
+    // Print mesh attributes
     if (rank == 0)
     {
-        cout << "Parallel refinements of mesh completed: " << par_ref << endl;
-        cout << "Mesh Boundary Attributes: <";
+    cout << "Mesh Boundary Attributes: <";
         for (int i = 0; i < pmesh->bdr_attributes.Size(); i++)
         {
             if (i != 0)
@@ -88,12 +128,6 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
 
         cout << ">" << endl;
     }
-    //----------------------------------------------------------------------
-    // Define parallel FE space on parallel mesh
-    fe_coll = new H1_FECollection(user_input->GetFEOrder(), dim);
-
-    fespace = new ParFiniteElementSpace(pmesh, fe_coll);
-    
     //----------------------------------------------------------------------
     // Print number of unknowns
     HYPRE_BigInt fe_size = fespace->GlobalTrueVSize();
@@ -123,30 +157,6 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
     // Print conductivity model info
     if (rank == 0)
         cout << "Thermal Conductivity Model: " << cond_model->GetInitString() << endl;
-    //----------------------------------------------------------------------
-    // Create solution GF
-    ParGridFunction temp_T_gf(fespace);
-    //----------------------------------------------------------------------
-    // Print initial condition info + set T_gf
-    if (rank == 0)
-        cout << "\n";
-    if (!user_input->UsesRestart()) // If not using restart
-    {
-        ConstantCoefficient coeff_IC(user_input->GetInitialTemp());
-        temp_T_gf.ProjectCoefficient(coeff_IC);
-        
-        if (rank == 0)
-            cout << "Non-restart simulation --> Initial temperature field: " << user_input->GetInitialTemp() << endl;
-
-    }
-    else //else ARE using restart file
-    {
-        if (rank == 0)
-            cout << "Restarted simulation --> Restart file: " << user_input->GetRestartFile() << endl;
-
-        // TODO: read in restart file and set initial condition GF
-    
-    }
     //----------------------------------------------------------------------
     // Set ODE time integrator
     ode_solver = user_input->GetODESolver();
@@ -196,7 +206,7 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
     if (pmesh->bdr_attributes.Size() != user_input->GetBCCount())
     {
         if (rank == 0)
-            MFEM_ABORT("Input file BC count and mesh file BC counts do not match.");
+            MFEM_ABORT("Input file BC count and mesh BC counts do not match.");
         return;
     }
     
@@ -321,7 +331,8 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
     }
     //---------------------------------------------------------------------
     // Create main solution vector from IC
-    temp_T_gf.GetTrueDofs(T);
+    temp_T_gf->GetTrueDofs(T);
+    delete temp_T_gf;
     //----------------------------------------------------------------------
     // Instantiate ConductionOperator, sending all necessary parameters
     if (rank == 0)

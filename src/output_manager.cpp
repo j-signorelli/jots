@@ -5,9 +5,15 @@ using namespace mfem;
 OutputManager::OutputManager(mfem::ParFiniteElementSpace* fespace, const int fe_order, const double in_rho, const double in_Cp, const double in_rank, const Vector& in_T_ref, const ConductivityModel* in_cond_model)
 : T_ref(in_T_ref),
   cond_model(in_cond_model)
-{
+{   
+    //------------------------------------------------
+    // Set up restart file outputting
+
+    
+    //------------------------------------------------
     // Set up ParaView outputting
     paraview_dc = new ParaViewDataCollection("Output", fespace->GetParMesh());
+    // TODO: Flag as restart or not -- should be able to just append to an existing pvd file.
     paraview_dc->SetPrefixPath("ParaView");
     paraview_dc->SetLevelsOfDetail(fe_order);
     paraview_dc->SetDataFormat(VTKFormat::BINARY);

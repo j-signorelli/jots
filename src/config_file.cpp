@@ -14,7 +14,6 @@ Config::Config(const char* in_file) : input_file(in_file)
     // Read in everything (setting default values if needed):
     ReadFESetup();
     ReadMatProps();
-    ReadIC();
     ReadPrecice();
     ReadBCs();
     ReadTimeInt();
@@ -32,12 +31,17 @@ void Config::SetInputStringVector(string in, vector<string>& output) // Comma de
 }
 
 void Config::ReadFESetup()
-{
+{   
     // Read FiniteElementSetup
+    BINARY_CHOICE restart_choice = Binary_Choice_Map.at(property_tree.get("FiniteElementSetup.Use_Restart", "No"));
+    use_restart = restart_choice == BINARY_CHOICE::YES ? true : false;
+
     mesh_file = property_tree.get("FiniteElementSetup.Mesh_File", "mesh_name.mesh");
     fe_order = property_tree.get("FiniteElementSetup.FE_Order", 1);
     serial_refine = property_tree.get("FiniteElementSetup.Serial_Refine", 0);
     parallel_refine = property_tree.get("FiniteElementSetup.Parallel_Refine", 0);
+    initial_temp = property_tree.get<double>("FiniteElementSetup.Initial_Temperature", 100.0);
+    input_restart_file = property_tree.get("FiniteElementSetup.Input_Restart_File", "");
 
 }
 
@@ -49,15 +53,6 @@ void Config::ReadMatProps()
     SetInputStringVector(property_tree.get("MaterialProperties.Thermal_Conductivity_Model", "Uniform, 100"), conductivity_info);
 }
 
-void Config::ReadIC()
-{
-    // Read InitialCondition
-    BINARY_CHOICE restart_choice = Binary_Choice_Map.at(property_tree.get("InitialCondition.Use_Restart", "No"));
-    use_restart = restart_choice == BINARY_CHOICE::YES ? true : false;
-    restart_file = property_tree.get("InitialCondition.Restart_File", "");
-    initial_temp = property_tree.get<double>("InitialCondition.Initial_Temperature", 100.0);
-
-}
 void Config::ReadPrecice()
 {
     // If no preCICE section detected, then do nothing + set with_preCICE

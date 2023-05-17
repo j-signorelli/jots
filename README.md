@@ -21,6 +21,8 @@ The MFEM unsteady thermal conduction example generalized and updated for preCICE
 ### MFEM
 MFEM is required - used to actually complete the FEA.
 
+TODO: Build with Conduit enabled? Hopefully it works....
+
 ### Boost
 Boost is required - used to parse input files
 
