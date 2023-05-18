@@ -30,7 +30,7 @@ class Config
         std::vector<std::string> conductivity_info;
 
         bool use_restart;             /*!< \brief Boolean indicating if restart file should be loaded up as initial condition */
-        int restart_it_num;          /*!< \brief Restart file cycle to load; only read if use_restart is true */
+        std::string input_restart_file;          /*!< \brief Restart file to load + use; only read if use_restart is true */
         double initial_temp;          /*!< \brief Initial temperature field to set; only used if use_restart is false */
 
         bool with_precice;
@@ -83,7 +83,7 @@ class Config
         
         bool UsesRestart() const { return use_restart; }
 
-        int GetRestartCycle() const { return restart_it_num; }
+        std::string GetInputRestartFile() const { return input_restart_file; }
 
         double GetInitialTemp() const { return initial_temp; } 
 

@@ -1,4 +1,3 @@
 build/
 tests/*/ParaView/
-tests/*/Restart_Files/
 .vscode/settings.json
