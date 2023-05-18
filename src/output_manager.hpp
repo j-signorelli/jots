@@ -1,4 +1,5 @@
 #pragma once
+#include <string>
 
 #include "mfem.hpp"
 
@@ -7,6 +8,7 @@
 class OutputManager
 {
     private:
+
         mfem::ConduitDataCollection* conduit_dc;
         mfem::ParaViewDataCollection* paraview_dc;
         mfem::ParGridFunction* rho_gf;
@@ -22,6 +24,8 @@ class OutputManager
 
     protected:
     public:
+        static const std::string TEMPERATURE;
+
         OutputManager(mfem::ParFiniteElementSpace* fespace, const int fe_order, const double in_rho, const double in_Cp, const double in_rank, const mfem::Vector& in_T_ref, const ConductivityModel* in_cond_model);
         void WriteVizOutput(const int it_num, const double time);
         void WriteRestartOutput(const int it_num, const double time);

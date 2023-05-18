@@ -1,6 +1,9 @@
 #include "output_manager.hpp"
 
+using namespace std;
 using namespace mfem;
+
+const string OutputManager::TEMPERATURE = "Temperature";
 
 OutputManager::OutputManager(mfem::ParFiniteElementSpace* fespace, const int fe_order, const double in_rho, const double in_Cp, const double in_rank, const Vector& in_T_ref, const ConductivityModel* in_cond_model)
 : T_ref(in_T_ref),
@@ -49,8 +52,8 @@ OutputManager::OutputManager(mfem::ParFiniteElementSpace* fespace, const int fe_
     // Temperature:
     T_gf = new ParGridFunction(fespace);
     T_gf->SetFromTrueDofs(T_ref);
-    paraview_dc->RegisterField("Temperature", T_gf);
-
+    paraview_dc->RegisterField(TEMPERATURE, T_gf);
+    conduit_dc->RegisterField(TEMPERATURE, T_gf);
     //------------------------------------------------
     
 

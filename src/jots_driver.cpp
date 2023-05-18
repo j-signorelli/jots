@@ -111,7 +111,9 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
     {
         // TODO
         if (rank == 0)
-            cout << "Restarted simulation --> Input Restart file: " << user_input->GetInputRestartFile() << endl;
+            cout << "Restarted simulation --> Input Restart Root File: " << user_input->GetInputRestartFile() << endl;
+
+        
 
     }
     //----------------------------------------------------------------------
