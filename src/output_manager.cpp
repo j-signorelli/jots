@@ -8,13 +8,15 @@ OutputManager::OutputManager(mfem::ParFiniteElementSpace* fespace, const int fe_
 {   
     //------------------------------------------------
     // Set up restart file outputting
-
+    conduit_dc = new ConduitDataCollection(fespace->GetComm(), "Restart", fespace->GetParMesh());
+    // By default, outputs hdf5
+    conduit_dc->SetPrefixPath("Restart_Files");
     
     //------------------------------------------------
     // Set up ParaView outputting
-    paraview_dc = new ParaViewDataCollection("Output", fespace->GetParMesh());
-    // TODO: Flag as restart or not -- should be able to just append to an existing pvd file.
-    paraview_dc->SetPrefixPath("ParaView");
+    paraview_dc = new ParaViewDataCollection("ParaView", fespace->GetParMesh());
+    // TODO: Flag as restart or not? -- should be able to just append to an existing pvd file but is this desired?
+    //paraview_dc->SetPrefixPath("ParaView");
     paraview_dc->SetLevelsOfDetail(fe_order);
     paraview_dc->SetDataFormat(VTKFormat::BINARY);
     paraview_dc->SetHighOrderOutput(true);
@@ -73,8 +75,17 @@ void OutputManager::WriteVizOutput(const int it_num, const double time)
     paraview_dc->Save();
 }
 
+void OutputManager::WriteRestartOutput(const int it_num, const double time)
+{
+    UpdateGridFunctions();
+    conduit_dc->SetCycle(it_num);
+    conduit_dc->SetTime(time);
+    conduit_dc->Save();
+}
+
 OutputManager::~OutputManager()
 {
+    delete conduit_dc;
     delete paraview_dc;
     delete rho_gf;
     delete Cp_gf;

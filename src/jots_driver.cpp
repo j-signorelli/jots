@@ -366,7 +366,7 @@ void JOTSDriver::Run()
     double precice_saved_time = 0;
     double precice_saved_it_num = 0;
 
-    // Output IC
+    // Output IC as ParaView
     if (it_num == 0)
     {
         //if (rank == 0)
@@ -387,6 +387,9 @@ void JOTSDriver::Run()
         }
         adapter->Interface()->initializeData();
     }
+    
+    bool viz_out = false;
+    bool res_out = false;
 
     while ( (!user_input->UsingPrecice() && time < tf) 
         || (user_input->UsingPrecice() && adapter->Interface()->isCouplingOngoing()))//Main Solver Loop - use short-circuiting
@@ -422,7 +425,7 @@ void JOTSDriver::Run()
         it_num++; // increment it_num
 
         // Leave solver if time now greater than tf
-        if (time > tf)
+        if (time > tf && abs(time-tf) > 1e-12)
             continue;
 
         if (user_input->UsingPrecice())
@@ -463,12 +466,29 @@ void JOTSDriver::Run()
         }
 
         // Output
-        if (user_input->GetVisFreq() != 0 && it_num % user_input->GetVisFreq() == 0)
+        viz_out = user_input->GetVisFreq() != 0 && it_num % user_input->GetVisFreq() == 0;
+        res_out = user_input->GetRestartFreq() != 0 && it_num % user_input->GetRestartFreq() == 0;
+        if (viz_out || res_out)
         {
             if (rank == 0)
-                cout << line << endl << "Saving Paraview Data: Cycle " << it_num << endl << line << endl;
-            // Save data
-            output->WriteVizOutput(it_num, time);
+                cout << line << endl;
+                
+            if (viz_out)
+            {
+                if (rank == 0)
+                    cout << "Saving Paraview Data: Cycle " << it_num << endl;
+                output->WriteVizOutput(it_num, time);
+            }
+
+            if (res_out)
+            {
+                if (rank == 0)
+                    cout << "Saving Restart File: Cycle " << it_num << endl;
+                output->WriteRestartOutput(it_num, time);
+            }
+
+            if (rank == 0)
+                cout << line << endl;
         }
 
     }
