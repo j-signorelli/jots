@@ -4,6 +4,8 @@ using namespace std;
 using namespace mfem;
 
 const string OutputManager::TEMPERATURE = "Temperature";
+const string OutputManager::RES_PREFIXPATH = "Restart_Files";
+const string OutputManager::RES_NAME = "Restart";
 
 OutputManager::OutputManager(mfem::ParFiniteElementSpace* fespace, const int fe_order, const double in_rho, const double in_Cp, const double in_rank, const Vector& in_T_ref, const ConductivityModel* in_cond_model)
 : T_ref(in_T_ref),
@@ -11,9 +13,9 @@ OutputManager::OutputManager(mfem::ParFiniteElementSpace* fespace, const int fe_
 {   
     //------------------------------------------------
     // Set up restart file outputting
-    conduit_dc = new ConduitDataCollection(fespace->GetComm(), "Restart", fespace->GetParMesh());
+    conduit_dc = new ConduitDataCollection(fespace->GetComm(), RES_NAME, fespace->GetParMesh());
     // By default, outputs hdf5
-    conduit_dc->SetPrefixPath("Restart_Files");
+    conduit_dc->SetPrefixPath(RES_PREFIXPATH);
     
     //------------------------------------------------
     // Set up ParaView outputting

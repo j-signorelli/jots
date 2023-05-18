@@ -41,7 +41,7 @@ void Config::ReadFESetup()
     serial_refine = property_tree.get("FiniteElementSetup.Serial_Refine", 0);
     parallel_refine = property_tree.get("FiniteElementSetup.Parallel_Refine", 0);
     initial_temp = property_tree.get<double>("FiniteElementSetup.Initial_Temperature", 100.0);
-    input_restart_file = property_tree.get("FiniteElementSetup.Input_Restart_File", "");
+    restart_it_num = property_tree.get<int>("FiniteElementSetup.Restart_At", 0);
 
 }
 
