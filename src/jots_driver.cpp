@@ -108,10 +108,16 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
     //----------------------------------------------------------------------
     // Else using restart:
     else
-    {
-        // TODO
+    {   
         if (rank == 0)
-            cout << "Restarted simulation --> Input Restart file: " << user_input->GetInputRestartFile() << endl;
+            cout << "Restarted simulation --> Input Restart Directory: " << user_input->GetInputRestartDir() << endl;
+
+
+        // TODO
+        // Read in correct binary file for this rank:
+        //temp_T_gf = new ParGridFunction(pmesh, TODO);
+
+        // Get FESpace and FEC from T_gf + take ownership from it?
 
     }
     //----------------------------------------------------------------------

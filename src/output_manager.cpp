@@ -2,15 +2,13 @@
 
 using namespace mfem;
 
-OutputManager::OutputManager(mfem::ParFiniteElementSpace* fespace, const int fe_order, const double in_rho, const double in_Cp, const double in_rank, const Vector& in_T_ref, const ConductivityModel* in_cond_model)
-: T_ref(in_T_ref),
+OutputManager::OutputManager(const int in_rank, mfem::ParFiniteElementSpace* fespace, const int fe_order, const double in_rho, const double in_Cp, const double in_rank, const Vector& in_T_ref, const ConductivityModel* in_cond_model)
+: rank(in_rank),
+  T_ref(in_T_ref),
   cond_model(in_cond_model)
 {   
     //------------------------------------------------
     // Set up restart file outputting
-    conduit_dc = new ConduitDataCollection(fespace->GetComm(), "Restart", fespace->GetParMesh());
-    // By default, outputs hdf5
-    conduit_dc->SetPrefixPath("Restart_Files");
     
     //------------------------------------------------
     // Set up ParaView outputting
@@ -78,9 +76,15 @@ void OutputManager::WriteVizOutput(const int it_num, const double time)
 void OutputManager::WriteRestartOutput(const int it_num, const double time)
 {
     UpdateGridFunctions();
-    conduit_dc->SetCycle(it_num);
-    conduit_dc->SetTime(time);
-    conduit_dc->Save();
+
+    // Have Rank 0 create a directory
+    if (rank == 0);
+    // Write temperature grid functions
+    stringstream sstm_file;
+    sstm_dir << "Restart_Cycle_" << it_num << endl;
+
+    ofstream restart_file()
+
 }
 
 OutputManager::~OutputManager()
