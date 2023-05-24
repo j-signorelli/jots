@@ -87,3 +87,9 @@ Note **importantly**: stiffness matrix $K$ is still calculated using the tempera
 
 1. For implicit time-integration, $K$ is determined using temperatures at the previous timestep ($K$ is linearized from previous timestep).
 2. For essential boundary conditions that vary in time, $\dfrac{dT_i}{dt}$ is assumed to be 0. A backward differencing may be implemented for higher-order accuracy in time but would require restart files that save $t_{n-1}$ data in addition to $t_n$ data.
+
+# Notes:
+
+- Presently:
+    - Times that have a difference less than $10^-12$ are presumed equal
+    - Restart files output data to 15 decimal points

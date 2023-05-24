@@ -1,20 +1,20 @@
 #include "output_manager.hpp"
 
+using namespace std;
 using namespace mfem;
 
-OutputManager::OutputManager(const int in_rank, mfem::ParFiniteElementSpace* fespace, const int fe_order, const double in_rho, const double in_Cp, const double in_rank, const Vector& in_T_ref, const ConductivityModel* in_cond_model)
+const int OutputManager::RESTART_PRECISION = 15;
+
+OutputManager::OutputManager(const int in_rank, ParFiniteElementSpace* fespace, const int fe_order, const double in_rho, const double in_Cp, const Vector& in_T_ref, const ConductivityModel* in_cond_model, const string in_output_restart_name, const bool is_restart)
 : rank(in_rank),
   T_ref(in_T_ref),
-  cond_model(in_cond_model)
+  cond_model(in_cond_model),
+  output_restart_name(in_output_restart_name)
 {   
-    //------------------------------------------------
-    // Set up restart file outputting
-    
     //------------------------------------------------
     // Set up ParaView outputting
     paraview_dc = new ParaViewDataCollection("ParaView", fespace->GetParMesh());
-    // TODO: Flag as restart or not? -- should be able to just append to an existing pvd file but is this desired?
-    //paraview_dc->SetPrefixPath("ParaView");
+    paraview_dc->UseRestartMode(is_restart);
     paraview_dc->SetLevelsOfDetail(fe_order);
     paraview_dc->SetDataFormat(VTKFormat::BINARY);
     paraview_dc->SetHighOrderOutput(true);
@@ -44,13 +44,11 @@ OutputManager::OutputManager(const int in_rank, mfem::ParFiniteElementSpace* fes
     k_gf->ProjectCoefficient(*cond_model->GetCoeffPtr());
     paraview_dc->RegisterField("Thermal_Conductivity", k_gf);
 
-    // Temperature:
+    // Temperature
+    //------------------------------------------------
     T_gf = new ParGridFunction(fespace);
     T_gf->SetFromTrueDofs(T_ref);
     paraview_dc->RegisterField("Temperature", T_gf);
-
-    //------------------------------------------------
-    
 
 }
 
@@ -77,19 +75,21 @@ void OutputManager::WriteRestartOutput(const int it_num, const double time)
 {
     UpdateGridFunctions();
 
-    // Have Rank 0 create a directory
-    if (rank == 0);
-    // Write temperature grid functions
-    stringstream sstm_file;
-    sstm_dir << "Restart_Cycle_" << it_num << endl;
+    ofstream out_file;
+    out_file << fixed << setprecision(RESTART_PRECISION);
 
-    ofstream restart_file()
-
+    stringstream sstm;
+    sstm << output_restart_name << "_" << it_num << ".dat";
+    out_file.open(sstm.str(), ios::out);
+    out_file << "# " << time << " , " << it_num << endl;
+    // Only save T_gf to restart
+    T_gf->SaveAsOne(out_file);
+    
+    out_file.close();
 }
 
 OutputManager::~OutputManager()
 {
-    delete conduit_dc;
     delete paraview_dc;
     delete rho_gf;
     delete Cp_gf;

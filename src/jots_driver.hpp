@@ -14,7 +14,8 @@
 class JOTSDriver
 {
     protected:
-        const std::string line = "-------------------------------------------------------------------";
+        static const std::string LINE;
+        static const double TIME_TOLERANCE;
 
 	    const int rank;
         const int size;

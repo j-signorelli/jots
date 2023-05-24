@@ -4,6 +4,9 @@ using namespace std;
 using namespace mfem;
 using namespace precice;
 
+const string JOTSDriver::LINE = "-------------------------------------------------------------------";
+const double JOTSDriver::TIME_TOLERANCE = 1e-12;
+
 JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_procs)
 : rank(myid),
   size(num_procs),
@@ -19,7 +22,7 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
 {   
     if (rank == 0)
     {
-        cout << line << endl;
+        cout << LINE << endl;
         cout << R"(
 
               _  ____ _______ _____ 
@@ -31,7 +34,7 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
                                     
                                     
 
-        )" << endl << "MFEM-Based Thermal Solver w/ preCICE" << endl << "Version 1.0" << endl << line << endl;
+        )" << endl << "MFEM-Based Thermal Solver w/ preCICE" << endl << "Version 1.0" << endl << LINE << endl;
     }
     //----------------------------------------------------------------------
     // Parse config file
@@ -42,50 +45,50 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
     // Create solution GF
     ParGridFunction* temp_T_gf;
     //----------------------------------------------------------------------
+    // Create serial mesh
+    const char* mesh_file = user_input->GetMeshFile().c_str();
+    Mesh* mesh = new Mesh(mesh_file, 1);//pass one to generate edges
+    dim = mesh->Dimension();
+    //----------------------------------------------------------------------
+    // Print mesh info
+    if (rank == 0)
+    {
+        cout << "\n";
+        cout << "Mesh File: " << mesh_file << endl;
+        cout << "Problem Dimension: " << dim << endl;
+    }
+    //----------------------------------------------------------------------
+    // Refine mesh in serial
+    int ser_ref = user_input->GetSerialRefine();
+    for (int lev = 0; lev < ser_ref; lev++)
+    {
+        mesh->UniformRefinement();
+    }
+    //----------------------------------------------------------------------
+    // Print serial refinements
+    if (rank == 0)
+        cout << "Serial refinements of mesh completed: " << ser_ref << endl;
+    //----------------------------------------------------------------------
+    // Complete parallel decomposition of serial mesh + refine parallel
+    pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
+    delete mesh;
+
+    int par_ref = user_input->GetParallelRefine();
+
+    for (int lev = 0; lev < par_ref; lev++)
+    {
+        pmesh->UniformRefinement();
+    }
+    //----------------------------------------------------------------------
+    // Print parallel refinements
+    if (rank == 0)
+    {
+        cout << "Parallel refinements of mesh completed: " << par_ref << endl;
+    }
+    
     // If non-restart:
     if (!user_input->UsesRestart())
     {
-        //----------------------------------------------------------------------
-        // Create serial mesh
-        const char* mesh_file = user_input->GetMeshFile().c_str();
-        Mesh* mesh = new Mesh(mesh_file, 1);//pass one to generate edges
-        dim = mesh->Dimension();
-        //----------------------------------------------------------------------
-        // Print mesh info
-        if (rank == 0)
-        {
-            cout << "\n";
-            cout << "Mesh File: " << mesh_file << endl;
-            cout << "Problem Dimension: " << dim << endl;
-        }
-        //----------------------------------------------------------------------
-        // Refine mesh in serial
-        int ser_ref = user_input->GetSerialRefine();
-        for (int lev = 0; lev < ser_ref; lev++)
-        {
-            mesh->UniformRefinement();
-        }
-        //----------------------------------------------------------------------
-        // Print serial refinements
-        if (rank == 0)
-            cout << "Serial refinements of mesh completed: " << ser_ref << endl;
-        //----------------------------------------------------------------------
-        // Complete parallel decomposition of serial mesh + refine parallel
-        pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
-        delete mesh;
-
-        int par_ref = user_input->GetParallelRefine();
-
-        for (int lev = 0; lev < par_ref; lev++)
-        {
-            pmesh->UniformRefinement();
-        }
-        //----------------------------------------------------------------------
-        // Print parallel refinements
-        if (rank == 0)
-        {
-            cout << "Parallel refinements of mesh completed: " << par_ref << endl;
-        }
         //----------------------------------------------------------------------
         // Define parallel FE space on parallel mesh
         fe_coll = new H1_FECollection(user_input->GetFEOrder(), dim);
@@ -110,11 +113,18 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
     else
     {   
         if (rank == 0)
-            cout << "Restarted simulation --> Input Restart Directory: " << user_input->GetInputRestartDir() << endl;
+            cout << "Restarted simulation --> Input Restart Directory: " << user_input->GetInputRestartFile() << endl;
 
 
-        // TODO
-        // Read in correct binary file for this rank:
+        // Read in correct file for this rank:
+        ifstream in_file;
+        stringstream sstm;
+        sstm << user_input->GetInputRestartFile() << ".dat";
+        in_file.open(sstm.str(), ios::in);
+
+        // Get the time + cycle from first line comment
+        
+        
         //temp_T_gf = new ParGridFunction(pmesh, TODO);
 
         // Get FESpace and FEC from T_gf + take ownership from it?
@@ -343,7 +353,7 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
     // Instantiate ConductionOperator, sending all necessary parameters
     if (rank == 0)
     {
-        cout << line << endl;
+        cout << LINE << endl;
         cout << "Initializing operator... ";
     }
     oper = new ConductionOperator(user_input, boundary_conditions, cond_model, *fespace, time);
@@ -351,7 +361,7 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
         cout << "Done!" << endl;
     //----------------------------------------------------------------------
     // Instantiate OutputManager
-    output = new OutputManager(fespace, user_input->GetFEOrder(), user_input->GetDensity(), user_input->GetCp(), rank, T, cond_model);
+    output = new OutputManager(rank, fespace, user_input->GetFEOrder(), user_input->GetDensity(), user_input->GetCp(), T, cond_model, "restart", user_input->UsesRestart());
 }
 
 void JOTSDriver::Run()
@@ -376,7 +386,7 @@ void JOTSDriver::Run()
     if (it_num == 0)
     {
         //if (rank == 0)
-        //    cout << line << endl << "Saving Paraview Data: Initial Condition" << it_num << endl << line << endl;
+        //    cout << LINE << endl << "Saving Paraview Data: Initial Condition" << it_num << endl << LINE << endl;
         output->WriteVizOutput(it_num, time);
     }
 
@@ -431,7 +441,7 @@ void JOTSDriver::Run()
         it_num++; // increment it_num
 
         // Leave solver if time now greater than tf
-        if (time > tf && abs(time-tf) > 1e-12)
+        if (time > tf && abs(time-tf) > TIME_TOLERANCE)
             continue;
 
         if (user_input->UsingPrecice())
@@ -459,7 +469,7 @@ void JOTSDriver::Run()
         // Print current timestep information:
         if (rank == 0)
         {
-            printf("Step #%10i || Time: %10.5g out of %-10.5g || dt: %10.5g \n", it_num, time, tf, dt);
+            printf("Step #%10i || Time: %1.6e out of %-1.6e || dt: %1.6e \n", it_num, time, tf, dt);
                 
         }    //|| Rank 0 Max Temperature: %10.3g \n", it_num, time, tf,  dt, T.Max());
             //cout << "Step #" << it_num << " || t = " << time << "||" << "Rank 0 Max T: " << T.Max() << endl;
@@ -477,7 +487,7 @@ void JOTSDriver::Run()
         if (viz_out || res_out)
         {
             if (rank == 0)
-                cout << line << endl;
+                cout << LINE << endl;
                 
             if (viz_out)
             {
@@ -494,7 +504,7 @@ void JOTSDriver::Run()
             }
 
             if (rank == 0)
-                cout << line << endl;
+                cout << LINE << endl;
         }
 
     }
