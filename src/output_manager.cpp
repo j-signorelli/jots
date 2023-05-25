@@ -81,7 +81,8 @@ void OutputManager::WriteRestartOutput(const int it_num, const double time)
     stringstream sstm;
     sstm << output_restart_name << "_" << it_num << ".dat";
     out_file.open(sstm.str(), ios::out);
-    out_file << "# " << time << " , " << it_num << endl;
+    out_file << time << endl;
+    out_file << it_num << endl;
     // Only save T_gf to restart
     T_gf->SaveAsOne(out_file);
     

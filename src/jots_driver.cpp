@@ -70,8 +70,9 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
         cout << "Serial refinements of mesh completed: " << ser_ref << endl;
     //----------------------------------------------------------------------
     // Complete parallel decomposition of serial mesh + refine parallel
-    pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
-    delete mesh;
+    int* partitioning = mesh->GeneratePartitioning(size, 1);
+
+    pmesh = new ParMesh(MPI_COMM_WORLD, *mesh, partitioning);
 
     int par_ref = user_input->GetParallelRefine();
 
@@ -80,6 +81,7 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
         pmesh->UniformRefinement();
     }
     //----------------------------------------------------------------------
+    // TODO: May need to remove refinement capabilities for restarts
     // Print parallel refinements
     if (rank == 0)
     {
@@ -104,6 +106,9 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
         ConstantCoefficient coeff_IC(user_input->GetInitialTemp());
         temp_T_gf->ProjectCoefficient(coeff_IC);
         
+        it_num = 0;
+        time = 0.0;
+
         if (rank == 0)
             cout << "Non-restart simulation --> Initial temperature field: " << user_input->GetInitialTemp() << endl;
 
@@ -112,24 +117,51 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
     // Else using restart:
     else
     {   
-        if (rank == 0)
-            cout << "Restarted simulation --> Input Restart Directory: " << user_input->GetInputRestartFile() << endl;
-
-
         // Read in correct file for this rank:
         ifstream in_file;
         stringstream sstm;
         sstm << user_input->GetInputRestartFile() << ".dat";
         in_file.open(sstm.str(), ios::in);
 
-        // Get the time + cycle from first line comment
-        
-        
-        //temp_T_gf = new ParGridFunction(pmesh, TODO);
+        string temp;
 
-        // Get FESpace and FEC from T_gf + take ownership from it?
+        // Get the time
+        getline(in_file, temp);
+        //mfem::filter_dos(temp);
+        stringstream(temp) >> time;
+
+        // Get cycles
+        getline(in_file, temp);
+        //mfem::filter_dos(temp);
+        stringstream(temp) >> it_num;
+
+        // Create serial grid function on all ranks
+        GridFunction temp_serial_gf(mesh, in_file);
+
+        // Create ParGridFunction specific to this rank, and ensure that data is copied, since GridFunction will cease to exist soon
+        temp_T_gf = new ParGridFunction(pmesh, &temp_serial_gf, partitioning);
+
+
+        // Take ownership of fe_coll and fespace (See MakeOwner docs)
+        fe_coll = temp_T_gf->OwnFEC();
+        fespace = temp_T_gf->ParFESpace();
+        temp_T_gf->MakeOwner(NULL);
+
+        in_file.close();
+
+        if (rank == 0)
+        {
+            cout << "Restarted simulation --> Input Restart Directory: " << user_input->GetInputRestartFile() << endl;
+            cout << "\tTime: " << time << endl;
+            cout << "\tCycle: " << it_num << endl;
+        }
+
 
     }
+    //----------------------------------------------------------------------
+    // Now delete serial mesh + partitioning array
+    delete mesh;
+    delete partitioning;
     //----------------------------------------------------------------------
     // Print mesh attributes
     if (rank == 0)
@@ -188,8 +220,6 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
     }
     //----------------------------------------------------------------------
     // Set time stuff
-    it_num = 0;
-    time = 0.0;
     dt = user_input->Getdt();
     tf = user_input->GetFinalTime();
     //----------------------------------------------------------------------
