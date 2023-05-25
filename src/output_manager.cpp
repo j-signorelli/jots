@@ -5,17 +5,17 @@ using namespace mfem;
 
 const int OutputManager::RESTART_PRECISION = 15;
 
-OutputManager::OutputManager(const int in_rank, ParFiniteElementSpace* fespace, const int fe_order, const double in_rho, const double in_Cp, const Vector& in_T_ref, const ConductivityModel* in_cond_model, const string in_output_restart_name, const bool is_restart)
+OutputManager::OutputManager(const int in_rank, ParFiniteElementSpace* fespace, const Config* user_input, const Vector& in_T_ref, const ConductivityModel* in_cond_model)
 : rank(in_rank),
   T_ref(in_T_ref),
   cond_model(in_cond_model),
-  output_restart_name(in_output_restart_name)
+  output_restart_name(user_input->GetOutputRestartFile())
 {   
     //------------------------------------------------
     // Set up ParaView outputting
     paraview_dc = new ParaViewDataCollection("ParaView", fespace->GetParMesh());
-    paraview_dc->UseRestartMode(is_restart);
-    paraview_dc->SetLevelsOfDetail(fe_order);
+    paraview_dc->UseRestartMode(user_input->UsesRestart());
+    paraview_dc->SetLevelsOfDetail(user_input->GetFEOrder());
     paraview_dc->SetDataFormat(VTKFormat::BINARY);
     paraview_dc->SetHighOrderOutput(true);
 
@@ -29,13 +29,13 @@ OutputManager::OutputManager(const int in_rank, ParFiniteElementSpace* fespace, 
 
     // Density:
     rho_gf = new ParGridFunction(fespace);
-    ConstantCoefficient rho_coeff(in_rho);
+    ConstantCoefficient rho_coeff(user_input->GetDensity());
     rho_gf->ProjectCoefficient(rho_coeff);
     paraview_dc->RegisterField("Density", rho_gf);
 
     // Specific Heat:
     Cp_gf = new ParGridFunction(fespace);
-    ConstantCoefficient Cp_coeff(in_Cp);
+    ConstantCoefficient Cp_coeff(user_input->GetCp());
     Cp_gf->ProjectCoefficient(Cp_coeff);
     paraview_dc->RegisterField("Specific_Heat", Cp_gf);
 

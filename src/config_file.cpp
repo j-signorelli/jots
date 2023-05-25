@@ -41,7 +41,7 @@ void Config::ReadFESetup()
     serial_refine = property_tree.get("FiniteElementSetup.Serial_Refine", 0);
     parallel_refine = property_tree.get("FiniteElementSetup.Parallel_Refine", 0);
     initial_temp = property_tree.get<double>("FiniteElementSetup.Initial_Temperature", 100.0);
-    input_restart_file = property_tree.get("FiniteElementSetup.Input_Restart_File", "");
+    input_restart_file = property_tree.get("FiniteElementSetup.Input_Restart_File", "restart");
 
 }
 
@@ -115,6 +115,7 @@ void Config::ReadOutput()
 {
     //Read Output
     restart_freq = property_tree.get("Output.Restart_Freq", 10);
+    output_restart_file = property_tree.get("Output.Output_Restart_File", "restart");
     vis_freq = property_tree.get("Output.Visualization_Freq", 10);
 
 }

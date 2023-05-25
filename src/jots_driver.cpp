@@ -391,7 +391,7 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
         cout << "Done!" << endl;
     //----------------------------------------------------------------------
     // Instantiate OutputManager
-    output = new OutputManager(rank, fespace, user_input->GetFEOrder(), user_input->GetDensity(), user_input->GetCp(), T, cond_model, "restart", user_input->UsesRestart());
+    output = new OutputManager(rank, fespace, user_input, T, cond_model);
 }
 
 void JOTSDriver::Run()

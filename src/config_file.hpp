@@ -51,6 +51,7 @@ class Config
         int max_iter;                 /*!< \brief Maximum solver iterations */
 
         int restart_freq;             /*!< \brief Frequency to output restart files (iterations per output) */
+        std::string output_restart_file;
         int vis_freq;                 /*!< \brief Frequency to output Paraview files (iterations per output) */
 
         void SetInputStringVector(std::string in, std::vector<std::string>& output); // Comma delineated string --> no whitespace string vector
@@ -67,25 +68,25 @@ class Config
     public:
         Config(const char* in_file);
 
-        std::string GetMeshFile() const { return mesh_file; }
+        std::string GetMeshFile() const { return mesh_file; };
 
-        int GetFEOrder() const { return fe_order; }
+        int GetFEOrder() const { return fe_order; };
 
-        int GetSerialRefine() const { return serial_refine; }
+        int GetSerialRefine() const { return serial_refine; };
 
-        int GetParallelRefine() const { return parallel_refine; }
+        int GetParallelRefine() const { return parallel_refine; };
 
-        double GetDensity() const { return density; }
+        double GetDensity() const { return density; };
         
-        double GetCp() const { return Cp; }
+        double GetCp() const { return Cp; };
 
         std::vector<std::string> GetCondInfo() const { return conductivity_info; };
         
-        bool UsesRestart() const { return use_restart; }
+        bool UsesRestart() const { return use_restart; };
 
-        std::string GetInputRestartFile() const { return input_restart_file; }
+        std::string GetInputRestartFile() const { return input_restart_file; };
 
-        double GetInitialTemp() const { return initial_temp; } 
+        double GetInitialTemp() const { return initial_temp; } ;
 
         int GetBCCount() const {return bc_count;};
 
@@ -101,9 +102,9 @@ class Config
         
         std::string GetTimeSchemeString() const;
 
-        double GetFinalTime() const { return tf; }
+        double GetFinalTime() const { return tf; };
 
-        double Getdt() const { return dt; }
+        double Getdt() const { return dt; };
 
         mfem::IterativeSolver* GetSolver(MPI_Comm comm_) const; // Returns IterativeSolver that must be deleted by caller!
 
@@ -113,15 +114,17 @@ class Config
 
         std::string GetPrecString()  const;
 
-        int GetMaxIter() const { return max_iter; }
+        int GetMaxIter() const { return max_iter; };
 
-        double GetAbsTol() const { return abs_tol; }
+        double GetAbsTol() const { return abs_tol; };
 
-        double GetRelTol() const { return rel_tol; }
+        double GetRelTol() const { return rel_tol; };
 
-        int GetRestartFreq() const { return restart_freq; }
+        int GetRestartFreq() const { return restart_freq; };
 
-        int GetVisFreq() const { return vis_freq; }
+        std::string GetOutputRestartFile() const {return output_restart_file; };
+
+        int GetVisFreq() const { return vis_freq; };
 
     protected:
 
