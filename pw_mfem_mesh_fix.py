@@ -6,7 +6,6 @@ Script to fix PW-exported MFEM mesh files
 
 from optparse import OptionParser
 
-
 def decrementIndices(line, startingIndex):
     line_arr = line.split()
 
@@ -25,7 +24,6 @@ def main():
     (options, args) = parser.parse_args()
 
 
-
     reading_elements = False
     reading_boundaries = False
 
@@ -41,19 +39,22 @@ def main():
             # Update vertex indices
 
             # If have reached blank line, continue:
-            if line == "":
+            if line == "" or line == "\n":
                 reading_elements = False
                 continue
-
+            
             w.write(decrementIndices(line,2) + "\n")
             
         elif reading_boundaries:
             # If have reached blank line, continue:
-            if line == "":
+            if line == "" or line == "\n":
                 reading_boundaries = False
                 continue
+            
+            if "vertices" in line:
+                breakpoint()
 
-            w.write(decrementIndices(line,1) + "\n")
+            w.write(decrementIndices(line,2) + "\n")
         else:
 
             if "elements" in line:
