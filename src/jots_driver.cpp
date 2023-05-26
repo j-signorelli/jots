@@ -85,7 +85,6 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
             pmesh->UniformRefinement();
         }
         //----------------------------------------------------------------------
-        // TODO: May need to remove refinement capabilities for restarts
         // Print parallel refinements
         if (rank == 0)
         {
