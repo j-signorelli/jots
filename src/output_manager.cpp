@@ -16,7 +16,9 @@ OutputManager::OutputManager(const int in_rank, ParFiniteElementSpace* fespace, 
     visit_dc->SetLevelsOfDetail(user_input->GetFEOrder());
     visit_dc->SetFormat(DataCollection::PARALLEL_FORMAT);
     visit_dc->SetPrecision(16);
-
+    #ifdef MFEM_USE_ZLIB
+        visit_dc->SetCompression(true);
+    #endif 
     //------------------------------------------------
     // Set up ParaView outputting
     paraview_dc = new ParaViewDataCollection("ParaView", fespace->GetParMesh());
