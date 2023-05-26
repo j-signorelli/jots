@@ -30,7 +30,8 @@ class Config
         std::vector<std::string> conductivity_info;
 
         bool use_restart;             /*!< \brief Boolean indicating if restart file should be loaded up as initial condition */
-        std::string input_restart_file;          /*!< \brief Restart file to load + use; only read if use_restart is true */
+        std::string restart_prefix;          /*!< \brief Restart file to load + use; only read if use_restart is true */
+        int restart_cycle;
         double initial_temp;          /*!< \brief Initial temperature field to set; only used if use_restart is false */
 
         bool with_precice;
@@ -51,7 +52,6 @@ class Config
         int max_iter;                 /*!< \brief Maximum solver iterations */
 
         int restart_freq;             /*!< \brief Frequency to output restart files (iterations per output) */
-        std::string output_restart_file;
         int vis_freq;                 /*!< \brief Frequency to output Paraview files (iterations per output) */
 
         void SetInputStringVector(std::string in, std::vector<std::string>& output); // Comma delineated string --> no whitespace string vector
@@ -84,7 +84,9 @@ class Config
         
         bool UsesRestart() const { return use_restart; };
 
-        std::string GetInputRestartFile() const { return input_restart_file; };
+        std::string GetRestartPrefix() const { return restart_prefix; };
+        
+        int GetRestartCycle() const { return restart_cycle; };
 
         double GetInitialTemp() const { return initial_temp; } ;
 
@@ -121,8 +123,6 @@ class Config
         double GetRelTol() const { return rel_tol; };
 
         int GetRestartFreq() const { return restart_freq; };
-
-        std::string GetOutputRestartFile() const {return output_restart_file; };
 
         int GetVisFreq() const { return vis_freq; };
 

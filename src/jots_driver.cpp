@@ -44,53 +44,53 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
     //----------------------------------------------------------------------
     // Create solution GF
     ParGridFunction* temp_T_gf;
-    //----------------------------------------------------------------------
-    // Create serial mesh
-    const char* mesh_file = user_input->GetMeshFile().c_str();
-    Mesh* mesh = new Mesh(mesh_file, 1);//pass one to generate edges
-    dim = mesh->Dimension();
-    //----------------------------------------------------------------------
-    // Print mesh info
-    if (rank == 0)
-    {
-        cout << "\n";
-        cout << "Mesh File: " << mesh_file << endl;
-        cout << "Problem Dimension: " << dim << endl;
-    }
-    //----------------------------------------------------------------------
-    // Refine mesh in serial
-    int ser_ref = user_input->GetSerialRefine();
-    for (int lev = 0; lev < ser_ref; lev++)
-    {
-        mesh->UniformRefinement();
-    }
-    //----------------------------------------------------------------------
-    // Print serial refinements
-    if (rank == 0)
-        cout << "Serial refinements of mesh completed: " << ser_ref << endl;
-    //----------------------------------------------------------------------
-    // Complete parallel decomposition of serial mesh + refine parallel
-    int* partitioning = mesh->GeneratePartitioning(size, 1);
 
-    pmesh = new ParMesh(MPI_COMM_WORLD, *mesh, partitioning);
-
-    int par_ref = user_input->GetParallelRefine();
-
-    for (int lev = 0; lev < par_ref; lev++)
-    {
-        pmesh->UniformRefinement();
-    }
     //----------------------------------------------------------------------
-    // TODO: May need to remove refinement capabilities for restarts
-    // Print parallel refinements
-    if (rank == 0)
-    {
-        cout << "Parallel refinements of mesh completed: " << par_ref << endl;
-    }
-    
-    // If non-restart:
+    // If not restart, refine mesh and initialize; else load VisItDataCollection
     if (!user_input->UsesRestart())
     {
+        if (rank == 0)
+            cout << "Non-restart simulation..." << endl;
+        //----------------------------------------------------------------------
+        // Create serial mesh
+        const char* mesh_file = user_input->GetMeshFile().c_str();
+        Mesh* mesh = new Mesh(mesh_file, 1);//pass one to generate edges
+        dim = mesh->Dimension();
+        //----------------------------------------------------------------------
+        // Print mesh info
+        if (rank == 0)
+        {
+            cout << "\n";
+            cout << "Mesh File: " << mesh_file << endl;
+        }
+        //----------------------------------------------------------------------
+        // Refine mesh in serial
+        int ser_ref = user_input->GetSerialRefine();
+        for (int lev = 0; lev < ser_ref; lev++)
+        {
+            mesh->UniformRefinement();
+        }
+        //----------------------------------------------------------------------
+        // Print serial refinements
+        if (rank == 0)
+            cout << "Serial refinements of mesh completed: " << ser_ref << endl;
+        //----------------------------------------------------------------------
+        // Complete parallel decomposition of serial mesh + refine parallel
+        pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
+        delete mesh;
+        int par_ref = user_input->GetParallelRefine();
+
+        for (int lev = 0; lev < par_ref; lev++)
+        {
+            pmesh->UniformRefinement();
+        }
+        //----------------------------------------------------------------------
+        // TODO: May need to remove refinement capabilities for restarts
+        // Print parallel refinements
+        if (rank == 0)
+        {
+            cout << "Parallel refinements of mesh completed: " << par_ref << endl;
+        }
         //----------------------------------------------------------------------
         // Define parallel FE space on parallel mesh
         fe_coll = new H1_FECollection(user_input->GetFEOrder(), dim);
@@ -110,63 +110,62 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
         time = 0.0;
 
         if (rank == 0)
-            cout << "Non-restart simulation --> Initial temperature field: " << user_input->GetInitialTemp() << endl;
+            cout << "Initial temperature field: " << user_input->GetInitialTemp() << endl;
 
     }
     //----------------------------------------------------------------------
     // Else using restart:
     else
     {   
-        // Read in correct file for this rank:
-        ifstream in_file;
-        stringstream sstm;
-        sstm << user_input->GetInputRestartFile() << ".dat";
-        in_file.open(sstm.str(), ios::in);
+        if (rank == 0)
+            cout << "Restart simulation..." << endl;
+        //----------------------------------------------------------------------
+        // Read in VisItDataCollection
+        VisItDataCollection temp_visit_dc(MPI_COMM_WORLD, user_input->GetRestartPrefix());
+        temp_visit_dc.Load(user_input->GetRestartCycle());
 
-        string temp;
+        if (temp_visit_dc.Error())
+            MFEM_ABORT("Unable to load restart data collection");
+        
+        //----------------------------------------------------------------------
+        // Get the parallel mesh
+        pmesh = dynamic_cast<ParMesh*>(temp_visit_dc.GetMesh());
+        dim = pmesh->Dimension();
 
-        // Get the time
-        getline(in_file, temp);
-        //mfem::filter_dos(temp);
-        stringstream(temp) >> time;
-
-        // Get cycles
-        getline(in_file, temp);
-        //mfem::filter_dos(temp);
-        stringstream(temp) >> it_num;
-
-        // Create serial grid function on all ranks
-        GridFunction temp_serial_gf(mesh, in_file);
-
-        // Create ParGridFunction specific to this rank, and ensure that data is copied, since GridFunction will cease to exist soon
-        temp_T_gf = new ParGridFunction(pmesh, &temp_serial_gf, partitioning);
-
+        //----------------------------------------------------------------------
+        // Get the temperature grid function
+        temp_T_gf = temp_visit_dc.GetParField("Temperature");
 
         // Take ownership of fe_coll and fespace (See MakeOwner docs)
         fe_coll = temp_T_gf->OwnFEC();
         fespace = temp_T_gf->ParFESpace();
         temp_T_gf->MakeOwner(NULL);
 
-        in_file.close();
+        // Now take ownership of mesh and temperature field
+        // NOTE: If any further fields are added to restarts, they MUST be taken and deallocated here!!!!!
+        // temp_T_gf deallocated below
+        // pmesh deallocated in destructor
+        
+        temp_visit_dc.SetOwnData(false);
+
+        // Set the it_num and time
+        it_num = temp_visit_dc.GetCycle();
+        time = temp_visit_dc.GetTime();
+
 
         if (rank == 0)
         {
-            cout << "Restarted simulation --> Input Restart Directory: " << user_input->GetInputRestartFile() << endl;
+            cout << "Input Restart Root: " << user_input->GetRestartPrefix() << "_" << user_input->GetRestartCycle() << endl;
             cout << "\tTime: " << time << endl;
             cout << "\tCycle: " << it_num << endl;
         }
-
-
     }
-    //----------------------------------------------------------------------
-    // Now delete serial mesh + partitioning array
-    delete mesh;
-    delete partitioning;
     //----------------------------------------------------------------------
     // Print mesh attributes
     if (rank == 0)
     {
-    cout << "Mesh Boundary Attributes: <";
+        cout << "Problem Dimension: " << dim << endl;
+        cout << "Mesh Boundary Attributes: <";
         for (int i = 0; i < pmesh->bdr_attributes.Size(); i++)
         {
             if (i != 0)

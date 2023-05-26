@@ -9,6 +9,7 @@ class OutputManager
 {
     private:
         const static int RESTART_PRECISION;
+        mfem::VisItDataCollection* visit_dc;
         mfem::ParaViewDataCollection* paraview_dc;
         mfem::ParGridFunction* rho_gf;
         mfem::ParGridFunction* Cp_gf;
@@ -20,7 +21,6 @@ class OutputManager
 
         const mfem::Vector& T_ref;
         const ConductivityModel* cond_model; // Not allocated here
-        const std::string output_restart_name;
 
         void UpdateGridFunctions();
 

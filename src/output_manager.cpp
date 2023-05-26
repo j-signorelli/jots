@@ -3,14 +3,20 @@
 using namespace std;
 using namespace mfem;
 
-const int OutputManager::RESTART_PRECISION = 15;
+//const int OutputManager::RESTART_PRECISION = 16;
 
 OutputManager::OutputManager(const int in_rank, ParFiniteElementSpace* fespace, const Config* user_input, const Vector& in_T_ref, const ConductivityModel* in_cond_model)
 : rank(in_rank),
   T_ref(in_T_ref),
-  cond_model(in_cond_model),
-  output_restart_name(user_input->GetOutputRestartFile())
+  cond_model(in_cond_model)
 {   
+    //------------------------------------------------
+    // Set up VisIt outputting (restarts)
+    visit_dc = new VisItDataCollection(user_input->GetRestartPrefix(), fespace->GetParMesh());
+    visit_dc->SetLevelsOfDetail(user_input->GetFEOrder());
+    visit_dc->SetFormat(DataCollection::PARALLEL_FORMAT);
+    visit_dc->SetPrecision(16);
+
     //------------------------------------------------
     // Set up ParaView outputting
     paraview_dc = new ParaViewDataCollection("ParaView", fespace->GetParMesh());
@@ -49,7 +55,7 @@ OutputManager::OutputManager(const int in_rank, ParFiniteElementSpace* fespace, 
     T_gf = new ParGridFunction(fespace);
     T_gf->SetFromTrueDofs(T_ref);
     paraview_dc->RegisterField("Temperature", T_gf);
-
+    visit_dc->RegisterField("Temperature", T_gf);
 }
 
 void OutputManager::UpdateGridFunctions()
@@ -74,23 +80,14 @@ void OutputManager::WriteVizOutput(const int it_num, const double time)
 void OutputManager::WriteRestartOutput(const int it_num, const double time)
 {
     UpdateGridFunctions();
-
-    ofstream out_file;
-    out_file << fixed << setprecision(RESTART_PRECISION);
-
-    stringstream sstm;
-    sstm << output_restart_name << "_" << it_num << ".dat";
-    out_file.open(sstm.str(), ios::out);
-    out_file << time << endl;
-    out_file << it_num << endl;
-    // Only save T_gf to restart
-    T_gf->SaveAsOne(out_file);
-    
-    out_file.close();
+    visit_dc->SetCycle(it_num);
+    visit_dc->SetTime(time);
+    visit_dc->Save();
 }
 
 OutputManager::~OutputManager()
 {
+    delete visit_dc;
     delete paraview_dc;
     delete rho_gf;
     delete Cp_gf;
