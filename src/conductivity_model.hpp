@@ -17,11 +17,12 @@ class ConductivityModel
         mfem::Coefficient* GetCoeffPtr() const { return coeff; };
 
         virtual bool IsConstant() const = 0; // true if dk_dt = 0
-        virtual void InitCoefficient() = 0;
         virtual void UpdateCoeff() = 0;
 
         virtual std::string GetInitString() const = 0;
-        virtual double GetLocalConductivity(const mfem::ElementTransformation& transf, const mfem::IntegrationPoint& ip) const = 0;
+
+        // Note that transf.SetIntPoint(ip) must have been called prior to this call
+        virtual double GetLocalConductivity(mfem::ElementTransformation& transf, const mfem::IntegrationPoint& ip) const { return coeff->Eval(transf, ip); };
         ~ConductivityModel() { delete coeff; };
 };
 
@@ -31,13 +32,14 @@ class UniformCond : public ConductivityModel
         double k;
     protected:
     public:
-        UniformCond(double in_k) : ConductivityModel(CONDUCTIVITY_MODEL::UNIFORM), k(in_k) {};
+        UniformCond(double in_k) : ConductivityModel(CONDUCTIVITY_MODEL::UNIFORM), k(in_k) { coeff = new mfem::ConstantCoefficient(k); };
         bool IsConstant() const { return true; }
-        void InitCoefficient() { coeff = new mfem::ConstantCoefficient(k); };
         void UpdateCoeff() {};
 
         std::string GetInitString() const;
-        double GetLocalConductivity(const mfem::ElementTransformation& transf, const mfem::IntegrationPoint& ip) const { return k; };
+        
+        // Override default for speed - constant everywhere
+        double GetLocalConductivity(mfem::ElementTransformation& transf, const mfem::IntegrationPoint& ip) const override { return k; };
 };
 /*
 class LinearizedCond : public ConductivityModel

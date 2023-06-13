@@ -97,9 +97,6 @@ void ConductionOperator::PreprocessStiffness()
    // Assemble the parallel bilinear form for stiffness matrix
    k = new ParBilinearForm(&fespace);
 
-   // Initialize conductivity model coefficient
-   cond_model->InitCoefficient();
-
    // Add domain integrator to the bilinear form with the cond_model coeff
    k->AddDomainIntegrator(new DiffusionIntegrator(*cond_model->GetCoeffPtr()));
    
