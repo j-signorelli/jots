@@ -179,7 +179,7 @@ string Config::GetSolverString() const
             return "GMRES";
             break;
         case SOLVER::FGMRES:
-            return "FMGRES";
+            return "FGMRES";
             break;
     }
 
