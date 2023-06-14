@@ -477,6 +477,8 @@ void JOTSDriver::Run()
         // Leave solver if time now greater than tf
         if (time > tf && abs(time-tf) > TIME_TOLERANCE)
             continue;
+        // TODO: ^Should this be moved below if statement below?
+        
 
         if (user_input->UsingPrecice())
         {
