@@ -233,10 +233,15 @@ void ConductionOperator::SetThermalConductivities(const Vector &u)
       delete K;
       delete K_e;
 
+      K_full = NULL;
+      K = NULL;
+      K_e = NULL;
+
+
       k->Update(); // delete old data (M and M_e)
 
       // Update coefficient
-      cond_model->UpdateCoeff();
+      cond_model->UpdateCoeff(u);
 
       k->Assemble(0);
       k->Finalize(0);

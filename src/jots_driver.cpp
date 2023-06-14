@@ -190,10 +190,18 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
     //----------------------------------------------------------------------
     // Create ConductivityModel object
     vector<string> cond_info = user_input->GetCondInfo();
+    vector<double> poly_coeffs;
     switch (Conductivity_Model_Map.at(cond_info[0]))
     {
         case CONDUCTIVITY_MODEL::UNIFORM: // Uniform conductivity
             cond_model = new UniformCond(stod(cond_info[1].c_str()));
+            break;
+        case CONDUCTIVITY_MODEL::POLYNOMIAL: // Polynomial model for conductivity
+
+            for (int i = 1; i < cond_info.size(); i++)
+                poly_coeffs.push_back(stod(cond_info[i].c_str()));
+
+            cond_model = new PolynomialCond(poly_coeffs, *fespace);
             break;
         default:
             MFEM_ABORT("Unknown/Invalid thermal conductivity model specified");
@@ -413,8 +421,6 @@ void JOTSDriver::Run()
     // Output IC as ParaView
     if (it_num == 0)
     {
-        //if (rank == 0)
-        //    cout << LINE << endl << "Saving Paraview Data: Initial Condition" << it_num << endl << LINE << endl;
         output->WriteVizOutput(it_num, time);
     }
 
@@ -499,8 +505,7 @@ void JOTSDriver::Run()
         {
             printf("Step #%10i || Time: %1.6e out of %-1.6e || dt: %1.6e \n", it_num, time, tf, dt);
                 
-        }    //|| Rank 0 Max Temperature: %10.3g \n", it_num, time, tf,  dt, T.Max());
-            //cout << "Step #" << it_num << " || t = " << time << "||" << "Rank 0 Max T: " << T.Max() << endl;
+        }
         
         // Check if blew up
         if (T.Max() > 1e10)

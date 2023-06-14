@@ -236,7 +236,7 @@ void PreciceBC::GetBdrWallHeatFlux(const mfem::ParGridFunction* T_gf, const Cond
             T_gf->GetGradient(*transf, grad_T);
 
             // Get local thermal conductivity (NOTE: assumed here again of isotropic thermal conductivity)
-            double k = in_cond->GetLocalConductivity(*transf, ip);
+            double k = in_cond->GetLocalConductivity(T_gf->GetValue(*transf, ip));
 
             // Calculate + set value of heat
             nodal_wall_heatfluxes[nodal_index] = - k * (grad_T * normal) / normal.Norml2();

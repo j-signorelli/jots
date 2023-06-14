@@ -20,13 +20,13 @@ class OutputManager
         const int rank;
 
         const mfem::Vector& T_ref;
-        const ConductivityModel* cond_model; // Not allocated here
+        ConductivityModel* cond_model; // Not allocated here. Not constant because must update for most recent k, see UpdateGridFunctions
 
         void UpdateGridFunctions();
 
     protected:
     public:
-        OutputManager(const int in_rank, mfem::ParFiniteElementSpace* fespace, const Config* user_input, const mfem::Vector& in_T_ref, const ConductivityModel* in_cond_model);
+        OutputManager(const int in_rank, mfem::ParFiniteElementSpace* fespace, const Config* user_input, const mfem::Vector& in_T_ref, ConductivityModel* in_cond_model);
         void WriteVizOutput(const int it_num, const double time);
         void WriteRestartOutput(const int it_num, const double time);
         static std::tuple<double, double> GetTimeCyclesFromRestart(const std::string restart_info_line); // This must be consistent with how they are outputted

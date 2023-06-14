@@ -1,5 +1,7 @@
 #pragma once
 #include <sstream>
+#include <vector>
+#include <cmath>
 
 #include "mfem/mfem.hpp"
 
@@ -17,12 +19,12 @@ class ConductivityModel
         mfem::Coefficient* GetCoeffPtr() const { return coeff; };
 
         virtual bool IsConstant() const = 0; // true if dk_dt = 0
-        virtual void UpdateCoeff() = 0;
+        virtual void UpdateCoeff(const mfem::Vector& T_ref) = 0;
 
         virtual std::string GetInitString() const = 0;
 
-        // Note that transf.SetIntPoint(ip) must have been called prior to this call
-        virtual double GetLocalConductivity(mfem::ElementTransformation& transf, const mfem::IntegrationPoint& ip) const { return coeff->Eval(transf, ip); };
+        virtual double GetLocalConductivity(double temp) const = 0;
+
         ~ConductivityModel() { delete coeff; };
 };
 
@@ -34,26 +36,27 @@ class UniformCond : public ConductivityModel
     public:
         UniformCond(double in_k) : ConductivityModel(CONDUCTIVITY_MODEL::UNIFORM), k(in_k) { coeff = new mfem::ConstantCoefficient(k); };
         bool IsConstant() const { return true; }
-        void UpdateCoeff() {};
+        void UpdateCoeff(const mfem::Vector& T_ref) {};
 
         std::string GetInitString() const;
         
-        // Override default for speed - constant everywhere
-        double GetLocalConductivity(mfem::ElementTransformation& transf, const mfem::IntegrationPoint& ip) const override { return k; };
+        double GetLocalConductivity(double temp) const { return k; };
 };
-/*
-class LinearizedCond : public ConductivityModel
-{
+
+class PolynomialCond : public ConductivityModel
+{   
     private:
-        double k;
-        double alpha;
-        As similarly done for sinusoidal BCs, send reference to solution vector in constructor.
     protected:
+        const std::vector<double> poly_coeffs;
+        mfem::ParGridFunction* T_gf;
+        mfem::ParGridFunction* k_gf;
+
     public:
-        LinearizedCond(double in_k, double in_alpha) : ConductivityModel(CONDUCTIVITY_MODEL::LINEARIZED), k(in_k), alpha(in_alpha) {};
-        double Getk() const { return k; };
-        double Getalpha() const { return alpha; };
-        mfem::Coefficient* GetCoefficient(mfem::ParFiniteElementSpace* fespace, const mfem::Vector &u) const;
-        bool IsConstant() const { return false; } //dk_dt != 0
+        PolynomialCond(const std::vector<double> in_poly_coeffs, mfem::ParFiniteElementSpace& f);
+        bool IsConstant() const { return false; };
+        void UpdateCoeff(const mfem::Vector& T_ref);
+
+        std::string GetInitString() const;
+        double GetLocalConductivity(double temp) const;
+        ~PolynomialCond() { delete T_gf; delete k_gf; };
 };
-*/
