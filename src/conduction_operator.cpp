@@ -303,6 +303,10 @@ void ConductionOperator::ImplicitSolve(const double dt,
    //    du_dt = M^{-1}*[-K(u + dt*du_dt)]
    // for du_dt, where K is linearized by using u from the previous timestep
 
+   // Deallocate any previous A, A_e
+   delete A;
+   delete A_e;
+
    // Calculate RHS pre-essential update
    CalculateRHS(u);
 
