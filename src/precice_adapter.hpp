@@ -4,7 +4,7 @@
 #include "precice/SolverInterface.hpp"
 
 #include "boundary_condition.hpp"
-#include "conductivity_model.hpp"
+#include "material_property.hpp"
 
 class PreciceAdapter
 {
@@ -36,7 +36,7 @@ class PreciceAdapter
 
         void GetReadData();
 
-        void WriteData(const mfem::Vector T, const ConductivityModel* cond_model);
+        void WriteData(const mfem::Vector T, const MaterialProperty* k_prop);
 
         void SaveOldState(const mfem::Vector T);
 

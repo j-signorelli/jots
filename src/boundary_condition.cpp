@@ -177,14 +177,14 @@ void PreciceBC::UpdateCoeff()
     }
 }
 
-void PreciceIsothermalBC::RetrieveWriteData(const mfem::Vector T, const ConductivityModel* cond_model)
+void PreciceIsothermalBC::RetrieveWriteData(const mfem::Vector T, const MaterialProperty* k_prop)
 {
     temp_gf->SetFromTrueDofs(T);
-    GetBdrWallHeatFlux(temp_gf, cond_model, bdr_elem_indices, write_data_arr);
+    GetBdrWallHeatFlux(temp_gf, k_prop, bdr_elem_indices, write_data_arr);
 }
 
 
-void PreciceHeatFluxBC::RetrieveWriteData(const mfem::Vector T, const ConductivityModel* cond_model)
+void PreciceHeatFluxBC::RetrieveWriteData(const mfem::Vector T, const MaterialProperty* k_prop)
 {
     temp_gf->SetFromTrueDofs(T);
     GetBdrTemperatures(temp_gf, bdr_elem_indices, write_data_arr);
@@ -218,7 +218,7 @@ void PreciceBC::GetBdrTemperatures(const ParGridFunction* T_gf, const Array<int>
     }
 }
 
-void PreciceBC::GetBdrWallHeatFlux(const mfem::ParGridFunction* T_gf, const ConductivityModel* in_cond, const mfem::Array<int> in_bdr_elem_indices, double* nodal_wall_heatfluxes)
+void PreciceBC::GetBdrWallHeatFlux(const mfem::ParGridFunction* T_gf, const MaterialProperty* k_prop, const mfem::Array<int> in_bdr_elem_indices, double* nodal_wall_heatfluxes)
 {
 
     ParFiniteElementSpace* fespace = T_gf->ParFESpace();
@@ -250,10 +250,10 @@ void PreciceBC::GetBdrWallHeatFlux(const mfem::ParGridFunction* T_gf, const Cond
             T_gf->GetGradient(*transf, grad_T);
 
             // Get local thermal conductivity (NOTE: assumed here again of isotropic thermal conductivity)
-            double k = in_cond->GetLocalConductivity(T_gf->GetValue(*transf, ip));
+            double k_loc = k_prop->GetLocalValue(T_gf->GetValue(*transf, ip));
 
             // Calculate + set value of heat
-            nodal_wall_heatfluxes[nodal_index] = - k * (grad_T * normal) / normal.Norml2();
+            nodal_wall_heatfluxes[nodal_index] = - k_loc * (grad_T * normal) / normal.Norml2();
 
 
             nodal_index++;

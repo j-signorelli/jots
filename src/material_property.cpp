@@ -1,19 +1,19 @@
-#include "conductivity_model.hpp"
+#include "material_property.hpp"
 
 using namespace std;
 using namespace mfem;
 
-string UniformCond::GetInitString() const
+string UniformProperty::GetInitString() const
 {
     stringstream sstm;
-    sstm << "Uniform --- k = " << k;
+    sstm << "Uniform --- Value = " << k;
     return sstm.str();
 }
 
-string PolynomialCond::GetInitString() const
+string PolynomialProperty::GetInitString() const
 {
     stringstream sstm;
-    sstm << "Polynomial --- k = ";
+    sstm << "Polynomial --- Value = ";
     int exp = 0;
     for (int i = 0; i < poly_coeffs.size(); i++)
     {   
@@ -27,8 +27,8 @@ string PolynomialCond::GetInitString() const
     return sstm.str();
 }
 
-PolynomialCond::PolynomialCond(const std::vector<double> in_poly_coeffs, ParFiniteElementSpace& f) 
-: ConductivityModel(CONDUCTIVITY_MODEL::POLYNOMIAL), 
+PolynomialProperty::PolynomialProperty(const std::vector<double> in_poly_coeffs, ParFiniteElementSpace& f) 
+: MaterialProperty(MATERIAL_MODEL::POLYNOMIAL), 
   poly_coeffs(in_poly_coeffs)
 {
     k_gf = new ParGridFunction(&f);
@@ -36,7 +36,7 @@ PolynomialCond::PolynomialCond(const std::vector<double> in_poly_coeffs, ParFini
     coeff = new GridFunctionCoefficient(k_gf);
 }
 
-void PolynomialCond::UpdateCoeff(const mfem::Vector& T_ref)
+void PolynomialProperty::UpdateCoeff(const mfem::Vector& T_ref)
 {   
     // auxiliary PGFs
     ParGridFunction T_gf(k_gf->ParFESpace());
@@ -54,7 +54,7 @@ void PolynomialCond::UpdateCoeff(const mfem::Vector& T_ref)
     }
 }
 
-double PolynomialCond::GetLocalConductivity(double temp) const
+double PolynomialProperty::GetLocalValue(double temp) const
 {
     double k = 0;
     for (int i = 0; i < poly_coeffs.size(); i++)

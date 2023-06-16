@@ -3,7 +3,7 @@
 #include "mfem.hpp"
 
 #include "config_file.hpp"
-#include "conductivity_model.hpp"
+#include "material_property.hpp"
 
 class OutputManager
 {
@@ -25,7 +25,7 @@ class OutputManager
 
     protected:
     public:
-        OutputManager(const int in_rank, mfem::ParFiniteElementSpace* fespace, const Config* user_input, const mfem::Vector& in_T_ref, const ConductivityModel* in_cond);
+        OutputManager(const int in_rank, mfem::ParFiniteElementSpace* fespace, const Config* user_input, const mfem::Vector& in_T_ref, const MaterialProperty* k_prop);
         void WriteVizOutput(const int it_num, const double time);
         void WriteRestartOutput(const int it_num, const double time);
 

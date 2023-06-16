@@ -12,7 +12,7 @@ using namespace std;
  *
  *  Class ConductionOperator represents the right-hand side of the above ODE.
  */
-ConductionOperator::ConductionOperator(const Config* in_config, const BoundaryCondition* const* in_bcs, Array<int>* all_bdr_attr_markers, const ConductivityModel* in_cond, ParFiniteElementSpace &f, double t_0)
+ConductionOperator::ConductionOperator(const Config* in_config, const BoundaryCondition* const* in_bcs, Array<int>* all_bdr_attr_markers, const MaterialProperty* k_prop, ParFiniteElementSpace &f, double t_0)
    :  TimeDependentOperator(f.GetTrueVSize(), t_0),
       fespace(f),
       impl_solver(NULL),
@@ -34,7 +34,7 @@ ConductionOperator::ConductionOperator(const Config* in_config, const BoundaryCo
 
    PreprocessBCs(in_config, in_bcs, all_bdr_attr_markers);
    
-   PreprocessStiffness(in_cond);
+   PreprocessStiffness(k_prop);
 
    PreprocessSolver(in_config);
 
@@ -72,14 +72,14 @@ void ConductionOperator::PreprocessBCs(const Config* in_config, const BoundaryCo
    UpdateNeumannTerm();
 }
 
-void ConductionOperator::PreprocessStiffness(const ConductivityModel* in_cond)
+void ConductionOperator::PreprocessStiffness(const MaterialProperty* k_prop)
 {  
 
    // Assemble the parallel bilinear form for stiffness matrix
    k = new ParBilinearForm(&fespace);
 
    // Add domain integrator to the bilinear form with the cond_model coeff
-   k->AddDomainIntegrator(new DiffusionIntegrator(in_cond->GetCoeffRef()));
+   k->AddDomainIntegrator(new DiffusionIntegrator(k_prop->GetCoeffRef()));
    
    // Initialize stiffness data structures
    UpdateStiffness();

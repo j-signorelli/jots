@@ -7,7 +7,7 @@
 #include "option_structure.hpp"
 #include "config_file.hpp"
 #include "conduction_operator.hpp"
-#include "conductivity_model.hpp"
+#include "material_property.hpp"
 #include "precice_adapter.hpp"
 #include "output_manager.hpp"
 
@@ -32,7 +32,8 @@ class JOTSDriver
         BoundaryCondition** boundary_conditions;
         Array<int>* all_bdr_attr_markers;
         
-        ConductivityModel* cond_model;
+        MaterialProperty* k_prop;
+        MaterialProperty* C_prop;
 
         mfem::ODESolver* ode_solver;
         mfem::ParMesh* pmesh;

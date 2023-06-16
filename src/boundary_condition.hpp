@@ -6,7 +6,7 @@
 #include "precice/SolverInterface.hpp"
 
 #include "option_structure.hpp"
-#include "conductivity_model.hpp"
+#include "material_property.hpp"
 
 // Auxiliary class to prevent circular dependence, as PreciceAdapter is friend of PreciceBC
 class PreciceAdapter;
@@ -147,14 +147,14 @@ class PreciceBC : public BoundaryCondition
     
 
         static void GetBdrTemperatures(const mfem::ParGridFunction* T_gf, const mfem::Array<int> in_bdr_elem_indices, double* nodal_temperatures); // Precondition: in_bdr_elem_indices length is correct
-        static void GetBdrWallHeatFlux(const mfem::ParGridFunction* T_gf, const ConductivityModel* in_cond, const mfem::Array<int> in_bdr_elem_indices, double* nodal_wall_heatfluxes); // Precondition same above
+        static void GetBdrWallHeatFlux(const mfem::ParGridFunction* T_gf, const MaterialProperty* k_prop, const mfem::Array<int> in_bdr_elem_indices, double* nodal_wall_heatfluxes); // Precondition same above
         mutable mfem::ParGridFunction* temp_gf;
     public:
         PreciceBC(const int attr, const BOUNDARY_CONDITION in_type, mfem::ParFiniteElementSpace& f, const std::string in_mesh, const double in_value, const std::string in_read, const std::string in_write);
         bool IsConstant() const { return false; };
         void UpdateCoeff();
 
-        virtual void RetrieveWriteData(const mfem::Vector T, const ConductivityModel* cond_model) = 0;
+        virtual void RetrieveWriteData(const mfem::Vector T, const MaterialProperty* k_prop) = 0;
 
 
         virtual bool IsEssential() const = 0;
@@ -171,7 +171,7 @@ class PreciceIsothermalBC : public PreciceBC
     protected:
     public:
         PreciceIsothermalBC(const int attr, mfem::ParFiniteElementSpace& f, const std::string in_mesh, const double in_value) : PreciceBC(attr, BOUNDARY_CONDITION::PRECICE_ISOTHERMAL, f, in_mesh, in_value, "Temperature", "Heat-Flux") {};
-        void RetrieveWriteData(const mfem::Vector T, const ConductivityModel* cond_model);
+        void RetrieveWriteData(const mfem::Vector T, const MaterialProperty* k_prop);
         std::string GetInitString() const;
 
         bool IsEssential() const { return true; };
@@ -185,7 +185,7 @@ class PreciceHeatFluxBC : public PreciceBC
 
     public:
         PreciceHeatFluxBC(const int attr, mfem::ParFiniteElementSpace& f, const std::string in_mesh, const double in_value) : PreciceBC(attr, BOUNDARY_CONDITION::PRECICE_HEATFLUX, f, in_mesh, in_value, "Heat-Flux", "Temperature") {};
-        void RetrieveWriteData(const mfem::Vector T, const ConductivityModel* cond_model);
+        void RetrieveWriteData(const mfem::Vector T, const MaterialProperty* k_prop);
         std::string GetInitString() const;
 
         bool IsEssential() const { return false; };

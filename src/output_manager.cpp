@@ -5,10 +5,10 @@ using namespace mfem;
 
 //const int OutputManager::RESTART_PRECISION = 16;
 
-OutputManager::OutputManager(const int in_rank, ParFiniteElementSpace* fespace, const Config* user_input, const Vector& in_T_ref, const ConductivityModel* in_cond)
+OutputManager::OutputManager(const int in_rank, ParFiniteElementSpace* fespace, const Config* user_input, const Vector& in_T_ref, const MaterialProperty* k_prop)
 : rank(in_rank),
   T_ref(in_T_ref),
-  k_coeff(in_cond->GetCoeffRef())
+  k_coeff(k_prop->GetCoeffRef())
 {   
     //------------------------------------------------
     // Set up VisIt outputting (restarts)

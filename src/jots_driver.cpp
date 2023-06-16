@@ -13,7 +13,8 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
   adapter(nullptr),
   user_input(nullptr),
   boundary_conditions(nullptr),
-  cond_model(nullptr),
+  k_prop(nullptr),
+  C_prop(nullptr),
   ode_solver(nullptr),
   pmesh(nullptr),
   fe_coll(nullptr),
@@ -189,20 +190,20 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
         cout << "Specific Heat Cp: " << user_input->GetCp() << endl;
     }
     //----------------------------------------------------------------------
-    // Create ConductivityModel object
+    // Create MaterialProperty object for conductivity
     vector<string> cond_info = user_input->GetCondInfo();
     vector<double> poly_coeffs;
-    switch (Conductivity_Model_Map.at(cond_info[0]))
+    switch (Material_Model_Map.at(cond_info[0]))
     {
-        case CONDUCTIVITY_MODEL::UNIFORM: // Uniform conductivity
-            cond_model = new UniformCond(stod(cond_info[1].c_str()));
+        case MATERIAL_MODEL::UNIFORM: // Uniform conductivity
+            k_prop = new UniformProperty(stod(cond_info[1].c_str()));
             break;
-        case CONDUCTIVITY_MODEL::POLYNOMIAL: // Polynomial model for conductivity
+        case MATERIAL_MODEL::POLYNOMIAL: // Polynomial model for conductivity
 
             for (int i = 1; i < cond_info.size(); i++)
                 poly_coeffs.push_back(stod(cond_info[i].c_str()));
 
-            cond_model = new PolynomialCond(poly_coeffs, *fespace);
+            k_prop = new PolynomialProperty(poly_coeffs, *fespace);
             break;
         default:
             MFEM_ABORT("Unknown/Invalid thermal conductivity model specified");
@@ -211,7 +212,7 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
     //----------------------------------------------------------------------
     // Print conductivity model info
     if (rank == 0)
-        cout << "Thermal Conductivity Model: " << cond_model->GetInitString() << endl;
+        cout << "Thermal Conductivity Model: " << k_prop->GetInitString() << endl;
     //----------------------------------------------------------------------
     // Set ODE time integrator
     ode_solver = user_input->GetODESolver();
@@ -402,12 +403,12 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
         cout << LINE << endl;
         cout << "Initializing operator... ";
     }
-    oper = new ConductionOperator(user_input, boundary_conditions, all_bdr_attr_markers, cond_model, *fespace, time);
+    oper = new ConductionOperator(user_input, boundary_conditions, all_bdr_attr_markers, k_prop, *fespace, time);
     if (rank == 0)
         cout << "Done!" << endl;
     //----------------------------------------------------------------------
     // Instantiate OutputManager
-    output = new OutputManager(rank, fespace, user_input, T, cond_model);
+    output = new OutputManager(rank, fespace, user_input, T, k_prop);
 }
 
 void JOTSDriver::Run()
@@ -450,7 +451,7 @@ void JOTSDriver::Run()
         precice_dt = adapter->Interface()->initialize();
         if (adapter->Interface()->isActionRequired(PreciceAdapter::cowid))
         {
-            adapter->WriteData(T, cond_model);
+            adapter->WriteData(T, k_prop);
             adapter->Interface()->markActionFulfilled(PreciceAdapter::cowid);
         }
         adapter->Interface()->initializeData();
@@ -504,7 +505,7 @@ void JOTSDriver::Run()
         if (user_input->UsingPrecice())
         {
             if (adapter->Interface()->isWriteDataRequired(dt))
-                adapter->WriteData(T, cond_model);
+                adapter->WriteData(T, k_prop);
 
             // Advance preCICE
             adapter->Interface()->advance(dt);
@@ -574,15 +575,15 @@ void JOTSDriver::Run()
 
 void JOTSDriver::UpdateMatProps()
 {
-    if (!cond_model->IsConstant())
-        cond_model->UpdateCoeff(T); // Update k coefficient
+    if (!k_prop->IsConstant())
+        k_prop->UpdateCoeff(T); // Update k coefficient
 }
 
 void JOTSDriver::PreprocessIteration()
 {
 
     // If conductivity not constant, it may have changed -> Update stiffness BLF
-    if (!cond_model->IsConstant())
+    if (!k_prop->IsConstant())
         oper->UpdateStiffness();
 
     // Update time-dependent/non-constant boundary condition coefficients
@@ -628,7 +629,8 @@ void JOTSDriver::PreprocessIteration()
 JOTSDriver::~JOTSDriver()
 {
     delete adapter;
-    delete cond_model;
+    delete k_prop;
+    delete C_prop;
     for (size_t i = 0; i < user_input->GetBCCount(); i++)
         delete boundary_conditions[i];
     delete[] boundary_conditions;
