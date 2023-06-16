@@ -28,7 +28,6 @@ class OutputManager
         OutputManager(const int in_rank, mfem::ParFiniteElementSpace* fespace, const Config* user_input, const mfem::Vector& in_T_ref, const ConductivityModel* in_cond);
         void WriteVizOutput(const int it_num, const double time);
         void WriteRestartOutput(const int it_num, const double time);
-        static std::tuple<double, double> GetTimeCyclesFromRestart(const std::string restart_info_line); // This must be consistent with how they are outputted
 
         ~OutputManager();
 };

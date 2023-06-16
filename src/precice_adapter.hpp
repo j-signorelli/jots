@@ -34,8 +34,6 @@ class PreciceAdapter
         
         precice::SolverInterface* Interface() { return interface; };
 
-        void WriteInitialData(const mfem::Vector T, const ConductivityModel* cond_model);
-
         void GetReadData();
 
         void WriteData(const mfem::Vector T, const ConductivityModel* cond_model);
