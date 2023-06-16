@@ -62,10 +62,10 @@ OutputManager::OutputManager(const int in_rank, ParFiniteElementSpace* fespace, 
 
 void OutputManager::UpdateGridFunctions()
 {
-    // Update temperature GF right off the bat
+    // Update temperature GF
     T_gf->SetFromTrueDofs(T_ref);
 
-    // Update thermal conductivity
+    // Update thermal conductivity GF
     k_gf->ProjectCoefficient(k_coeff);
 
 }
