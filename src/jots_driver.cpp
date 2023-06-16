@@ -563,7 +563,16 @@ void JOTSDriver::Run()
 void JOTSDriver::UpdateMatProps()
 {
     if (!cond_model->IsConstant())
-        cond_model->UpdateCoeff(T);
+        cond_model->UpdateCoeff(T); // Update k coefficient
+}
+
+void JOTSDriver::PreprocessIteration()
+{
+    // Update BCs
+
+    // If conductivity not constant, it may have changed -> Update stiffness
+    if (!cond_model->IsConstant())
+        oper->UpdateStiffness();
 }
 
 JOTSDriver::~JOTSDriver()

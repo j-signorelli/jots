@@ -100,10 +100,8 @@ void ConductionOperator::PreprocessStiffness(const ConductivityModel* in_cond)
    // Add domain integrator to the bilinear form with the cond_model coeff
    k->AddDomainIntegrator(new DiffusionIntegrator(in_cond->GetCoeffRef()));
    
-   // Finalize
-   k->Assemble(0);
-   k->Finalize(0);
-
+   // Initialize stiffness data structures
+   UpdateStiffness();
 }
 
 void ConductionOperator::PreprocessSolver()
@@ -172,9 +170,6 @@ void ConductionOperator::PreprocessIteration(Vector &u)
    // Apply BCs
    ApplyBCs(u);
 
-   //Update stiffness matrix K
-   UpdateStiffness();
-
 }
 
 void ConductionOperator::ApplyBCs(Vector &u)
@@ -226,35 +221,27 @@ void ConductionOperator::ApplyBCs(Vector &u)
 void ConductionOperator::UpdateStiffness()
 {    
 
-   if (!constant_cond_model) // If coefficient changes in time
-   {  
+   delete K_full;
+   delete K;
+   delete K_e;
 
-      delete K_full;
-      delete K;
-      delete K_e;
-
-      K_full = NULL;
-      K = NULL;
-      K_e = NULL;
+   K_full = NULL;
+   K = NULL;
+   K_e = NULL;
 
 
-      k->Update(); // delete old data (M and M_e)
+   k->Update(); // delete old data (M and M_e) if conductivity changed
 
-      k->Assemble(0);
-      k->Finalize(0);
+   k->Assemble(0);
+   k->Finalize(0);
 
-   }
+   // Create full stiffness matrix w/o removed essential DOFs
+   K_full = k->ParallelAssemble();
+   K = new HypreParMatrix(*K_full);
 
-   if (!K) // For constant k, this is still called on first timestep to initialize matrices
-   {
-      // Create full stiffness matrix w/o removed essential DOFs
-      K_full = k->ParallelAssemble();
-      K = new HypreParMatrix(*K_full);
+   // Create stiffness matrix w/ removed essential DOFs
+   K_e = k->ParallelEliminateTDofs(ess_tdof_list, *K);
 
-      // Create stiffness matrix w/ removed essential DOFs
-      K_e = k->ParallelEliminateTDofs(ess_tdof_list, *K);
-
-   }
 
 }
 

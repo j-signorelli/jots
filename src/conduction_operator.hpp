@@ -62,9 +62,6 @@ protected:
    // Apply the given boundary conditions
    void ApplyBCs(Vector &u);
 
-   /// Update the diffusion BilinearForm K
-   void UpdateStiffness();
-
    void CalculateRHS(const Vector &u) const;
 
 public:
@@ -78,5 +75,8 @@ public:
 
    void PreprocessIteration(Vector &u);
    
+   /// Update the diffusion BilinearForm K
+   void UpdateStiffness();
+
    ~ConductionOperator();
 };

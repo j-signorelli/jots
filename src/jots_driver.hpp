@@ -43,7 +43,7 @@ class JOTSDriver
         mfem::Vector T;
 
         void UpdateMatProps();
-        
+        void PreprocessIteration();
     public:
         JOTSDriver(const char* input_file, const int myid, const int num_procs);
         void Run();
