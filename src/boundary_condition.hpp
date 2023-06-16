@@ -23,7 +23,7 @@ class BoundaryCondition
         BoundaryCondition(const int attr, const BOUNDARY_CONDITION in_type) : bdr_attr(attr), bc_type(in_type) {};
         int GetBdrAttr() const { return bdr_attr; }
         BOUNDARY_CONDITION GetType() const { return bc_type; };
-        mfem::Coefficient* GetCoeffPtr() const { return coeff; };
+        mfem::Coefficient& GetCoeffRef() const { return *coeff; }; // To be used only for assigning to linear/bilinear forms or projecting coeff, so declared const
 
         virtual void UpdateCoeff() = 0;
         virtual bool IsEssential() const = 0;

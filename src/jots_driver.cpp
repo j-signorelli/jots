@@ -18,7 +18,8 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
   pmesh(nullptr),
   fe_coll(nullptr),
   fespace(nullptr),
-  oper(nullptr)
+  oper(nullptr),
+  temp_T_gf(nullptr)
 {   
     if (rank == 0)
     {
@@ -43,7 +44,7 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
       cout << "Configuration file " << input_file << " parsed successfully!" << endl;
     //----------------------------------------------------------------------
     // Create solution GF
-    ParGridFunction* temp_T_gf;
+    //ParGridFunction* temp_T_gf;
 
     //----------------------------------------------------------------------
     // If not restart, refine mesh and initialize; else load VisItDataCollection
@@ -350,7 +351,16 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
     // Send precice bcs to adapter
     if (user_input->UsingPrecice())
         adapter->AddPreciceBCs(boundary_conditions, precice_bc_indices);
-
+    //----------------------------------------------------------------------
+    // Prepare BC attr arrays for applying coefficients
+    all_bdr_attr_markers = new Array<int>[user_input->GetBCCount()];
+    for (size_t i = 0; i < user_input->GetBCCount(); i++)
+    {
+        Array<int> bdr_attr(user_input->GetBCCount());
+        bdr_attr = 0;
+        bdr_attr[i] = 1;
+        all_bdr_attr_markers[i] = bdr_attr;
+   }
     //----------------------------------------------------------------------
     // Print BCs
     for (size_t i = 0; i < user_input->GetBCCount(); i++)
@@ -384,7 +394,7 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
     //---------------------------------------------------------------------
     // Create main solution vector from IC
     temp_T_gf->GetTrueDofs(T);
-    delete temp_T_gf;
+    //delete temp_T_gf;
     //----------------------------------------------------------------------
     // Instantiate ConductionOperator, sending all necessary parameters
     if (rank == 0)
@@ -392,7 +402,7 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
         cout << LINE << endl;
         cout << "Initializing operator... ";
     }
-    oper = new ConductionOperator(user_input, boundary_conditions, cond_model, *fespace, time);
+    oper = new ConductionOperator(user_input, boundary_conditions, all_bdr_attr_markers, cond_model, *fespace, time);
     if (rank == 0)
         cout << "Done!" << endl;
     //----------------------------------------------------------------------
@@ -405,7 +415,9 @@ void JOTSDriver::Run()
     // Initialize material properties (only pertinent for non-uniform non-constant ones)
     if (rank == 0)
         cout << "Initializing material properties field...";
+
     UpdateMatProps();
+
     if (rank == 0)
         cout << " Done!" << endl;
     
@@ -413,7 +425,9 @@ void JOTSDriver::Run()
     // Initialize the ODE Solver
     if (rank == 0)
         cout << "Initializing solver...";
+
     ode_solver->Init(*oper);
+
     if (rank == 0)
         cout << " Done!" << endl;
 
@@ -426,9 +440,7 @@ void JOTSDriver::Run()
 
     // Output IC as ParaView
     if (it_num == 0)
-    {
         output->WriteVizOutput(it_num, time);
-    }
 
 
     // If using precice: initialize + get/send initial data if needed
@@ -465,8 +477,8 @@ void JOTSDriver::Run()
         }
 
 
-        // Apply the BCs to state + any updated thermal conductivities
-        oper->PreprocessIteration(T);
+        // Update BCs and update BLFs + LFs in operator, if required
+        PreprocessIteration();
 
 
         // Update timestep if needed
@@ -488,6 +500,7 @@ void JOTSDriver::Run()
         // Update material properties with new temperature
         UpdateMatProps();
 
+        // Write any preCICE data, reload state if needed
         if (user_input->UsingPrecice())
         {
             if (adapter->Interface()->isWriteDataRequired(dt))
@@ -508,8 +521,7 @@ void JOTSDriver::Run()
                 continue; // skip printing of timestep info AND outputting
             }
         }
-
-        
+   
 
         // Print current timestep information:
         if (rank == 0)
@@ -568,11 +580,49 @@ void JOTSDriver::UpdateMatProps()
 
 void JOTSDriver::PreprocessIteration()
 {
-    // Update BCs
 
-    // If conductivity not constant, it may have changed -> Update stiffness
+    // If conductivity not constant, it may have changed -> Update stiffness BLF
     if (!cond_model->IsConstant())
         oper->UpdateStiffness();
+
+    // Update time-dependent/non-constant boundary condition coefficients
+    temp_T_gf->SetFromTrueDofs(T);
+
+    bool n_changed = false;
+    bool d_changed = false;
+    for (size_t i = 0; i < user_input->GetBCCount(); i++)
+    {   
+        // Update coefficients (could be preCICE calls, could be SetTime calls, etc.)
+        if (!boundary_conditions[i]->IsConstant()) // If not constant in time
+        {
+            boundary_conditions[i]->UpdateCoeff();
+
+            if (boundary_conditions[i]->IsEssential())
+            {
+                // Project correct values on boundary for essential BCs
+                d_changed = true;
+                temp_T_gf->ProjectBdrCoefficient(boundary_conditions[i]->GetCoeffRef(), all_bdr_attr_markers[i]);
+            }
+            else
+            {
+                n_changed = true; // Flag that Neumann LF must be updated
+            }
+        }
+    }
+
+    if (d_changed)
+    {
+        // Apply changed Dirichlet BCs to T
+        temp_T_gf->GetTrueDofs(T);
+        // Here is where can set tmp_du_dt to be used if HO wanted
+        // For higher-order, need T from n-1 timestep in addition to n timestep? is this worth doing?
+        // Need to save previous timestep temperature in restarts
+    }
+
+    // If any non-constant Neumann terms, update Neumann linear form
+    if (n_changed)
+        oper->UpdateNeumannTerm();
+
 }
 
 JOTSDriver::~JOTSDriver()
@@ -582,11 +632,13 @@ JOTSDriver::~JOTSDriver()
     for (size_t i = 0; i < user_input->GetBCCount(); i++)
         delete boundary_conditions[i];
     delete[] boundary_conditions;
+    delete[] all_bdr_attr_markers;
     delete user_input;
     delete ode_solver;
     delete pmesh;
     delete fe_coll;
     delete oper;
     delete output;
+    delete temp_T_gf;
 
 }

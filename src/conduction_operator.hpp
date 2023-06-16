@@ -22,13 +22,10 @@ using namespace mfem;
 class ConductionOperator : public TimeDependentOperator
 {
 protected:
-   const Config* user_input; // Not allocated here
-   BoundaryCondition** boundary_conditions; // Not allocated here
-   const bool constant_cond_model;
 
    ParFiniteElementSpace &fespace;
    Array<int> ess_tdof_list; // list of essential true dofs
-   Array<int>* all_bdr_attr_markers;
+
 
    IterativeSolver *expl_solver;    // Solver for explicit time integration
    HypreSmoother expl_prec; // Preconditioner for the mass matrix M
@@ -53,30 +50,29 @@ protected:
    HypreParMatrix *A_e; // eliminated part of A, A_full = A + A_e - required for setting BCs in implicit time integration
    mutable Vector rhs; // = -KT + Neumann
 
-   void PreprocessBCs();
+   void PreprocessBCs(const Config* in_config, const BoundaryCondition* const* in_bcs, mfem::Array<int>* all_bdr_attr_markers);
 
    void PreprocessStiffness(const ConductivityModel* in_cond);
    
-   void PreprocessSolver();
-
-   // Apply the given boundary conditions
-   void ApplyBCs(Vector &u);
+   void PreprocessSolver(const Config* in_config);
 
    void CalculateRHS(const Vector &u) const;
 
 public:
-   ConductionOperator(const Config* in_config, BoundaryCondition** in_bcs, const ConductivityModel* in_cond, ParFiniteElementSpace &f, double t_0);
+   // Note: bdr attributes array cannot be constant. May move into BoundaryCondition class in future
+   ConductionOperator(const Config* in_config, const BoundaryCondition* const* in_bcs, mfem::Array<int>* all_bdr_attr_markers, const ConductivityModel* in_cond, ParFiniteElementSpace &f, double t_0);
 
    void Mult(const Vector &u, Vector &du_dt) const;
    
    /** Solve the Backward-Euler equation: k = f(u + dt*k, t), for the unknown k.
        This is the only requirement for high-order SDIRK implicit integration.*/
    void ImplicitSolve(const double dt, const Vector &u, Vector &k);
-
-   void PreprocessIteration(Vector &u);
    
-   /// Update the diffusion BilinearForm K
+   // Update the diffusion BilinearForm K
    void UpdateStiffness();
+
+   // Update Neumann BC LinearForm b
+   void UpdateNeumannTerm(); 
 
    ~ConductionOperator();
 };

@@ -30,6 +30,8 @@ class JOTSDriver
 
         Config* user_input;
         BoundaryCondition** boundary_conditions;
+        Array<int>* all_bdr_attr_markers;
+        
         ConductivityModel* cond_model;
 
         mfem::ODESolver* ode_solver;
@@ -41,9 +43,13 @@ class JOTSDriver
         OutputManager* output;
 
         mfem::Vector T;
+        
+        mutable mfem::ParGridFunction* temp_T_gf;
 
         void UpdateMatProps();
+
         void PreprocessIteration();
+
     public:
         JOTSDriver(const char* input_file, const int myid, const int num_procs);
         void Run();
