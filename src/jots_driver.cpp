@@ -187,12 +187,34 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
     {   
         cout << "\n";
         cout << "Density: " << user_input->GetDensity() << endl;
-        cout << "Specific Heat Cp: " << user_input->GetCp() << endl;
     }
+    //----------------------------------------------------------------------
+    // Create MaterialProperty object for specific heat
+    vector<string> specific_heat_info = user_input->GetSpecificHeatInfo();
+    vector<double> poly_coeffs;
+    switch (Material_Model_Map.at(specific_heat_info[0]))
+    {
+        case MATERIAL_MODEL::UNIFORM: // Uniform
+            C_prop = new UniformProperty(stod(specific_heat_info[1].c_str()));
+            break;
+        case MATERIAL_MODEL::POLYNOMIAL: // Polynomial
+
+            for (int i = 1; i < specific_heat_info.size(); i++)
+                poly_coeffs.push_back(stod(specific_heat_info[i].c_str()));
+
+            C_prop = new PolynomialProperty(poly_coeffs, *fespace);
+            break;
+        default:
+            MFEM_ABORT("Unknown/Invalid specific heat model specified");
+            return;
+    }
+    //----------------------------------------------------------------------
+    // Print specific heat model info
+    if (rank == 0)
+        cout << "Specific Heat Model: " << C_prop->GetInitString() << endl;
     //----------------------------------------------------------------------
     // Create MaterialProperty object for conductivity
     vector<string> cond_info = user_input->GetCondInfo();
-    vector<double> poly_coeffs;
     switch (Material_Model_Map.at(cond_info[0]))
     {
         case MATERIAL_MODEL::UNIFORM: // Uniform conductivity
@@ -403,12 +425,12 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
         cout << LINE << endl;
         cout << "Initializing operator... ";
     }
-    oper = new ConductionOperator(user_input, boundary_conditions, all_bdr_attr_markers, k_prop, *fespace, time);
+    oper = new ConductionOperator(user_input, boundary_conditions, all_bdr_attr_markers, C_prop, k_prop, *fespace, time);
     if (rank == 0)
         cout << "Done!" << endl;
     //----------------------------------------------------------------------
     // Instantiate OutputManager
-    output = new OutputManager(rank, fespace, user_input, T, k_prop);
+    output = new OutputManager(rank, fespace, user_input, T, C_prop, k_prop);
 }
 
 void JOTSDriver::Run()
@@ -577,10 +599,16 @@ void JOTSDriver::UpdateMatProps()
 {
     if (!k_prop->IsConstant())
         k_prop->UpdateCoeff(T); // Update k coefficient
+
+    if (!C_prop->IsConstant())
+        C_prop->UpdateCoeff(T); // Update C coefficient
 }
 
 void JOTSDriver::PreprocessIteration()
 {
+    // If specific heat not constant, it may have changed -> Update mass BLF
+    if (!C_prop->IsConstant())
+        oper->UpdateMass();
 
     // If conductivity not constant, it may have changed -> Update stiffness BLF
     if (!k_prop->IsConstant())

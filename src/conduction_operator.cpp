@@ -12,7 +12,7 @@ using namespace std;
  *
  *  Class ConductionOperator represents the right-hand side of the above ODE.
  */
-ConductionOperator::ConductionOperator(const Config* in_config, const BoundaryCondition* const* in_bcs, Array<int>* all_bdr_attr_markers, const MaterialProperty* k_prop, ParFiniteElementSpace &f, double t_0)
+ConductionOperator::ConductionOperator(const Config* in_config, const BoundaryCondition* const* in_bcs, Array<int>* all_bdr_attr_markers, const MaterialProperty* C_prop, const MaterialProperty* k_prop, ParFiniteElementSpace &f, double t_0)
    :  TimeDependentOperator(f.GetTrueVSize(), t_0),
       fespace(f),
       impl_solver(NULL),
@@ -32,11 +32,51 @@ ConductionOperator::ConductionOperator(const Config* in_config, const BoundaryCo
       rhs(height)
 {
 
+   PreprocessSolver(in_config);
+
    PreprocessBCs(in_config, in_bcs, all_bdr_attr_markers);
    
+   PreprocessMass(in_config->GetDensity(), C_prop);
+
    PreprocessStiffness(k_prop);
 
-   PreprocessSolver(in_config);
+}
+
+void ConductionOperator::PreprocessSolver(const Config* in_config)
+{  
+   double abs_tol = in_config->GetAbsTol();
+   double rel_tol = in_config->GetRelTol();
+   int max_iter = in_config->GetMaxIter();
+
+   //----------------------------------------------------------------
+   // Prepare explicit solver
+   
+   expl_solver = in_config->GetSolver(fespace.GetComm());
+
+   // Set up the solver for Mult
+   expl_solver->iterative_mode = false; // If true, would use second argument of Mult() as initial guess; here it is set to false
+
+   expl_solver->SetRelTol(rel_tol); // Sets "relative tolerance" of iterative solver
+   expl_solver->SetAbsTol(abs_tol); // Sets "absolute tolerance" of iterative solver
+   expl_solver->SetMaxIter(max_iter); // Sets maximum number of iterations
+   expl_solver->SetPrintLevel(0); // Print all information about detected issues
+
+   expl_prec.SetType(in_config->GetPrec()); // Set type of preconditioning (relaxation type) 
+   expl_solver->SetPreconditioner(expl_prec); // Set preconditioner to matrix inversion solver
+
+   //----------------------------------------------------------------
+   // Prepare implicit solver
+   impl_solver = in_config->GetSolver(fespace.GetComm());
+   
+   // Set up solver for ImplicitSolve
+   impl_solver->iterative_mode = false;
+   impl_solver->SetRelTol(rel_tol);
+   impl_solver->SetAbsTol(abs_tol);
+   impl_solver->SetMaxIter(max_iter);
+   impl_solver->SetPrintLevel(0);
+   impl_prec.SetType(in_config->GetPrec());
+   impl_solver->SetPreconditioner(impl_prec);
+   
 
 }
 
@@ -72,6 +112,20 @@ void ConductionOperator::PreprocessBCs(const Config* in_config, const BoundaryCo
    UpdateNeumannTerm();
 }
 
+void ConductionOperator::PreprocessMass(double in_density, const MaterialProperty* C_prop)
+{   
+   // Prepare mass matrix
+   // Assemble parallel bilinear form for mass matrix
+   m = new ParBilinearForm(&fespace);
+
+   // Add the domain integral with included rho*Cp coefficient everywhere
+   ProductCoefficient rhoCp(in_density, C_prop->GetCoeffRef());
+   m->AddDomainIntegrator(new MassIntegrator(rhoCp));
+
+   // Initialize mass matrix data structures
+   UpdateMass();
+}
+
 void ConductionOperator::PreprocessStiffness(const MaterialProperty* k_prop)
 {  
 
@@ -85,20 +139,18 @@ void ConductionOperator::PreprocessStiffness(const MaterialProperty* k_prop)
    UpdateStiffness();
 }
 
-void ConductionOperator::PreprocessSolver(const Config* in_config)
-{  
-   double abs_tol = in_config->GetAbsTol();
-   double rel_tol = in_config->GetRelTol();
-   int max_iter = in_config->GetMaxIter();
+void ConductionOperator::UpdateMass()
+{
+   delete M_full;
+   delete M;
+   delete M_e;
 
-   //----------------------------------------------------------------   
-   // Prepare mass matrix
-   // Assemble parallel bilinear form for mass matrix
-   m = new ParBilinearForm(&fespace);
+   M_full = NULL;
+   M = NULL;
+   M_e = NULL;
 
-   // Add the domain integral with included rho*Cp coefficient everywhere
-   ConstantCoefficient rhoCp(in_config->GetDensity()*in_config->GetCp());
-   m->AddDomainIntegrator(new MassIntegrator(rhoCp));
+   m->Update(); // delete old data (M and M_e) if anything changed
+
    m->Assemble(0); // keep sparsity pattern of m and k the same
    m->Finalize(0);
 
@@ -109,41 +161,8 @@ void ConductionOperator::PreprocessSolver(const Config* in_config)
    // Create mass matrix w/ removed essential DOFs + save eliminated portion
    M_e = m->ParallelEliminateTDofs(ess_tdof_list, *M);
 
-   //----------------------------------------------------------------
-   // Prepare explicit solver
-   
-   expl_solver = in_config->GetSolver(fespace.GetComm());
-
-   // Set up the solver for Mult
-   expl_solver->iterative_mode = false; // If true, would use second argument of Mult() as initial guess; here it is set to false
-
-   expl_solver->SetRelTol(rel_tol); // Sets "relative tolerance" of iterative solver
-   expl_solver->SetAbsTol(abs_tol); // Sets "absolute tolerance" of iterative solver
-   expl_solver->SetMaxIter(max_iter); // Sets maximum number of iterations
-   expl_solver->SetPrintLevel(0); // Print all information about detected issues
-
-   expl_prec.SetType(in_config->GetPrec()); // Set type of preconditioning (relaxation type) 
-   expl_solver->SetPreconditioner(expl_prec); // Set preconditioner to matrix inversion solver
-
+   // Update explicit solver operator
    expl_solver->SetOperator(*M); // Set operator M
-
-   //----------------------------------------------------------------
-   // Prepare implicit solver
-   impl_solver = in_config->GetSolver(fespace.GetComm());
-   
-   // Prepare bilinear form for LHS
-   //a = new ParBilinearForm(&fespace);
-
-   // Set up solver for ImplicitSolve
-   impl_solver->iterative_mode = false;
-   impl_solver->SetRelTol(rel_tol);
-   impl_solver->SetAbsTol(abs_tol);
-   impl_solver->SetMaxIter(max_iter);
-   impl_solver->SetPrintLevel(0);
-   impl_prec.SetType(in_config->GetPrec());
-   impl_solver->SetPreconditioner(impl_prec);
-   
-
 }
 
 void ConductionOperator::UpdateStiffness()

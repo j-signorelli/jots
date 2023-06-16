@@ -5,9 +5,10 @@ using namespace mfem;
 
 //const int OutputManager::RESTART_PRECISION = 16;
 
-OutputManager::OutputManager(const int in_rank, ParFiniteElementSpace* fespace, const Config* user_input, const Vector& in_T_ref, const MaterialProperty* k_prop)
+OutputManager::OutputManager(const int in_rank, ParFiniteElementSpace* fespace, const Config* user_input, const Vector& in_T_ref, const MaterialProperty* C_prop, const MaterialProperty* k_prop)
 : rank(in_rank),
   T_ref(in_T_ref),
+  C_coeff(C_prop->GetCoeffRef()),
   k_coeff(k_prop->GetCoeffRef())
 {   
     //------------------------------------------------
@@ -42,10 +43,9 @@ OutputManager::OutputManager(const int in_rank, ParFiniteElementSpace* fespace, 
     paraview_dc->RegisterField("Density", rho_gf);
 
     // Specific Heat:
-    Cp_gf = new ParGridFunction(fespace);
-    ConstantCoefficient Cp_coeff(user_input->GetCp());
-    Cp_gf->ProjectCoefficient(Cp_coeff);
-    paraview_dc->RegisterField("Specific_Heat", Cp_gf);
+    C_gf = new ParGridFunction(fespace);
+    C_gf->ProjectCoefficient(C_coeff);
+    paraview_dc->RegisterField("Specific_Heat", C_gf);
 
     // Thermal Conductivity:
     k_gf = new ParGridFunction(fespace);
@@ -64,6 +64,9 @@ void OutputManager::UpdateGridFunctions()
 {
     // Update temperature GF
     T_gf->SetFromTrueDofs(T_ref);
+
+    // Update specific heat GF
+    C_gf->ProjectCoefficient(C_coeff);
 
     // Update thermal conductivity GF
     k_gf->ProjectCoefficient(k_coeff);
@@ -91,7 +94,7 @@ OutputManager::~OutputManager()
     delete visit_dc;
     delete paraview_dc;
     delete rho_gf;
-    delete Cp_gf;
+    delete C_gf;
     delete rank_gf;
     delete T_gf;
     delete k_gf;

@@ -52,6 +52,8 @@ protected:
 
    void PreprocessBCs(const Config* in_config, const BoundaryCondition* const* in_bcs, mfem::Array<int>* all_bdr_attr_markers);
 
+   void PreprocessMass(const double rho, const MaterialProperty* C_prop);
+
    void PreprocessStiffness(const MaterialProperty* k_prop);
    
    void PreprocessSolver(const Config* in_config);
@@ -60,13 +62,16 @@ protected:
 
 public:
    // Note: bdr attributes array cannot be constant. May move into BoundaryCondition class in future
-   ConductionOperator(const Config* in_config, const BoundaryCondition* const* in_bcs, mfem::Array<int>* all_bdr_attr_markers, const MaterialProperty* k_prop, ParFiniteElementSpace &f, double t_0);
+   ConductionOperator(const Config* in_config, const BoundaryCondition* const* in_bcs, mfem::Array<int>* all_bdr_attr_markers, const MaterialProperty* C_prop, const MaterialProperty* k_prop, ParFiniteElementSpace &f, double t_0);
 
    void Mult(const Vector &u, Vector &du_dt) const;
    
    /** Solve the Backward-Euler equation: k = f(u + dt*k, t), for the unknown k.
        This is the only requirement for high-order SDIRK implicit integration.*/
    void ImplicitSolve(const double dt, const Vector &u, Vector &k);
+   
+   // Update mass BilinearForm M
+   void UpdateMass();
    
    // Update the diffusion BilinearForm K
    void UpdateStiffness();
