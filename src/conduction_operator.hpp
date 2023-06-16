@@ -24,7 +24,8 @@ class ConductionOperator : public TimeDependentOperator
 protected:
    const Config* user_input; // Not allocated here
    BoundaryCondition** boundary_conditions; // Not allocated here
-   ConductivityModel* cond_model; // Not allocated here
+   const bool constant_cond_model;
+
    ParFiniteElementSpace &fespace;
    Array<int> ess_tdof_list; // list of essential true dofs
    Array<int>* all_bdr_attr_markers;
@@ -54,20 +55,20 @@ protected:
 
    void PreprocessBCs();
 
-   void PreprocessStiffness();
+   void PreprocessStiffness(const ConductivityModel* in_cond);
    
    void PreprocessSolver();
 
    // Apply the given boundary conditions
    void ApplyBCs(Vector &u);
 
-   /// Update the diffusion BilinearForm K using the given true-dof vector `u` based on specified model.
-   void SetThermalConductivities(const Vector &u);
+   /// Update the diffusion BilinearForm K
+   void UpdateStiffness();
 
    void CalculateRHS(const Vector &u) const;
 
 public:
-   ConductionOperator(const Config* in_config, BoundaryCondition** in_bcs, ConductivityModel* in_cond, ParFiniteElementSpace &f, double t_0);
+   ConductionOperator(const Config* in_config, BoundaryCondition** in_bcs, const ConductivityModel* in_cond, ParFiniteElementSpace &f, double t_0);
 
    void Mult(const Vector &u, Vector &du_dt) const;
    

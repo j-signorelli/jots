@@ -16,7 +16,7 @@ class ConductivityModel
     public:
         ConductivityModel(CONDUCTIVITY_MODEL in_model) : model(in_model) {}
         CONDUCTIVITY_MODEL GetModel() const { return model; };
-        mfem::Coefficient* GetCoeffPtr() const { return coeff; };
+        mfem::Coefficient& GetCoeffRef() const { return *coeff; }; // To be used only for assigning to linear/bilinear forms or projecting coeff, so declared const
 
         virtual bool IsConstant() const = 0; // true if dk_dt = 0
         virtual void UpdateCoeff(const mfem::Vector& T_ref) = 0;

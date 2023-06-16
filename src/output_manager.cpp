@@ -5,10 +5,10 @@ using namespace mfem;
 
 //const int OutputManager::RESTART_PRECISION = 16;
 
-OutputManager::OutputManager(const int in_rank, ParFiniteElementSpace* fespace, const Config* user_input, const Vector& in_T_ref, ConductivityModel* in_cond_model)
+OutputManager::OutputManager(const int in_rank, ParFiniteElementSpace* fespace, const Config* user_input, const Vector& in_T_ref, const ConductivityModel* in_cond)
 : rank(in_rank),
   T_ref(in_T_ref),
-  cond_model(in_cond_model)
+  k_coeff(in_cond->GetCoeffRef())
 {   
     //------------------------------------------------
     // Set up VisIt outputting (restarts)
@@ -49,7 +49,7 @@ OutputManager::OutputManager(const int in_rank, ParFiniteElementSpace* fespace, 
 
     // Thermal Conductivity:
     k_gf = new ParGridFunction(fespace);
-    k_gf->ProjectCoefficient(*cond_model->GetCoeffPtr());
+    k_gf->ProjectCoefficient(k_coeff);
     paraview_dc->RegisterField("Thermal_Conductivity", k_gf);
 
     // Temperature
@@ -65,18 +65,9 @@ void OutputManager::UpdateGridFunctions()
     // Update temperature GF right off the bat
     T_gf->SetFromTrueDofs(T_ref);
 
-    // If non-constant thermal conductivity, first update cond_model coeff w/ current temperature,
-    // then update k GF with updated coefficient.
+    // Update thermal conductivity
+    k_gf->ProjectCoefficient(k_coeff);
 
-    // Note that UpdateCoeff is called twice whenever outputting is done as it is called here
-    // and again in PreprocessIteration. This is redundant and should be fixed in future.
-    // However, it helps prevent issues with implicit coupling with preCICE.
-    if (!cond_model->IsConstant())
-    {
-        cond_model->UpdateCoeff(T_ref);
-        k_gf->ProjectCoefficient(*cond_model->GetCoeffPtr());
-
-    }
 }
 
 void OutputManager::WriteVizOutput(const int it_num, const double time)

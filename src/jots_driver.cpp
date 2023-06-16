@@ -402,18 +402,24 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
 
 void JOTSDriver::Run()
 {   
+    // Initialize material properties (only pertinent for non-uniform non-constant ones)
+    if (rank == 0)
+        cout << "Initializing material properties field...";
+    UpdateMatProps();
+    if (rank == 0)
+        cout << " Done!" << endl;
+    
 
     // Initialize the ODE Solver
     if (rank == 0)
         cout << "Initializing solver...";
-
     ode_solver->Init(*oper);
-    
     if (rank == 0)
         cout << " Done!" << endl;
 
-    double precice_dt = 0;
 
+
+    double precice_dt = 0;
     // Implicit coupling:
     double precice_saved_time = 0;
     double precice_saved_it_num = 0;
@@ -458,7 +464,8 @@ void JOTSDriver::Run()
                 adapter->GetReadData();
         }
 
-        // Apply the BCs to state + calculate thermal conductivities
+
+        // Apply the BCs to state + any updated thermal conductivities
         oper->PreprocessIteration(T);
 
 
@@ -474,11 +481,12 @@ void JOTSDriver::Run()
         ode_solver->Step(T, time, dt);        
         it_num++; // increment it_num
 
-        // Leave solver if time now greater than tf
+        // Leave solver if time now greater than tf -- solution is done
         if (time > tf && abs(time-tf) > TIME_TOLERANCE)
             continue;
-        // TODO: ^Should this be moved below if statement below?
         
+        // Update material properties with new temperature
+        UpdateMatProps();
 
         if (user_input->UsingPrecice())
         {
@@ -495,6 +503,7 @@ void JOTSDriver::Run()
                 time = precice_saved_time;
                 it_num = precice_saved_it_num;
                 adapter->ReloadOldState(T);
+                UpdateMatProps(); // Update material props w/ reloaded field
                 adapter->Interface()->markActionFulfilled(PreciceAdapter::coric);
                 continue; // skip printing of timestep info AND outputting
             }
@@ -509,7 +518,7 @@ void JOTSDriver::Run()
                 
         }
         
-        // Check if blew up
+        // Check if blow up
         if (T.Max() > 1e10)
         {
             MFEM_ABORT("JOTS has blown up");
@@ -549,6 +558,12 @@ void JOTSDriver::Run()
         adapter->Interface()->finalize();
 
 
+}
+
+void JOTSDriver::UpdateMatProps()
+{
+    if (!cond_model->IsConstant())
+        cond_model->UpdateCoeff(T);
 }
 
 JOTSDriver::~JOTSDriver()

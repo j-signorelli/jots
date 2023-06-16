@@ -12,7 +12,7 @@ using namespace std;
  *
  *  Class ConductionOperator represents the right-hand side of the above ODE.
  */
-ConductionOperator::ConductionOperator(const Config* in_config, BoundaryCondition** in_bcs, ConductivityModel* in_cond, ParFiniteElementSpace &f, double t_0)
+ConductionOperator::ConductionOperator(const Config* in_config, BoundaryCondition** in_bcs, const ConductivityModel* in_cond, ParFiniteElementSpace &f, double t_0)
    :  TimeDependentOperator(f.GetTrueVSize(), t_0),
       fespace(f),
       impl_solver(NULL),
@@ -32,12 +32,12 @@ ConductionOperator::ConductionOperator(const Config* in_config, BoundaryConditio
       rhs(height),
       user_input(in_config),
       boundary_conditions(in_bcs),
-      cond_model(in_cond)
+      constant_cond_model(in_cond->IsConstant())
 {
 
    PreprocessBCs();
    
-   PreprocessStiffness();
+   PreprocessStiffness(in_cond);
 
    PreprocessSolver();
 
@@ -91,14 +91,14 @@ void ConductionOperator::PreprocessBCs()
    b->ParallelAssemble(b_vec);
 }
 
-void ConductionOperator::PreprocessStiffness()
+void ConductionOperator::PreprocessStiffness(const ConductivityModel* in_cond)
 {  
 
    // Assemble the parallel bilinear form for stiffness matrix
    k = new ParBilinearForm(&fespace);
 
    // Add domain integrator to the bilinear form with the cond_model coeff
-   k->AddDomainIntegrator(new DiffusionIntegrator(*cond_model->GetCoeffPtr()));
+   k->AddDomainIntegrator(new DiffusionIntegrator(in_cond->GetCoeffRef()));
    
    // Finalize
    k->Assemble(0);
@@ -172,8 +172,8 @@ void ConductionOperator::PreprocessIteration(Vector &u)
    // Apply BCs
    ApplyBCs(u);
 
-   //Calculate thermal conductivities
-   SetThermalConductivities(u);
+   //Update stiffness matrix K
+   UpdateStiffness();
 
 }
 
@@ -223,10 +223,10 @@ void ConductionOperator::ApplyBCs(Vector &u)
 
 }
 
-void ConductionOperator::SetThermalConductivities(const Vector &u)
+void ConductionOperator::UpdateStiffness()
 {    
 
-   if (!cond_model->IsConstant()) // If coefficient changes in time
+   if (!constant_cond_model) // If coefficient changes in time
    {  
 
       delete K_full;
@@ -239,9 +239,6 @@ void ConductionOperator::SetThermalConductivities(const Vector &u)
 
 
       k->Update(); // delete old data (M and M_e)
-
-      // Update coefficient
-      cond_model->UpdateCoeff(u);
 
       k->Assemble(0);
       k->Finalize(0);
