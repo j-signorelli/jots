@@ -55,11 +55,10 @@ void UniformSinusoidalBC::UpdateCoeff()
     coeff->SetTime(time_ref);
 }
 
-PreciceBC::PreciceBC(const int attr, const BOUNDARY_CONDITION in_type, ParFiniteElementSpace& f, const string in_mesh, const bool is_restart, const double in_value, const string in_read, const string in_write) 
+PreciceBC::PreciceBC(const int attr, const BOUNDARY_CONDITION in_type, ParFiniteElementSpace& f, const string in_mesh, const double in_value, const string in_read, const string in_write) 
 : BoundaryCondition(attr, in_type),
   fespace(f),
   mesh_name(in_mesh),
-  restart(is_restart),
   default_value(in_value),
   read_data_name(in_read),
   write_data_name(in_write),

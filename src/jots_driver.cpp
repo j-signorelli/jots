@@ -318,13 +318,13 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
             case BOUNDARY_CONDITION::PRECICE_ISOTHERMAL:
                 mesh_name = bc.second[1];
                 value = stod(bc.second[2].c_str());
-                boundary_conditions[i] =  new PreciceIsothermalBC(bc.first, *fespace, mesh_name, user_input->UsesRestart(), value);
+                boundary_conditions[i] =  new PreciceIsothermalBC(bc.first, *fespace, mesh_name, value);
                 precice_bc_indices.push_back(i);
                 break;
             case BOUNDARY_CONDITION::PRECICE_HEATFLUX:
                 mesh_name = bc.second[1];
                 value = stod(bc.second[2].c_str());
-                boundary_conditions[i] =  new PreciceHeatFluxBC(bc.first, *fespace, mesh_name, user_input->UsesRestart(), value);
+                boundary_conditions[i] =  new PreciceHeatFluxBC(bc.first, *fespace, mesh_name, value);
                 precice_bc_indices.push_back(i);
                 break;
             case BOUNDARY_CONDITION::SINUSOIDAL_ISOTHERMAL:

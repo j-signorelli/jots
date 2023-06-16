@@ -124,7 +124,6 @@ class PreciceBC : public BoundaryCondition
         mfem::ParFiniteElementSpace& fespace;
 
         const std::string mesh_name;
-        const bool restart;
         const double default_value;
         const std::string read_data_name;
         const std::string write_data_name;
@@ -154,7 +153,7 @@ class PreciceBC : public BoundaryCondition
         static void GetBdrWallHeatFlux(const mfem::ParGridFunction* T_gf, const ConductivityModel* in_cond, const mfem::Array<int> in_bdr_elem_indices, double* nodal_wall_heatfluxes); // Precondition same above
         mutable mfem::ParGridFunction* temp_gf;
     public:
-        PreciceBC(const int attr, const BOUNDARY_CONDITION in_type, mfem::ParFiniteElementSpace& f, const std::string in_mesh, const bool is_restart, const double in_value, const std::string in_read, const std::string in_write);
+        PreciceBC(const int attr, const BOUNDARY_CONDITION in_type, mfem::ParFiniteElementSpace& f, const std::string in_mesh, const double in_value, const std::string in_read, const std::string in_write);
         bool IsConstant() const { return false; };
         void InitCoefficient();
         void UpdateCoeff();
@@ -175,7 +174,7 @@ class PreciceIsothermalBC : public PreciceBC
 
     protected:
     public:
-        PreciceIsothermalBC(const int attr, mfem::ParFiniteElementSpace& f, const std::string in_mesh, const bool is_restart, const double in_value) : PreciceBC(attr, BOUNDARY_CONDITION::PRECICE_ISOTHERMAL, f, in_mesh, is_restart, in_value, "Temperature", "Heat-Flux") {};
+        PreciceIsothermalBC(const int attr, mfem::ParFiniteElementSpace& f, const std::string in_mesh, const double in_value) : PreciceBC(attr, BOUNDARY_CONDITION::PRECICE_ISOTHERMAL, f, in_mesh, in_value, "Temperature", "Heat-Flux") {};
         void RetrieveWriteData(const mfem::Vector T, const ConductivityModel* cond_model);
         std::string GetInitString() const;
 
@@ -189,7 +188,7 @@ class PreciceHeatFluxBC : public PreciceBC
     protected:
 
     public:
-        PreciceHeatFluxBC(const int attr, mfem::ParFiniteElementSpace& f, const std::string in_mesh, const bool is_restart, const double in_value) : PreciceBC(attr, BOUNDARY_CONDITION::PRECICE_HEATFLUX, f, in_mesh, is_restart, in_value, "Heat-Flux", "Temperature") {};
+        PreciceHeatFluxBC(const int attr, mfem::ParFiniteElementSpace& f, const std::string in_mesh, const double in_value) : PreciceBC(attr, BOUNDARY_CONDITION::PRECICE_HEATFLUX, f, in_mesh, in_value, "Heat-Flux", "Temperature") {};
         void RetrieveWriteData(const mfem::Vector T, const ConductivityModel* cond_model);
         std::string GetInitString() const;
 
