@@ -25,7 +25,6 @@ class BoundaryCondition
         BOUNDARY_CONDITION GetType() const { return bc_type; };
         mfem::Coefficient* GetCoeffPtr() const { return coeff; };
 
-        virtual void InitCoefficient() = 0;
         virtual void UpdateCoeff() = 0;
         virtual bool IsEssential() const = 0;
         virtual bool IsConstant() const = 0; // true if d/dt is 0 for this coefficient
@@ -40,10 +39,9 @@ class UniformConstantBC : public BoundaryCondition
     protected:
         const double uniform_value;
     public:
-        UniformConstantBC(const int attr, const BOUNDARY_CONDITION in_type, const double in_value) : BoundaryCondition(attr, in_type), uniform_value(in_value) {};
+        UniformConstantBC(const int attr, const BOUNDARY_CONDITION in_type, const double in_value);
         bool IsConstant() const { return true; };
         double GetValue() const { return uniform_value; };
-        void InitCoefficient() { coeff = new mfem::ConstantCoefficient(uniform_value); };
         void UpdateCoeff() {};
         virtual std::string GetInitString() const = 0;
 };
@@ -80,9 +78,8 @@ class UniformSinusoidalBC : public BoundaryCondition
         const double& time_ref; // reference to the time
 
     public:
-        UniformSinusoidalBC(const int attr, BOUNDARY_CONDITION in_type, const double& in_tref, const double in_amp, const double in_angfreq, const double in_phase, const double in_vert) : BoundaryCondition(attr, in_type), time_ref(in_tref), amplitude(in_amp), ang_freq(in_angfreq), phase(in_phase), vert_shift(in_vert) {};
+        UniformSinusoidalBC(const int attr, BOUNDARY_CONDITION in_type, const double& in_tref, const double in_amp, const double in_angfreq, const double in_phase, const double in_vert);
         bool IsConstant() const { return false; }
-        void InitCoefficient();
         void UpdateCoeff();
         virtual bool IsEssential() const = 0;
         virtual std::string GetInitString() const = 0;
@@ -155,7 +152,6 @@ class PreciceBC : public BoundaryCondition
     public:
         PreciceBC(const int attr, const BOUNDARY_CONDITION in_type, mfem::ParFiniteElementSpace& f, const std::string in_mesh, const double in_value, const std::string in_read, const std::string in_write);
         bool IsConstant() const { return false; };
-        void InitCoefficient();
         void UpdateCoeff();
 
         virtual void RetrieveWriteData(const mfem::Vector T, const ConductivityModel* cond_model) = 0;

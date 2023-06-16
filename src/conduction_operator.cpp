@@ -72,10 +72,7 @@ void ConductionOperator::PreprocessBCs()
 
    // Loop through all BCs
    for (size_t i = 0; i < user_input->GetBCCount(); i++)
-   {  
-      // Initialize coefficients for all BCs
-      boundary_conditions[i]->InitCoefficient();
-   
+   {     
       // Add Neumann BCs to linear form b
       if (! boundary_conditions[i]->IsEssential())
       {

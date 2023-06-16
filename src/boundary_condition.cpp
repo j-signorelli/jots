@@ -45,11 +45,30 @@ string PreciceHeatFluxBC::GetInitString() const
     sstm << "preCICE Heat Flux --- Mesh: " << mesh_name << " --- Default Value: " << default_value;
     return sstm.str();
 }
-void UniformSinusoidalBC::InitCoefficient()
+
+UniformConstantBC::UniformConstantBC(const int attr, const BOUNDARY_CONDITION in_type, const double in_value)
+: BoundaryCondition(attr, in_type),
+  uniform_value(in_value)
+{
+    // Initialize coefficient
+    coeff = new ConstantCoefficient(uniform_value);
+}
+        
+UniformSinusoidalBC::UniformSinusoidalBC(const int attr, BOUNDARY_CONDITION in_type, const double& in_tref, const double in_amp, const double in_angfreq, const double in_phase, const double in_vert)
+: BoundaryCondition(attr, in_type),
+  time_ref(in_tref),
+  amplitude(in_amp),
+  ang_freq(in_angfreq),
+  phase(in_phase),
+  vert_shift(in_vert)
 {   
+    // Define the function
     function<double(const Vector&, double)> TDF = [=](const Vector&x, double t) -> double { return amplitude*sin(ang_freq*t + phase) + vert_shift;};
+    
+    // Initialize the coefficient
     coeff = new FunctionCoefficient(TDF);
 }
+
 void UniformSinusoidalBC::UpdateCoeff()
 { 
     coeff->SetTime(time_ref);
@@ -142,13 +161,9 @@ PreciceBC::PreciceBC(const int attr, const BOUNDARY_CONDITION in_type, ParFinite
 
     // Create auxiliary GF on fespace
     temp_gf = new ParGridFunction(&fespace);
-}
 
-void PreciceBC::InitCoefficient()
-{   
+    // Initialize coefficient
     coeff = new GridFunctionCoefficient(coeff_gf);
-    // Do not need to reset coeff_gf to coeff, just update it!
-    // (coeff takes ptr to coeff_gf) 
 }
 
 void PreciceBC::UpdateCoeff()
