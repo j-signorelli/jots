@@ -14,6 +14,7 @@ using namespace std;
  */
 ConductionOperator::ConductionOperator(const Config* in_config, const BoundaryCondition* const* in_bcs, Array<int>* all_bdr_attr_markers, const MaterialProperty* C_prop, const MaterialProperty* k_prop, ParFiniteElementSpace &f, double t_0)
    :  TimeDependentOperator(f.GetTrueVSize(), t_0),
+      rho_C(in_config->GetDensity(), C_prop->GetCoeffRef()),
       fespace(f),
       impl_solver(NULL),
       expl_solver(NULL),
@@ -36,7 +37,7 @@ ConductionOperator::ConductionOperator(const Config* in_config, const BoundaryCo
 
    PreprocessBCs(in_config, in_bcs, all_bdr_attr_markers);
    
-   PreprocessMass(in_config->GetDensity(), C_prop);
+   PreprocessMass();
 
    PreprocessStiffness(k_prop);
 
@@ -112,15 +113,14 @@ void ConductionOperator::PreprocessBCs(const Config* in_config, const BoundaryCo
    UpdateNeumannTerm();
 }
 
-void ConductionOperator::PreprocessMass(double in_density, const MaterialProperty* C_prop)
+void ConductionOperator::PreprocessMass()
 {   
    // Prepare mass matrix
    // Assemble parallel bilinear form for mass matrix
    m = new ParBilinearForm(&fespace);
 
    // Add the domain integral with included rho*Cp coefficient everywhere
-   ProductCoefficient rhoCp(in_density, C_prop->GetCoeffRef());
-   m->AddDomainIntegrator(new MassIntegrator(rhoCp));
+   m->AddDomainIntegrator(new MassIntegrator(rho_C));
 
    // Initialize mass matrix data structures
    UpdateMass();

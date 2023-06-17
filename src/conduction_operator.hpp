@@ -23,6 +23,8 @@ class ConductionOperator : public TimeDependentOperator
 {
 protected:
 
+   mfem::ProductCoefficient rho_C;
+
    ParFiniteElementSpace &fespace;
    Array<int> ess_tdof_list; // list of essential true dofs
 
@@ -52,7 +54,7 @@ protected:
 
    void PreprocessBCs(const Config* in_config, const BoundaryCondition* const* in_bcs, mfem::Array<int>* all_bdr_attr_markers);
 
-   void PreprocessMass(const double rho, const MaterialProperty* C_prop);
+   void PreprocessMass();
 
    void PreprocessStiffness(const MaterialProperty* k_prop);
    
