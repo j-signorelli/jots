@@ -31,6 +31,7 @@ class JOTSDriver
         Config* user_input;
         BoundaryCondition** boundary_conditions;
         Array<int>* all_bdr_attr_markers;
+        bool initialized_bcs;
         
         MaterialProperty* k_prop;
         MaterialProperty* C_prop;

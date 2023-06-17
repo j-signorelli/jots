@@ -13,6 +13,7 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
   adapter(nullptr),
   user_input(nullptr),
   boundary_conditions(nullptr),
+  initialized_bcs(false),
   k_prop(nullptr),
   C_prop(nullptr),
   ode_solver(nullptr),
@@ -622,7 +623,7 @@ void JOTSDriver::PreprocessIteration()
     for (size_t i = 0; i < user_input->GetBCCount(); i++)
     {   
         // Update coefficients (could be preCICE calls, could be SetTime calls, etc.)
-        if (!boundary_conditions[i]->IsConstant()) // If not constant in time
+        if (!boundary_conditions[i]->IsConstant() || !initialized_bcs) // If not constant in time or not yet initialized for first iteration
         {
             boundary_conditions[i]->UpdateCoeff();
 
@@ -638,6 +639,9 @@ void JOTSDriver::PreprocessIteration()
             }
         }
     }
+
+    if (!initialized_bcs)
+        initialized_bcs = true;
 
     if (d_changed)
     {
