@@ -304,6 +304,9 @@ void ConductionOperator::ImplicitSolve(const double dt,
    // Calculate RHS pre-essential update
    CalculateRHS(u);
 
+   delete A;
+   delete A_e;
+
    // Calculate LHS w/o essential DOFs eliminated at first
    A = Add(1.0, *M, dt, *K);
 
