@@ -5,7 +5,7 @@ using namespace mfem;
 using namespace precice;
 
 const string JOTSDriver::LINE = "-------------------------------------------------------------------";
-const double JOTSDriver::TIME_TOLERANCE = 1e-12;
+const double JOTSDriver::TIME_TOLERANCE = 1e-14;
 
 JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_procs)
 : rank(myid),
@@ -192,7 +192,7 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
     //----------------------------------------------------------------------
     // Create MaterialProperty object for specific heat
     vector<string> specific_heat_info = user_input->GetSpecificHeatInfo();
-    vector<double> poly_coeffs;
+    vector<double> poly_coeffs_C;
     switch (Material_Model_Map.at(specific_heat_info[0]))
     {
         case MATERIAL_MODEL::UNIFORM: // Uniform
@@ -201,9 +201,9 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
         case MATERIAL_MODEL::POLYNOMIAL: // Polynomial
 
             for (int i = 1; i < specific_heat_info.size(); i++)
-                poly_coeffs.push_back(stod(specific_heat_info[i].c_str()));
+                poly_coeffs_C.push_back(stod(specific_heat_info[i].c_str()));
 
-            C_prop = new PolynomialProperty(poly_coeffs, *fespace);
+            C_prop = new PolynomialProperty(poly_coeffs_C, *fespace);
             break;
         default:
             MFEM_ABORT("Unknown/Invalid specific heat model specified");
@@ -216,6 +216,7 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
     //----------------------------------------------------------------------
     // Create MaterialProperty object for conductivity
     vector<string> cond_info = user_input->GetCondInfo();
+    vector<double> poly_coeffs_k;
     switch (Material_Model_Map.at(cond_info[0]))
     {
         case MATERIAL_MODEL::UNIFORM: // Uniform conductivity
@@ -224,9 +225,9 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
         case MATERIAL_MODEL::POLYNOMIAL: // Polynomial model for conductivity
 
             for (int i = 1; i < cond_info.size(); i++)
-                poly_coeffs.push_back(stod(cond_info[i].c_str()));
+                poly_coeffs_k.push_back(stod(cond_info[i].c_str()));
 
-            k_prop = new PolynomialProperty(poly_coeffs, *fespace);
+            k_prop = new PolynomialProperty(poly_coeffs_k, *fespace);
             break;
         default:
             MFEM_ABORT("Unknown/Invalid thermal conductivity model specified");
