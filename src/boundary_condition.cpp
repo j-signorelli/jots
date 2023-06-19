@@ -7,14 +7,14 @@ using namespace precice;
 string UniformConstantIsothermalBC::GetInitString() const
 {   
     stringstream sstm;
-    sstm << "Isothermal --- Value: " << uniform_value;
+    sstm << "Isothermal --- Value = " << uniform_value;
     return sstm.str();
 }
 
 string UniformConstantHeatFluxBC::GetInitString() const
 {   
     stringstream sstm;
-    sstm << "Heat Flux --- Value: " << uniform_value;
+    sstm << "Heat Flux --- Value = " << uniform_value;
     return sstm.str();
 }
 
@@ -35,14 +35,14 @@ string UniformSinusoidalHeatFluxBC::GetInitString() const
 string PreciceIsothermalBC::GetInitString() const
 {
     stringstream sstm;
-    sstm << "preCICE Isothermal --- Mesh: " << mesh_name << " --- Default Value: " << default_value;
+    sstm << "preCICE Isothermal --- Mesh: " << mesh_name << " --- Default Value = " << default_value;
     return sstm.str();
 }
 
 string PreciceHeatFluxBC::GetInitString() const
 {
     stringstream sstm;
-    sstm << "preCICE Heat Flux --- Mesh: " << mesh_name << " --- Default Value: " << default_value;
+    sstm << "preCICE Heat Flux --- Mesh: " << mesh_name << " --- Default Value = " << default_value;
     return sstm.str();
 }
 

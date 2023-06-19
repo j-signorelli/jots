@@ -29,7 +29,9 @@ string PolynomialProperty::GetInitString() const
 
 PolynomialProperty::PolynomialProperty(const std::vector<double> in_poly_coeffs, ParFiniteElementSpace& f) 
 : MaterialProperty(MATERIAL_MODEL::POLYNOMIAL), 
-  poly_coeffs(in_poly_coeffs)
+  poly_coeffs(in_poly_coeffs),
+  T_gf(&f),
+  z(&f)
 {
     k_gf = new ParGridFunction(&f);
     
@@ -38,10 +40,6 @@ PolynomialProperty::PolynomialProperty(const std::vector<double> in_poly_coeffs,
 
 void PolynomialProperty::UpdateCoeff(const mfem::Vector& T_ref)
 {   
-    // auxiliary PGFs
-    ParGridFunction T_gf(k_gf->ParFESpace());
-    ParGridFunction z(k_gf->ParFESpace());
-
     T_gf.SetFromTrueDofs(T_ref);
     
     *k_gf = 0;

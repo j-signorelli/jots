@@ -37,7 +37,7 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
                                     
                                     
 
-        )" << endl << "MFEM-Based Thermal Solver w/ preCICE" << endl << "Version 1.0" << endl << LINE << endl;
+        )" << endl << "MFEM-Based Thermal Solver w/ preCICE" << endl << "Version 1.1" << endl << LINE << endl;
     }
     //----------------------------------------------------------------------
     // Parse config file

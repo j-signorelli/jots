@@ -51,6 +51,7 @@ protected:
    HypreParMatrix *K_e; // eliminated part of K, K_full = K + K_e
    HypreParMatrix *A_e; // eliminated part of A, A_full = A + A_e - required for setting BCs in implicit time integration
    mutable Vector rhs; // = -KT + Neumann
+   mutable bool mass_updated;
 
    void PreprocessBCs(const Config* in_config, const BoundaryCondition* const* in_bcs, mfem::Array<int>* all_bdr_attr_markers);
 

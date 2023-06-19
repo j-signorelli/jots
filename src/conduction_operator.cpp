@@ -30,7 +30,8 @@ ConductionOperator::ConductionOperator(const Config* in_config, const BoundaryCo
       M_e(NULL),
       K_e(NULL),
       A_e(NULL),
-      rhs(height)
+      rhs(height),
+      mass_updated(false)
 {
 
    PreprocessSolver(in_config);
@@ -161,8 +162,8 @@ void ConductionOperator::UpdateMass()
    // Create mass matrix w/ removed essential DOFs + save eliminated portion
    M_e = m->ParallelEliminateTDofs(ess_tdof_list, *M);
 
-   // Update explicit solver operator
-   expl_solver->SetOperator(*M); // Set operator M
+   // Flag mass updated (called if Mult called)
+   mass_updated = true;
 }
 
 void ConductionOperator::UpdateStiffness()
@@ -219,6 +220,13 @@ void ConductionOperator::Mult(const Vector &u, Vector &du_dt) const
    //    du/dt = M^{-1}(-Ku + boundary_terms)
    // for du_dt
 
+   // If mass matrix updated, reset operator
+   if (mass_updated)
+   {
+      expl_solver->SetOperator(*M);
+      mass_updated = false;
+   }
+   
    // Calculate RHS pre-essential update
    CalculateRHS(u);
 

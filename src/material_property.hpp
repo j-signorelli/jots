@@ -48,9 +48,10 @@ class PolynomialProperty : public MaterialProperty
     private:
     protected:
         const std::vector<double> poly_coeffs;
-        mfem::ParGridFunction* T_gf;
         mfem::ParGridFunction* k_gf;
 
+        mutable mfem::ParGridFunction T_gf;
+        mutable mfem::ParGridFunction z;
     public:
         PolynomialProperty(const std::vector<double> in_poly_coeffs, mfem::ParFiniteElementSpace& f);
         bool IsConstant() const { return false; };
@@ -58,5 +59,5 @@ class PolynomialProperty : public MaterialProperty
 
         std::string GetInitString() const;
         double GetLocalValue(double temp) const;
-        ~PolynomialProperty() { delete T_gf; delete k_gf; };
+        ~PolynomialProperty() { delete k_gf; };
 };
