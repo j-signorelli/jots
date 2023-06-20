@@ -7,14 +7,14 @@ using namespace precice;
 string UniformConstantIsothermalBC::GetInitString() const
 {   
     stringstream sstm;
-    sstm << "Isothermal --- Value: " << uniform_value;
+    sstm << "Isothermal --- Value = " << uniform_value;
     return sstm.str();
 }
 
 string UniformConstantHeatFluxBC::GetInitString() const
 {   
     stringstream sstm;
-    sstm << "Heat Flux --- Value: " << uniform_value;
+    sstm << "Heat Flux --- Value = " << uniform_value;
     return sstm.str();
 }
 
@@ -35,31 +35,49 @@ string UniformSinusoidalHeatFluxBC::GetInitString() const
 string PreciceIsothermalBC::GetInitString() const
 {
     stringstream sstm;
-    sstm << "preCICE Isothermal --- Mesh: " << mesh_name << " --- Default Value: " << default_value;
+    sstm << "preCICE Isothermal --- Mesh: " << mesh_name << " --- Default Value = " << default_value;
     return sstm.str();
 }
 
 string PreciceHeatFluxBC::GetInitString() const
 {
     stringstream sstm;
-    sstm << "preCICE Heat Flux --- Mesh: " << mesh_name << " --- Default Value: " << default_value;
+    sstm << "preCICE Heat Flux --- Mesh: " << mesh_name << " --- Default Value = " << default_value;
     return sstm.str();
 }
-void UniformSinusoidalBC::InitCoefficient()
+
+UniformConstantBC::UniformConstantBC(const int attr, const BOUNDARY_CONDITION in_type, const double in_value)
+: BoundaryCondition(attr, in_type),
+  uniform_value(in_value)
+{
+    // Initialize coefficient
+    coeff = new ConstantCoefficient(uniform_value);
+}
+        
+UniformSinusoidalBC::UniformSinusoidalBC(const int attr, BOUNDARY_CONDITION in_type, const double& in_tref, const double in_amp, const double in_angfreq, const double in_phase, const double in_vert)
+: BoundaryCondition(attr, in_type),
+  time_ref(in_tref),
+  amplitude(in_amp),
+  ang_freq(in_angfreq),
+  phase(in_phase),
+  vert_shift(in_vert)
 {   
+    // Define the function
     function<double(const Vector&, double)> TDF = [=](const Vector&x, double t) -> double { return amplitude*sin(ang_freq*t + phase) + vert_shift;};
+    
+    // Initialize the coefficient
     coeff = new FunctionCoefficient(TDF);
 }
+
 void UniformSinusoidalBC::UpdateCoeff()
 { 
     coeff->SetTime(time_ref);
 }
 
-PreciceBC::PreciceBC(const int attr, const BOUNDARY_CONDITION in_type, ParFiniteElementSpace& f, const string in_mesh, const bool is_restart, const double in_value, const string in_read, const string in_write) 
+PreciceBC::PreciceBC(const int attr, const BOUNDARY_CONDITION in_type, ParFiniteElementSpace& f, const string in_mesh, const double in_value, const string in_read, const string in_write) 
 : BoundaryCondition(attr, in_type),
   fespace(f),
   mesh_name(in_mesh),
-  restart(is_restart),
   default_value(in_value),
   read_data_name(in_read),
   write_data_name(in_write),
@@ -143,13 +161,9 @@ PreciceBC::PreciceBC(const int attr, const BOUNDARY_CONDITION in_type, ParFinite
 
     // Create auxiliary GF on fespace
     temp_gf = new ParGridFunction(&fespace);
-}
 
-void PreciceBC::InitCoefficient()
-{   
+    // Initialize coefficient
     coeff = new GridFunctionCoefficient(coeff_gf);
-    // Do not need to reset coeff_gf to coeff, just update it!
-    // (coeff takes ptr to coeff_gf) 
 }
 
 void PreciceBC::UpdateCoeff()
@@ -163,14 +177,14 @@ void PreciceBC::UpdateCoeff()
     }
 }
 
-void PreciceIsothermalBC::RetrieveWriteData(const mfem::Vector T, const ConductivityModel* cond_model)
+void PreciceIsothermalBC::RetrieveWriteData(const mfem::Vector T, const MaterialProperty* k_prop)
 {
     temp_gf->SetFromTrueDofs(T);
-    GetBdrWallHeatFlux(temp_gf, cond_model, bdr_elem_indices, write_data_arr);
+    GetBdrWallHeatFlux(temp_gf, k_prop, bdr_elem_indices, write_data_arr);
 }
 
 
-void PreciceHeatFluxBC::RetrieveWriteData(const mfem::Vector T, const ConductivityModel* cond_model)
+void PreciceHeatFluxBC::RetrieveWriteData(const mfem::Vector T, const MaterialProperty* k_prop)
 {
     temp_gf->SetFromTrueDofs(T);
     GetBdrTemperatures(temp_gf, bdr_elem_indices, write_data_arr);
@@ -204,7 +218,7 @@ void PreciceBC::GetBdrTemperatures(const ParGridFunction* T_gf, const Array<int>
     }
 }
 
-void PreciceBC::GetBdrWallHeatFlux(const mfem::ParGridFunction* T_gf, const ConductivityModel* in_cond, const mfem::Array<int> in_bdr_elem_indices, double* nodal_wall_heatfluxes)
+void PreciceBC::GetBdrWallHeatFlux(const mfem::ParGridFunction* T_gf, const MaterialProperty* k_prop, const mfem::Array<int> in_bdr_elem_indices, double* nodal_wall_heatfluxes)
 {
 
     ParFiniteElementSpace* fespace = T_gf->ParFESpace();
@@ -236,10 +250,10 @@ void PreciceBC::GetBdrWallHeatFlux(const mfem::ParGridFunction* T_gf, const Cond
             T_gf->GetGradient(*transf, grad_T);
 
             // Get local thermal conductivity (NOTE: assumed here again of isotropic thermal conductivity)
-            double k = in_cond->GetLocalConductivity(*transf, ip);
+            double k_loc = k_prop->GetLocalValue(T_gf->GetValue(*transf, ip));
 
             // Calculate + set value of heat
-            nodal_wall_heatfluxes[nodal_index] = - k * (grad_T * normal) / normal.Norml2();
+            nodal_wall_heatfluxes[nodal_index] = - k_loc * (grad_T * normal) / normal.Norml2();
 
 
             nodal_index++;

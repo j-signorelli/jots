@@ -6,7 +6,7 @@
 #include "precice/SolverInterface.hpp"
 
 #include "option_structure.hpp"
-#include "conductivity_model.hpp"
+#include "material_property.hpp"
 
 // Auxiliary class to prevent circular dependence, as PreciceAdapter is friend of PreciceBC
 class PreciceAdapter;
@@ -23,9 +23,8 @@ class BoundaryCondition
         BoundaryCondition(const int attr, const BOUNDARY_CONDITION in_type) : bdr_attr(attr), bc_type(in_type) {};
         int GetBdrAttr() const { return bdr_attr; }
         BOUNDARY_CONDITION GetType() const { return bc_type; };
-        mfem::Coefficient* GetCoeffPtr() const { return coeff; };
+        mfem::Coefficient& GetCoeffRef() const { return *coeff; }; // To be used only for assigning to linear/bilinear forms or projecting coeff, so declared const
 
-        virtual void InitCoefficient() = 0;
         virtual void UpdateCoeff() = 0;
         virtual bool IsEssential() const = 0;
         virtual bool IsConstant() const = 0; // true if d/dt is 0 for this coefficient
@@ -40,10 +39,9 @@ class UniformConstantBC : public BoundaryCondition
     protected:
         const double uniform_value;
     public:
-        UniformConstantBC(const int attr, const BOUNDARY_CONDITION in_type, const double in_value) : BoundaryCondition(attr, in_type), uniform_value(in_value) {};
+        UniformConstantBC(const int attr, const BOUNDARY_CONDITION in_type, const double in_value);
         bool IsConstant() const { return true; };
         double GetValue() const { return uniform_value; };
-        void InitCoefficient() { coeff = new mfem::ConstantCoefficient(uniform_value); };
         void UpdateCoeff() {};
         virtual std::string GetInitString() const = 0;
 };
@@ -80,9 +78,8 @@ class UniformSinusoidalBC : public BoundaryCondition
         const double& time_ref; // reference to the time
 
     public:
-        UniformSinusoidalBC(const int attr, BOUNDARY_CONDITION in_type, const double& in_tref, const double in_amp, const double in_angfreq, const double in_phase, const double in_vert) : BoundaryCondition(attr, in_type), time_ref(in_tref), amplitude(in_amp), ang_freq(in_angfreq), phase(in_phase), vert_shift(in_vert) {};
+        UniformSinusoidalBC(const int attr, BOUNDARY_CONDITION in_type, const double& in_tref, const double in_amp, const double in_angfreq, const double in_phase, const double in_vert);
         bool IsConstant() const { return false; }
-        void InitCoefficient();
         void UpdateCoeff();
         virtual bool IsEssential() const = 0;
         virtual std::string GetInitString() const = 0;
@@ -124,7 +121,6 @@ class PreciceBC : public BoundaryCondition
         mfem::ParFiniteElementSpace& fespace;
 
         const std::string mesh_name;
-        const bool restart;
         const double default_value;
         const std::string read_data_name;
         const std::string write_data_name;
@@ -151,15 +147,14 @@ class PreciceBC : public BoundaryCondition
     
 
         static void GetBdrTemperatures(const mfem::ParGridFunction* T_gf, const mfem::Array<int> in_bdr_elem_indices, double* nodal_temperatures); // Precondition: in_bdr_elem_indices length is correct
-        static void GetBdrWallHeatFlux(const mfem::ParGridFunction* T_gf, const ConductivityModel* in_cond, const mfem::Array<int> in_bdr_elem_indices, double* nodal_wall_heatfluxes); // Precondition same above
+        static void GetBdrWallHeatFlux(const mfem::ParGridFunction* T_gf, const MaterialProperty* k_prop, const mfem::Array<int> in_bdr_elem_indices, double* nodal_wall_heatfluxes); // Precondition same above
         mutable mfem::ParGridFunction* temp_gf;
     public:
-        PreciceBC(const int attr, const BOUNDARY_CONDITION in_type, mfem::ParFiniteElementSpace& f, const std::string in_mesh, const bool is_restart, const double in_value, const std::string in_read, const std::string in_write);
+        PreciceBC(const int attr, const BOUNDARY_CONDITION in_type, mfem::ParFiniteElementSpace& f, const std::string in_mesh, const double in_value, const std::string in_read, const std::string in_write);
         bool IsConstant() const { return false; };
-        void InitCoefficient();
         void UpdateCoeff();
 
-        virtual void RetrieveWriteData(const mfem::Vector T, const ConductivityModel* cond_model) = 0;
+        virtual void RetrieveWriteData(const mfem::Vector T, const MaterialProperty* k_prop) = 0;
 
 
         virtual bool IsEssential() const = 0;
@@ -175,8 +170,8 @@ class PreciceIsothermalBC : public PreciceBC
 
     protected:
     public:
-        PreciceIsothermalBC(const int attr, mfem::ParFiniteElementSpace& f, const std::string in_mesh, const bool is_restart, const double in_value) : PreciceBC(attr, BOUNDARY_CONDITION::PRECICE_ISOTHERMAL, f, in_mesh, is_restart, in_value, "Temperature", "Heat-Flux") {};
-        void RetrieveWriteData(const mfem::Vector T, const ConductivityModel* cond_model);
+        PreciceIsothermalBC(const int attr, mfem::ParFiniteElementSpace& f, const std::string in_mesh, const double in_value) : PreciceBC(attr, BOUNDARY_CONDITION::PRECICE_ISOTHERMAL, f, in_mesh, in_value, "Temperature", "Heat-Flux") {};
+        void RetrieveWriteData(const mfem::Vector T, const MaterialProperty* k_prop);
         std::string GetInitString() const;
 
         bool IsEssential() const { return true; };
@@ -189,8 +184,8 @@ class PreciceHeatFluxBC : public PreciceBC
     protected:
 
     public:
-        PreciceHeatFluxBC(const int attr, mfem::ParFiniteElementSpace& f, const std::string in_mesh, const bool is_restart, const double in_value) : PreciceBC(attr, BOUNDARY_CONDITION::PRECICE_HEATFLUX, f, in_mesh, is_restart, in_value, "Heat-Flux", "Temperature") {};
-        void RetrieveWriteData(const mfem::Vector T, const ConductivityModel* cond_model);
+        PreciceHeatFluxBC(const int attr, mfem::ParFiniteElementSpace& f, const std::string in_mesh, const double in_value) : PreciceBC(attr, BOUNDARY_CONDITION::PRECICE_HEATFLUX, f, in_mesh, in_value, "Heat-Flux", "Temperature") {};
+        void RetrieveWriteData(const mfem::Vector T, const MaterialProperty* k_prop);
         std::string GetInitString() const;
 
         bool IsEssential() const { return false; };

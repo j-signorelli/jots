@@ -56,14 +56,14 @@ enum class BINARY_CHOICE
 static const std::map<std::string, BINARY_CHOICE> Binary_Choice_Map = {{"Yes", BINARY_CHOICE::YES},
                                                              {"No", BINARY_CHOICE::NO}};
 
-enum class CONDUCTIVITY_MODEL
+enum class MATERIAL_MODEL
 {
   UNIFORM=0,
-  LINEARIZED=1
+  POLYNOMIAL=1
 };
 
-static const std::map<std::string, CONDUCTIVITY_MODEL> Conductivity_Model_Map = {{"Uniform", CONDUCTIVITY_MODEL::UNIFORM},
-                                                                             {"Linearized", CONDUCTIVITY_MODEL::LINEARIZED}};
+static const std::map<std::string, MATERIAL_MODEL> Material_Model_Map = {{"Uniform", MATERIAL_MODEL::UNIFORM},
+                                                                             {"Polynomial", MATERIAL_MODEL::POLYNOMIAL}};
                                                                     
 enum class SOLVER
 {

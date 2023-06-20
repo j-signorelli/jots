@@ -50,8 +50,8 @@ void Config::ReadMatProps()
 {
     // Read MaterialProperties
     density = property_tree.get("MaterialProperties.Density", 1.0);
-    Cp = property_tree.get("MaterialProperties.Specific_Heat_Cp", 1000.0);
-    SetInputStringVector(property_tree.get("MaterialProperties.Thermal_Conductivity_Model", "Uniform, 100"), conductivity_info);
+    SetInputStringVector(property_tree.get("MaterialProperties.Specific_Heat_C", "Uniform, 1000"), specific_heat_info);
+    SetInputStringVector(property_tree.get("MaterialProperties.Thermal_Conductivity_k", "Uniform, 100"), conductivity_info);
 }
 
 void Config::ReadPrecice()
@@ -179,7 +179,7 @@ string Config::GetSolverString() const
             return "GMRES";
             break;
         case SOLVER::FGMRES:
-            return "FMGRES";
+            return "FGMRES";
             break;
     }
 

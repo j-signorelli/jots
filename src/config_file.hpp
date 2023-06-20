@@ -26,7 +26,7 @@ class Config
         int parallel_refine;          /*!< \brief Number of times to refine mesh after parallel decomposition  */
         
         double density;
-        double Cp;
+        std::vector<std::string> specific_heat_info;
         std::vector<std::string> conductivity_info;
 
         bool use_restart;             /*!< \brief Boolean indicating if restart file should be loaded up as initial condition */
@@ -78,7 +78,7 @@ class Config
 
         double GetDensity() const { return density; };
         
-        double GetCp() const { return Cp; };
+        std::vector<std::string> GetSpecificHeatInfo() const { return specific_heat_info; };
 
         std::vector<std::string> GetCondInfo() const { return conductivity_info; };
         

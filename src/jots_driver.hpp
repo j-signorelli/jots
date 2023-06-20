@@ -7,7 +7,7 @@
 #include "option_structure.hpp"
 #include "config_file.hpp"
 #include "conduction_operator.hpp"
-#include "conductivity_model.hpp"
+#include "material_property.hpp"
 #include "precice_adapter.hpp"
 #include "output_manager.hpp"
 
@@ -30,7 +30,11 @@ class JOTSDriver
 
         Config* user_input;
         BoundaryCondition** boundary_conditions;
-        ConductivityModel* cond_model;
+        Array<int>* all_bdr_attr_markers;
+        bool initialized_bcs;
+        
+        MaterialProperty* k_prop;
+        MaterialProperty* C_prop;
 
         mfem::ODESolver* ode_solver;
         mfem::ParMesh* pmesh;
@@ -41,11 +45,17 @@ class JOTSDriver
         OutputManager* output;
 
         mfem::Vector T;
+        
+        mutable mfem::ParGridFunction* temp_T_gf;
 
+        void UpdateMatProps();
+
+        void PreprocessIteration();
 
     public:
         JOTSDriver(const char* input_file, const int myid, const int num_procs);
         void Run();
+
 
         ~JOTSDriver();
 

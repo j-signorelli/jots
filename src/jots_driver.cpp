@@ -5,7 +5,7 @@ using namespace mfem;
 using namespace precice;
 
 const string JOTSDriver::LINE = "-------------------------------------------------------------------";
-const double JOTSDriver::TIME_TOLERANCE = 1e-12;
+const double JOTSDriver::TIME_TOLERANCE = 1e-14;
 
 JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_procs)
 : rank(myid),
@@ -13,12 +13,15 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
   adapter(nullptr),
   user_input(nullptr),
   boundary_conditions(nullptr),
-  cond_model(nullptr),
+  initialized_bcs(false),
+  k_prop(nullptr),
+  C_prop(nullptr),
   ode_solver(nullptr),
   pmesh(nullptr),
   fe_coll(nullptr),
   fespace(nullptr),
-  oper(nullptr)
+  oper(nullptr),
+  temp_T_gf(nullptr)
 {   
     if (rank == 0)
     {
@@ -34,7 +37,7 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
                                     
                                     
 
-        )" << endl << "MFEM-Based Thermal Solver w/ preCICE" << endl << "Version 1.0" << endl << LINE << endl;
+        )" << endl << "MFEM-Based Thermal Solver w/ preCICE" << endl << "Version 1.1" << endl << LINE << endl;
     }
     //----------------------------------------------------------------------
     // Parse config file
@@ -43,7 +46,7 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
       cout << "Configuration file " << input_file << " parsed successfully!" << endl;
     //----------------------------------------------------------------------
     // Create solution GF
-    ParGridFunction* temp_T_gf;
+    //ParGridFunction* temp_T_gf;
 
     //----------------------------------------------------------------------
     // If not restart, refine mesh and initialize; else load VisItDataCollection
@@ -185,15 +188,46 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
     {   
         cout << "\n";
         cout << "Density: " << user_input->GetDensity() << endl;
-        cout << "Specific Heat Cp: " << user_input->GetCp() << endl;
     }
     //----------------------------------------------------------------------
-    // Create ConductivityModel object
-    vector<string> cond_info = user_input->GetCondInfo();
-    switch (Conductivity_Model_Map.at(cond_info[0]))
+    // Create MaterialProperty object for specific heat
+    vector<string> specific_heat_info = user_input->GetSpecificHeatInfo();
+    vector<double> poly_coeffs_C;
+    switch (Material_Model_Map.at(specific_heat_info[0]))
     {
-        case CONDUCTIVITY_MODEL::UNIFORM: // Uniform conductivity
-            cond_model = new UniformCond(stod(cond_info[1].c_str()));
+        case MATERIAL_MODEL::UNIFORM: // Uniform
+            C_prop = new UniformProperty(stod(specific_heat_info[1].c_str()));
+            break;
+        case MATERIAL_MODEL::POLYNOMIAL: // Polynomial
+
+            for (int i = 1; i < specific_heat_info.size(); i++)
+                poly_coeffs_C.push_back(stod(specific_heat_info[i].c_str()));
+
+            C_prop = new PolynomialProperty(poly_coeffs_C, *fespace);
+            break;
+        default:
+            MFEM_ABORT("Unknown/Invalid specific heat model specified");
+            return;
+    }
+    //----------------------------------------------------------------------
+    // Print specific heat model info
+    if (rank == 0)
+        cout << "Specific Heat Model: " << C_prop->GetInitString() << endl;
+    //----------------------------------------------------------------------
+    // Create MaterialProperty object for conductivity
+    vector<string> cond_info = user_input->GetCondInfo();
+    vector<double> poly_coeffs_k;
+    switch (Material_Model_Map.at(cond_info[0]))
+    {
+        case MATERIAL_MODEL::UNIFORM: // Uniform conductivity
+            k_prop = new UniformProperty(stod(cond_info[1].c_str()));
+            break;
+        case MATERIAL_MODEL::POLYNOMIAL: // Polynomial model for conductivity
+
+            for (int i = 1; i < cond_info.size(); i++)
+                poly_coeffs_k.push_back(stod(cond_info[i].c_str()));
+
+            k_prop = new PolynomialProperty(poly_coeffs_k, *fespace);
             break;
         default:
             MFEM_ABORT("Unknown/Invalid thermal conductivity model specified");
@@ -202,7 +236,7 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
     //----------------------------------------------------------------------
     // Print conductivity model info
     if (rank == 0)
-        cout << "Thermal Conductivity Model: " << cond_model->GetInitString() << endl;
+        cout << "Thermal Conductivity Model: " << k_prop->GetInitString() << endl;
     //----------------------------------------------------------------------
     // Set ODE time integrator
     ode_solver = user_input->GetODESolver();
@@ -310,13 +344,13 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
             case BOUNDARY_CONDITION::PRECICE_ISOTHERMAL:
                 mesh_name = bc.second[1];
                 value = stod(bc.second[2].c_str());
-                boundary_conditions[i] =  new PreciceIsothermalBC(bc.first, *fespace, mesh_name, user_input->UsesRestart(), value);
+                boundary_conditions[i] =  new PreciceIsothermalBC(bc.first, *fespace, mesh_name, value);
                 precice_bc_indices.push_back(i);
                 break;
             case BOUNDARY_CONDITION::PRECICE_HEATFLUX:
                 mesh_name = bc.second[1];
                 value = stod(bc.second[2].c_str());
-                boundary_conditions[i] =  new PreciceHeatFluxBC(bc.first, *fespace, mesh_name, user_input->UsesRestart(), value);
+                boundary_conditions[i] =  new PreciceHeatFluxBC(bc.first, *fespace, mesh_name, value);
                 precice_bc_indices.push_back(i);
                 break;
             case BOUNDARY_CONDITION::SINUSOIDAL_ISOTHERMAL:
@@ -342,7 +376,16 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
     // Send precice bcs to adapter
     if (user_input->UsingPrecice())
         adapter->AddPreciceBCs(boundary_conditions, precice_bc_indices);
-
+    //----------------------------------------------------------------------
+    // Prepare BC attr arrays for applying coefficients
+    all_bdr_attr_markers = new Array<int>[user_input->GetBCCount()];
+    for (size_t i = 0; i < user_input->GetBCCount(); i++)
+    {
+        Array<int> bdr_attr(user_input->GetBCCount());
+        bdr_attr = 0;
+        bdr_attr[i] = 1;
+        all_bdr_attr_markers[i] = bdr_attr;
+   }
     //----------------------------------------------------------------------
     // Print BCs
     for (size_t i = 0; i < user_input->GetBCCount(); i++)
@@ -376,7 +419,7 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
     //---------------------------------------------------------------------
     // Create main solution vector from IC
     temp_T_gf->GetTrueDofs(T);
-    delete temp_T_gf;
+    //delete temp_T_gf;
     //----------------------------------------------------------------------
     // Instantiate ConductionOperator, sending all necessary parameters
     if (rank == 0)
@@ -384,39 +427,45 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
         cout << LINE << endl;
         cout << "Initializing operator... ";
     }
-    oper = new ConductionOperator(user_input, boundary_conditions, cond_model, *fespace, time);
+    oper = new ConductionOperator(user_input, boundary_conditions, all_bdr_attr_markers, C_prop, k_prop, *fespace, time);
     if (rank == 0)
         cout << "Done!" << endl;
     //----------------------------------------------------------------------
     // Instantiate OutputManager
-    output = new OutputManager(rank, fespace, user_input, T, cond_model);
+    output = new OutputManager(rank, fespace, user_input, T, C_prop, k_prop);
 }
 
 void JOTSDriver::Run()
 {   
+    // Initialize material properties (only pertinent for non-uniform non-constant ones)
+    if (rank == 0)
+        cout << "Initializing material properties field...";
+
+    UpdateMatProps();
+
+    if (rank == 0)
+        cout << " Done!" << endl;
+    
 
     // Initialize the ODE Solver
     if (rank == 0)
         cout << "Initializing solver...";
 
     ode_solver->Init(*oper);
-    
+
     if (rank == 0)
         cout << " Done!" << endl;
 
-    double precice_dt = 0;
 
+
+    double precice_dt = 0;
     // Implicit coupling:
     double precice_saved_time = 0;
     double precice_saved_it_num = 0;
 
     // Output IC as ParaView
     if (it_num == 0)
-    {
-        //if (rank == 0)
-        //    cout << LINE << endl << "Saving Paraview Data: Initial Condition" << it_num << endl << LINE << endl;
         output->WriteVizOutput(it_num, time);
-    }
 
 
     // If using precice: initialize + get/send initial data if needed
@@ -426,7 +475,7 @@ void JOTSDriver::Run()
         precice_dt = adapter->Interface()->initialize();
         if (adapter->Interface()->isActionRequired(PreciceAdapter::cowid))
         {
-            adapter->WriteData(T, cond_model);
+            adapter->WriteData(T, k_prop);
             adapter->Interface()->markActionFulfilled(PreciceAdapter::cowid);
         }
         adapter->Interface()->initializeData();
@@ -452,8 +501,9 @@ void JOTSDriver::Run()
                 adapter->GetReadData();
         }
 
-        // Apply the BCs to state + calculate thermal conductivities
-        oper->PreprocessIteration(T);
+
+        // Update BCs and update BLFs + LFs in operator, if required
+        PreprocessIteration();
 
 
         // Update timestep if needed
@@ -468,14 +518,18 @@ void JOTSDriver::Run()
         ode_solver->Step(T, time, dt);        
         it_num++; // increment it_num
 
-        // Leave solver if time now greater than tf
+        // Leave solver if time now greater than tf -- solution is done
         if (time > tf && abs(time-tf) > TIME_TOLERANCE)
             continue;
+        
+        // Update material properties with new temperature
+        UpdateMatProps();
 
+        // Write any preCICE data, reload state if needed
         if (user_input->UsingPrecice())
         {
             if (adapter->Interface()->isWriteDataRequired(dt))
-                adapter->WriteData(T, cond_model);
+                adapter->WriteData(T, k_prop);
 
             // Advance preCICE
             adapter->Interface()->advance(dt);
@@ -487,22 +541,21 @@ void JOTSDriver::Run()
                 time = precice_saved_time;
                 it_num = precice_saved_it_num;
                 adapter->ReloadOldState(T);
+                UpdateMatProps(); // Update material props w/ reloaded field
                 adapter->Interface()->markActionFulfilled(PreciceAdapter::coric);
                 continue; // skip printing of timestep info AND outputting
             }
         }
-
-        
+   
 
         // Print current timestep information:
         if (rank == 0)
         {
             printf("Step #%10i || Time: %1.6e out of %-1.6e || dt: %1.6e \n", it_num, time, tf, dt);
                 
-        }    //|| Rank 0 Max Temperature: %10.3g \n", it_num, time, tf,  dt, T.Max());
-            //cout << "Step #" << it_num << " || t = " << time << "||" << "Rank 0 Max T: " << T.Max() << endl;
+        }
         
-        // Check if blew up
+        // Check if blow up
         if (T.Max() > 1e10)
         {
             MFEM_ABORT("JOTS has blown up");
@@ -544,18 +597,83 @@ void JOTSDriver::Run()
 
 }
 
+void JOTSDriver::UpdateMatProps()
+{
+    if (!k_prop->IsConstant())
+        k_prop->UpdateCoeff(T); // Update k coefficient
+
+    if (!C_prop->IsConstant())
+        C_prop->UpdateCoeff(T); // Update C coefficient
+}
+
+void JOTSDriver::PreprocessIteration()
+{
+    // If specific heat not constant, it may have changed -> Update mass BLF
+    if (!C_prop->IsConstant())
+        oper->UpdateMass();
+
+    // If conductivity not constant, it may have changed -> Update stiffness BLF
+    if (!k_prop->IsConstant())
+        oper->UpdateStiffness();
+
+    // Update time-dependent/non-constant boundary condition coefficients
+    temp_T_gf->SetFromTrueDofs(T);
+
+    bool n_changed = false;
+    bool d_changed = false;
+    for (size_t i = 0; i < user_input->GetBCCount(); i++)
+    {   
+        // Update coefficients (could be preCICE calls, could be SetTime calls, etc.)
+        if (!boundary_conditions[i]->IsConstant() || !initialized_bcs) // If not constant in time or not yet initialized for first iteration
+        {
+            boundary_conditions[i]->UpdateCoeff();
+
+            if (boundary_conditions[i]->IsEssential())
+            {
+                // Project correct values on boundary for essential BCs
+                d_changed = true;
+                temp_T_gf->ProjectBdrCoefficient(boundary_conditions[i]->GetCoeffRef(), all_bdr_attr_markers[i]);
+            }
+            else
+            {
+                n_changed = true; // Flag that Neumann LF must be updated
+            }
+        }
+    }
+
+    if (!initialized_bcs)
+        initialized_bcs = true;
+
+    if (d_changed)
+    {
+        // Apply changed Dirichlet BCs to T
+        temp_T_gf->GetTrueDofs(T);
+        // Here is where can set tmp_du_dt to be used if HO wanted
+        // For higher-order, need T from n-1 timestep in addition to n timestep? is this worth doing?
+        // Need to save previous timestep temperature in restarts
+    }
+
+    // If any non-constant Neumann terms, update Neumann linear form
+    if (n_changed)
+        oper->UpdateNeumannTerm();
+
+}
+
 JOTSDriver::~JOTSDriver()
 {
     delete adapter;
-    delete cond_model;
+    delete k_prop;
+    delete C_prop;
     for (size_t i = 0; i < user_input->GetBCCount(); i++)
         delete boundary_conditions[i];
     delete[] boundary_conditions;
+    delete[] all_bdr_attr_markers;
     delete user_input;
     delete ode_solver;
     delete pmesh;
     delete fe_coll;
     delete oper;
     delete output;
+    delete temp_T_gf;
 
 }

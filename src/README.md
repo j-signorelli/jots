@@ -2,13 +2,13 @@
 
 Start with the unsteady thermal conduction equation, applying the following assumptions:
 
-1. Density $\rho$ and specific heat $C_p$ are uniform (constant in space and time)
-2. We assume isotropic thermal conductivity $k$ but allow for it to vary as a function of temperature: $k=k(T(x,y,z,t))$
+1. Density $\rho$ is constant in space and time
+2. We assume isotropic thermal conductivity $k$ and specific heat $C$ but allow for them to vary as a function of temperature: $k=k(T(x,y,z,t))$ and $C=C(T(x,y,z,t))$
 3. No heat generation
 
 This yields:
 
-$$\rho c_p \dfrac{\partial T}{\partial t} - \nabla \cdot (k \nabla T) = 0$$
+$$\rho C \dfrac{\partial T}{\partial t} - \nabla \cdot (k \nabla T) = 0$$
 
 We seek a weak formulation of this allowing for nonhomogeneous Neumann and Dirichlet boundary conditions.
 
@@ -23,7 +23,7 @@ So: we seek a solution $T \isin H^1_{\partial \Omega_D}(\Omega)$ where $H^1_{\pa
 
 Multiply the heat equation by test function $v \isin H^1_{\partial \Omega_D}(\Omega)$ and integrate:
 
-$$\int_\Omega \rho c_p \dfrac{\partial T}{\partial t}vd\vec{x} - \int_\Omega \nabla \cdot (k \nabla T)vd\vec{x} = 0$$
+$$\int_\Omega \rho C \dfrac{\partial T}{\partial t}vd\vec{x} - \int_\Omega \nabla \cdot (k \nabla T)vd\vec{x} = 0$$
 
 We can then apply the following Green formula to the second term:
 
@@ -39,11 +39,11 @@ $$v(x,y,z) = \sum_j v_j(t)\phi_j(x,y,z)$$
 
 where $\phi_j(x)$ are the finite element basis functions and $T_j$ are nodal DOFs. Plugging this in:
 
-$$\sum_i \sum_j \left( \int_\Omega \rho C_p \dfrac{d T_i}{d t} \phi_i \phi_j d\vec{x} v_j\right) + \sum_i \sum_j \left( \int_\Omega T_i (k \nabla \phi_i) \cdot (\nabla \phi_j) d\vec{x} v_j\right) = \sum_j \left( \int_{\partial \Omega} g\phi_j d\vec{x}v_j\right)$$
+$$\sum_i \sum_j \left( \int_\Omega \rho C \dfrac{d T_i}{d t} \phi_i \phi_j d\vec{x} v_j\right) + \sum_i \sum_j \left( \int_\Omega T_i (k \nabla \phi_i) \cdot (\nabla \phi_j) d\vec{x} v_j\right) = \sum_j \left( \int_{\partial \Omega} g\phi_j d\vec{x}v_j\right)$$
 
 Note now that we may define:
 
-$$M_{ij}=\int_\Omega \rho C_p \phi_i \phi_j d\vec{x} = \text{Mass Matrix}$$
+$$M_{ij}=\int_\Omega \rho C \phi_i \phi_j d\vec{x} = \text{Mass Matrix}$$
 
 $$K_{ij} = \int_\Omega (k \nabla \phi_i) \cdot (\nabla \phi_j) d\vec{x} = \text{Stiffness Matrix}$$
 
@@ -91,5 +91,5 @@ Note **importantly**: stiffness matrix $K$ is still calculated using the tempera
 # Notes:
 
 - Presently:
-    - Times that have a difference less than $10^-12$ are presumed equal
+    - Times that have a difference less than $10^{-14}$ are presumed equal
     - Restart files output data to 15 decimal points
