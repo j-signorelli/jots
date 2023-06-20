@@ -1,4 +1,4 @@
 build/
 tests/*/ParaView/
-.vscode/settings.json
+.vscode/
 tests/*/restart_*
