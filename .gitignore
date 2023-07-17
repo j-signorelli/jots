@@ -1,4 +1,7 @@
 build/
 tests/*/ParaView/
+tests/*/*/ParaView/
+tests/*/*/precice-*
+tests/*/*/preCICE-output/
 .vscode/
 tests/*/restart_*
