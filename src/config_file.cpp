@@ -115,8 +115,8 @@ void Config::ReadLinSolSettings()
 void Config::ReadOutput()
 {
     //Read Output
-    restart_freq = property_tree.get("Output.Restart_Freq", 10);
-    vis_freq = property_tree.get("Output.Visualization_Freq", 10);
+    restart_freq = property_tree.get("Output.VisIt_Freq", 10);
+    vis_freq = property_tree.get("Output.ParaView_Freq", 10);
 
 }
 
