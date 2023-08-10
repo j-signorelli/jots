@@ -56,15 +56,14 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
             cout << "Non-restart simulation..." << endl;
         //----------------------------------------------------------------------
         // Create serial mesh
-        const char* mesh_file = user_input->GetMeshFile().c_str();
-        Mesh* mesh = new Mesh(mesh_file, 1);//pass one to generate edges
+        Mesh* mesh = new Mesh(user_input->GetMeshFile().c_str(), 1);//pass one to generate edges
         dim = mesh->Dimension();
         //----------------------------------------------------------------------
         // Print mesh info
         if (rank == 0)
         {
             cout << "\n";
-            cout << "Mesh File: " << mesh_file << endl;
+            cout << "Mesh File: " << user_input->GetMeshFile() << endl;
         }
         //----------------------------------------------------------------------
         // Refine mesh in serial
