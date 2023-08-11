@@ -14,7 +14,7 @@ OutputManager::OutputManager(const int in_rank, ParFiniteElementSpace* fespace, 
     //------------------------------------------------
     // Set up VisIt outputting (restarts)
     visit_dc = new VisItDataCollection(user_input->GetRestartPrefix(), fespace->GetParMesh());
-    visit_dc->SetLevelsOfDetail(user_input->GetFEOrder());
+    visit_dc->SetLevelsOfDetail(4);
     visit_dc->SetFormat(DataCollection::PARALLEL_FORMAT);
     visit_dc->SetPrecision(16);
     #ifdef MFEM_USE_ZLIB
