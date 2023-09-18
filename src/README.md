@@ -80,102 +80,65 @@ $$\dfrac{du_i}{dt} = M_{ik}^{-1} \left( -K_{kj}u_j + N_k\right)=-M_{ik}^{-1}K_{k
 
 Note that generally $\bold{M}=\bold{M}(\vec{u})$,  $\bold{K}=\bold{K}(\vec{u})$, and $\vec{N}=\vec{N}(t)$
 
-# Local Linearization
+# Unsteady Simulations (Time-Integration)
 
-To aid in time-integration, a locally-linearized form of the above equation is sought.
-
-Define $\vec{F}(\vec{u},t)=\bold{M}^{-1}\bold{K}\vec{u}$ and $\vec{G}(\vec{u},t)=\bold{M}^{-1}\vec{N}$ such that:
-
-$$\dfrac{d\vec{u}}{dt}=\bold{M}^{-1}\bold{K}\vec{u} + \bold{M}^{-1}\vec{N} = F(\vec{u},t) + G(\vec{u},t) $$
-
-
-We can then Taylor expand $F(\vec{u},t)$ and $u(t)$ about a reference point in time $t_n$:
-
-$$F(\vec{u},t) = F(\vec{u}_n,t_n) + \left. \dfrac{\partial F}{\partial \vec{u}}\right|_n(\vec{u}-\vec{u}_n) + \left. \dfrac{\partial F}{\partial t}\right|_n(t-t_n) + \dfrac{1}{2}\left.\dfrac{\partial^2 F}{\partial \vec{u}^2}\right|_n(\vec{u}-\vec{u}_n)^2 + \dfrac{1}{2}\left.\dfrac{\partial^2 F}{\partial t^2}\right|_n(t-t_n)^2 + \dfrac{1}{2}\left.\dfrac{\partial^2 F}{\partial \vec{u} \partial t}\right|_n(\vec{u}-\vec{u}_n)(t-t_n)+...$$
-
-and
-
-$$\vec{u}(t) = \vec{u}_n + (t-t_n)\left.\dfrac{\partial \vec{u}}{\partial t}\right|_n + \dfrac{1}{2}\left.\dfrac{\partial^2 \vec{u}}{\partial t^2}\right|_n+...$$
-
-Note that if $t$ is within $\Delta t$ of $t_n$, then both $(t-t_n)^k$ and $(\vec{u}-\vec{u}_n)^k$ are $\mathcal{O}(\Delta t^k)$, so we can write:
-
-$$\dfrac{d\vec{u}}{dt}=F(T,t)=F(T_n,t_n) + \left. \dfrac{\partial F}{\partial T}\right|_n(T-T_n) + \left. \dfrac{\partial F}{\partial t}\right|_n(t-t_n) + \mathcal{O}(\Delta t^2)$$
-
-Note that the mass matrix $M$ and stiffness matrix $K$ do not explicitly depend on $t$, but it is possible that the Neumann linear form does.
-
-# Unsteady Simulations -- Time-Integration
+JOTS makes usage of MFEM's layer-of-abstraction `TimeDependentOperator`. Note that $k=\dfrac{d\vec{u}}{dt}$
 
 ## Explicit
-For explicit time-integration we seek $T^{n+1}=G(T^{n})$. In terms of implicit and explicit parts $F$ and $G$ respectively we have:
 
-$$F(T^{n+1})=\dfrac{dT}{dt}=\dfrac{T^{n+1} - T^n}{\Delta t}$$
+For explicit time integration methods,
 
-and
-$$G(T^n)=M^{-1}(T^n) \left( -K(T^n)T^n + \int_{\partial \Omega} g\phi^n d\vec{x}\right)$$
+$$\vec{u}_{n+1} = \vec{u}_n + \Delta t\left.\dfrac{d \vec{u}}{dt}\right|_n$$
+
+where
+
+$$\left.\dfrac{d\vec{u}}{dt}\right|_n=f(\vec{u}_n, t_n)=\bold{M}^{-1}(\vec{u}_n)\left[\bold{K}(\vec{u}_n)\vec{u}_{n} + \vec{N}(t_n)\right]$$
+
+## Implicit
+
+For implicit time-integration methods,
+
+$$\vec{u}_{n+1} = \vec{u}_n + \Delta t\left.\dfrac{d \vec{u}}{dt}\right|_{n+1}$$
+
+where
+
+$$\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}=f(\vec{u}_{n+1}, t_{n+1})=\bold{M}^{-1}(\vec{u}_{n+1})\left[\bold{K}(\vec{u}_{n+1})\vec{u}_{n+1} + \vec{N}(t_{n+1})\right]$$
+
+Plugging in the above equation for $\vec{u}_{n+1}$:
+
+$$\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}=f(\vec{u}_{n+1}, t_{n+1})=\bold{M}^{-1}(\vec{u}_{n+1})\left[\bold{K}(\vec{u}_{n+1})\left(\vec{u}_{n} + \Delta t\left.\dfrac{d \vec{u}}{dt}\right|_{n+1}\right) + \vec{N}(t_{n+1})\right]$$
+
+Rearranging this yields:
+
+$$\left[\bold{M}(\vec{u}_{n+1})+\Delta t \bold{K}(\vec{u}_{n+1})\right]\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}=\bold{K}(\vec{u}_{n+1})\vec{u}_{n}+\vec{N}(t_{n+1})$$
 
 Thus:
 
-$$\dfrac{dT}{dt}^{n+1}=M^{-1}(T^n) \left( -K(T^n)T^n + \int_{\partial \Omega} g\phi^n d\vec{x}\right)$$
+$$\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}=\left[\bold{M}(\vec{u}_{n+1})+\Delta t \bold{K}(\vec{u}_{n+1})\right]^{-1}\left[\bold{K}(\vec{u}_{n+1})\vec{u}_{n}+\vec{N}(t_{n+1})\right]$$
 
-## Implicit
-Implicit time-integration schemes require solving $H(T^{n+1}, T^n)=0$
+Given the nonlinearities, JOTS presently only has one way to deal with them by considering the mass and stiffness matrices' Taylor expansion taken about the previous timestep:
 
-Either an implicit-explicit (IMEX) approach or a nonlinear solver must be used.
+$$\bold{M}^{-1}(\vec{u}_{n+1})=\bold{M}^{-1}(\vec{u}_{n}) + \left.\dfrac{\partial \bold{M}^{-1}}{\partial \vec{u}}\right|_n\left[ \vec{u}_{n+1} - \vec{u}_{n}\right] + \dfrac{1}{2}\left.\dfrac{\partial^2 \bold{M}^{-1}}{\partial \vec{u}^2}\right|_n\left[ \vec{u}_{n+1} - \vec{u}_{n}\right]^2 + \dotsb$$
 
-### IMEX
+$$\bold{K}(\vec{u}_{n+1})=\bold{K}(\vec{u}_{n}) + \left.\dfrac{\partial \bold{K}}{\partial \vec{u}}\right|_n\left[ \vec{u}_{n+1} - \vec{u}_{n}\right] + \dfrac{1}{2}\left.\dfrac{\partial^2 \bold{K}}{\partial \vec{u}^2}\right|_n\left[ \vec{u}_{n+1} - \vec{u}_{n}\right]^2 + \dotsb$$
 
-In the IMEX approach, we seek $T^{n+1}=F(T^{n+1}) + G(T^n)$ where, as before, $F$ and $G$ are the implicit and explicit parts respectively. The implicit part is chosen to include linear terms while the explicit part is chosen to include nonlinear terms.
+It is currently presumed that:
 
+$$\bold{M}^{-1}(\vec{u}_{n+1})=\bold{M}^{-1}(\vec{u}_{n})$$
 
+and
+$$\bold{K}(\vec{u}_{n+1})=\bold{K}(\vec{u}_{n})$$.
 
-Linearizing $T_j^{n+1}$ yields the equation:
-
-$$M_{ik}\dfrac{dT_i}{dt} = \left( -K_{kj}(T_j + dt\dfrac{dT_k}{dt}) + \int_{\partial \Omega} g\phi_k d\vec{x}\right)$$
-
-as taking the Taylor Series of $T_i^n$ about the $t_{n+1}$ timestep yields $T_i^n = T_i^{n+1} - dt\dfrac{\partial T^{n+1}_i}{\partial t} + O(dt^2)$ and neglecting HOT yields:  
-
-
-$$T_i^{n+1} = T_i^n + dt \dfrac{dT^{n+1}_i}{dt}$$
-
-
-Given this, the new equation to solve becomes:
-
-$$Kdt\dfrac{dT}{dt} + M\dfrac{dT}{dt} = \left( -KT + \int_{\partial \Omega} g\phi d\vec{x}\right)$$
-
-$$\left( Kdt + M\right)\dfrac{dT}{dt} = \left( -KT + \int_{\partial \Omega} g\phi d\vec{x}\right)$$
-
-Note **importantly**: stiffness matrix $K$ is still calculated using the temperature from the previous timestep so, if it changes in time, this is a source of error. This is beneficial as only one matrix must be inverted each timestep.
-
-Alby Questions:
-- What $g$ do I use??? $g^{n+1}$ or $g^n$??
-- What exactly is being done in the "Linearized approximation"? I want to specifically see all the math written out and understand the names of these things (IMEX?)
-
-### Picard Iterations
-Really simple nonlinear solver with awful convergence but easy.
-
-### Newton-Raphson
-If we have a Jacobian, then perfect. I think I must provide that. Otherwise we need to calculate a Jacobian which may be expensive.
-
-Then, need to invert the Jacobian.
-
-## Steady-State Simulations
-The steady state equation of interest to solve becomes:
-
-$$\nabla \cdot (k \nabla T) = 0$$
-
-If $k=k(T)$, then a nonlinear solver must be used. Either Picard iterations or Newton-Raphson may be used.
+There are plans to implement nonlinear iterative solvers for these terms and this section will be expanded accordingly.
 
 # Nonhomogeneous Dirichlet BCs
 
+
+Nonhomogeneous Dirichlet boundary conditions involve fixing some values of $\dfrac{d \vec{u}}{dt}$ **in time**, since values of $u$ on $\partial \Omega_D$ may change in time. 
+
+TODO: Finish this section. Also TODO: Update implicit time schemes to use Neumann term at NEXT timestep, not current. (Probably just a IsExplicit or something on TimeDependentOperator)
+
 To enforce nonhomogeneous Dirichlet BCs, given temperatures at essential DOFs $T_e$ are enforced, with $\dfrac{\partial T_e}{\partial t} = 0$ as of now.
-
-It may be straightforward to update this for any Dirichlet BCs that change in time, where one may apply a backward differencing if desired, but calculations at start given an initial condition must be carefully considered.
-
-
-# Important Assumptions / Limitations
-
-1. For implicit time-integration, $K$ is determined using temperatures at the previous timestep ($K$ is linearized from previous timestep).
-2. For essential boundary conditions that vary in time, $\dfrac{dT_i}{dt}$ is assumed to be 0. A backward differencing may be implemented for higher-order accuracy in time but would require restart files that save $t_{n-1}$ data in addition to $t_n$ data.
 
 # Notes:
 
