@@ -28,7 +28,8 @@ class JOTSDriver
 
         PreciceAdapter* adapter;
 
-        Config* user_input;
+        Config& user_input;
+
         BoundaryCondition** boundary_conditions;
         Array<int>* all_bdr_attr_markers;
         bool initialized_bcs;
