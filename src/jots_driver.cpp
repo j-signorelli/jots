@@ -42,7 +42,7 @@ JOTSDriver::JOTSDriver(Config& input, const int myid, const int num_procs)
     //----------------------------------------------------------------------
     // Print config file
     if (rank == 0)
-      cout << "Configuration file: " << input_file << endl;
+      cout << "Configuration file: " << user_input.GetInputFile() << endl;
     //----------------------------------------------------------------------
     // If not restart, refine mesh and initialize; else load VisItDataCollection
     if (!user_input.UsesRestart())

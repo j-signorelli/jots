@@ -68,6 +68,8 @@ class Config
     public:
         Config(const char* in_file);
 
+        std::string GetInputFile() const { return input_file; };
+
         std::string GetMeshFile() const { return mesh_file; };
 
         int GetFEOrder() const { return fe_order; };

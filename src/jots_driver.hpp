@@ -54,7 +54,7 @@ class JOTSDriver
         void PreprocessIteration();
 
     public:
-        JOTSDriver(const char* input_file, const int myid, const int num_procs);
+        JOTSDriver(Config& input, const int myid, const int num_procs);
         void Run();
 
 

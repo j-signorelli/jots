@@ -12,9 +12,9 @@ using namespace std;
  *
  *  Class ConductionOperator represents the right-hand side of the above ODE.
  */
-ConductionOperator::ConductionOperator(const Config* in_config, const BoundaryCondition* const* in_bcs, Array<int>* all_bdr_attr_markers, const MaterialProperty* C_prop, const MaterialProperty* k_prop, ParFiniteElementSpace &f, double t_0)
+ConductionOperator::ConductionOperator(const Config& in_config, const BoundaryCondition* const* in_bcs, Array<int>* all_bdr_attr_markers, const MaterialProperty* C_prop, const MaterialProperty* k_prop, ParFiniteElementSpace &f, double t_0)
    :  TimeDependentOperator(f.GetTrueVSize(), t_0),
-      rho_C(in_config->GetDensity(), C_prop->GetCoeffRef()),
+      rho_C(in_config.GetDensity(), C_prop->GetCoeffRef()),
       fespace(f),
       impl_solver(NULL),
       expl_solver(NULL),
@@ -44,16 +44,16 @@ ConductionOperator::ConductionOperator(const Config* in_config, const BoundaryCo
 
 }
 
-void ConductionOperator::PreprocessSolver(const Config* in_config)
+void ConductionOperator::PreprocessSolver(const Config& in_config)
 {  
-   double abs_tol = in_config->GetAbsTol();
-   double rel_tol = in_config->GetRelTol();
-   int max_iter = in_config->GetMaxIter();
+   double abs_tol = in_config.GetAbsTol();
+   double rel_tol = in_config.GetRelTol();
+   int max_iter = in_config.GetMaxIter();
 
    //----------------------------------------------------------------
    // Prepare explicit solver
    
-   expl_solver = in_config->GetSolver(fespace.GetComm());
+   expl_solver = in_config.GetSolver(fespace.GetComm());
 
    // Set up the solver for Mult
    expl_solver->iterative_mode = false; // If true, would use second argument of Mult() as initial guess; here it is set to false
@@ -63,12 +63,12 @@ void ConductionOperator::PreprocessSolver(const Config* in_config)
    expl_solver->SetMaxIter(max_iter); // Sets maximum number of iterations
    expl_solver->SetPrintLevel(0); // Print all information about detected issues
 
-   expl_prec.SetType(in_config->GetPrec()); // Set type of preconditioning (relaxation type) 
+   expl_prec.SetType(in_config.GetPrec()); // Set type of preconditioning (relaxation type) 
    expl_solver->SetPreconditioner(expl_prec); // Set preconditioner to matrix inversion solver
 
    //----------------------------------------------------------------
    // Prepare implicit solver
-   impl_solver = in_config->GetSolver(fespace.GetComm());
+   impl_solver = in_config.GetSolver(fespace.GetComm());
    
    // Set up solver for ImplicitSolve
    impl_solver->iterative_mode = false;
@@ -76,24 +76,24 @@ void ConductionOperator::PreprocessSolver(const Config* in_config)
    impl_solver->SetAbsTol(abs_tol);
    impl_solver->SetMaxIter(max_iter);
    impl_solver->SetPrintLevel(0);
-   impl_prec.SetType(in_config->GetPrec());
+   impl_prec.SetType(in_config.GetPrec());
    impl_solver->SetPreconditioner(impl_prec);
    
 
 }
 
-void ConductionOperator::PreprocessBCs(const Config* in_config, const BoundaryCondition* const* in_bcs, Array<int>* all_bdr_attr_markers)
+void ConductionOperator::PreprocessBCs(const Config& in_config, const BoundaryCondition* const* in_bcs, Array<int>* all_bdr_attr_markers)
 {
 
    // Set the list of Dirichlet (essential) DOFs
-   Array<int> dbc_bdr(in_config->GetBCCount());
+   Array<int> dbc_bdr(in_config.GetBCCount());
    dbc_bdr = 0; // Start w/ all attributes set to non-essential = 0
 
 
    // Create linear form for Neumann BCs
    b = new ParLinearForm(&fespace);
 
-   for (size_t i = 0; i < in_config->GetBCCount(); i++)
+   for (size_t i = 0; i < in_config.GetBCCount(); i++)
    {
       // Add Neumann BCs to linear form b
       if (!in_bcs[i]->IsEssential())
