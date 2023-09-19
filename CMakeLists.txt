@@ -1,9 +1,6 @@
 # Require same CMake as MFEM
 cmake_minimum_required(VERSION 3.10)
 
-# Include CTest for regression tests
-#include(CTest)
-
 # Define our project
 project(jots VERSION 1.1 LANGUAGES CXX)
 
@@ -35,6 +32,8 @@ install(TARGETS jots DESTINATION bin)
 install(FILES "${PROJECT_SOURCE_DIR}/pw_mfem_mesh_fix.py" DESTINATION bin)
 
 # Add regression tests:
+enable_testing()
+
 # Serial_Reinert_B1 tests "Transient Heat Conduction with Dirichlet Boundary Conditions"
 #add_test(NAME Serial_Reinert_B1 COMMAND )
 
