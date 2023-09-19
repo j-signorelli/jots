@@ -4,13 +4,12 @@ cmake_minimum_required(VERSION 3.10)
 # Include CTest for regression tests
 #include(CTest)
 
-# Require C++11
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED True)
-
 # Define our project
-project(jots VERSION 1.1
-	     LANGUAGES CXX)
+project(jots VERSION 1.1 LANGUAGES CXX)
+
+# Create interface library for compiler flag requirements (requiring C++11)
+add_library(compiler_flag_requirements INTERFACE)
+target_compile_features(compiler_flag_requirements INTERFACE cxx_std_11)
 
 # Get preCICE
 find_package(PRECICE REQUIRED CONFIG NAMES precice)
@@ -29,7 +28,11 @@ add_subdirectory(src)
 
 # Create executable
 add_executable(jots jots_main.cpp)
-target_link_libraries(jots PRIVATE precice::precice mfem jotsLib)
+target_link_libraries(jots PUBLIC jotsLib)
+
+# Install
+install(TARGETS jots DESTINATION bin)
+install(FILES "${PROJECT_SOURCE_DIR}/pw_mfem_mesh_fix.py" DESTINATION bin)
 
 # Add regression tests:
 # Serial_Reinert_B1 tests "Transient Heat Conduction with Dirichlet Boundary Conditions"
