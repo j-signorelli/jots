@@ -127,18 +127,23 @@ It is currently presumed that:
 $$\bold{M}^{-1}(\vec{u}_{n+1})=\bold{M}^{-1}(\vec{u}_{n})$$
 
 and
-$$\bold{K}(\vec{u}_{n+1})=\bold{K}(\vec{u}_{n})$$.
+
+$$\bold{K}(\vec{u}_{n+1})=\bold{K}(\vec{u}_{n}).$$
+
 
 There are plans to implement nonlinear iterative solvers for these terms and this section will be expanded accordingly.
 
-# Nonhomogeneous Dirichlet BCs
+# Approximations for Nonhomogeneous Non-Constant Dirichlet + Neumann BCs
 
 
-Nonhomogeneous Dirichlet boundary conditions involve fixing some values of $\dfrac{d \vec{u}}{dt}$ **in time**, since values of $u$ on $\partial \Omega_D$ may change in time. 
+Nonhomogeneous time-varying Dirichlet boundary conditions involve fixing some values of $\dfrac{d \vec{u}}{dt}$ **in time**, $\dfrac{d\vec{u}_D}{dt}$, since values of $u$ on $\partial \Omega_D$ may change in time. Currently, JOTS assumes that $\dfrac{d\vec{u}_D}{dt}\approx 0$. This is a source of error as solutions to the derivatives of the free DOFs depend on derivatives of the essential DOFs (See [here](https://github.com/mfem/mfem/issues/1720)).
 
-TODO: Finish this section. Also TODO: Update implicit time schemes to use Neumann term at NEXT timestep, not current. (Probably just a IsExplicit or something on TimeDependentOperator)
+A similar issue arises for Neumann boundary conditions as JOTS currently assumes that $\vec{N}(t_{n+1})\approx\vec{N}(t_n)$ for implicit time-integration. This is another source of error
 
-To enforce nonhomogeneous Dirichlet BCs, given temperatures at essential DOFs $T_e$ are enforced, with $\dfrac{\partial T_e}{\partial t} = 0$ as of now.
+Some boundary conditions have an analytical expression, so $\dfrac{d\vec{u}_D}{dt}$ (at $t_n$ if explicit-time, $t_{n+1}$ if implicit-time) and/or $\vec{N}(t_{n+1})$ can be plugged in, but for preCICE boundary conditions, this cannot be done exactly. Approximations may be implemented in the future, such as using a backward differencing for preCICE boundary conditions.
+
+However, for now to maintain consistency, the above assumptions are applied uniformly across JOTS. As $\Delta t \rightarrow0$, the error in the assumptions above also approach zero.
+
 
 # Notes:
 
