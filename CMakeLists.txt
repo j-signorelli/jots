@@ -31,7 +31,7 @@ add_subdirectory(tests)
 add_executable(jots jots_main.cpp)
 target_link_libraries(jots PUBLIC jotsLib)
 
-message(STATUS "Install directory: ${CMAKE_INSTALL_DIR}")
+message(STATUS "Install directory: ${CMAKE_INSTALL_PREFIX}")
 
 # Install
 install(TARGETS jots DESTINATION bin)
