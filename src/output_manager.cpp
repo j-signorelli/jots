@@ -73,6 +73,12 @@ void OutputManager::UpdateGridFunctions()
 
 }
 
+const ParGridFunction* OutputManager::GetT_gf()
+{
+    UpdateGridFunctions();
+    return T_gf;
+}
+
 void OutputManager::WriteVizOutput(const int it_num, const double time)
 {   
     UpdateGridFunctions();

@@ -31,5 +31,7 @@ class OutputManager
         void WriteVizOutput(const int it_num, const double time);
         void WriteRestartOutput(const int it_num, const double time);
 
+        const mfem::ParGridFunction* GetT_gf();
+
         ~OutputManager();
 };

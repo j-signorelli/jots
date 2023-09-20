@@ -56,7 +56,8 @@ class JOTSDriver
     public:
         JOTSDriver(const Config& input, const int myid, const int num_procs);
         void Run();
-        mfem::ParGridFunction*
+        
+        OutputManager* GetOutputManager() { return output; };
 
         ~JOTSDriver();
 

@@ -1,3 +1,5 @@
+#include <cmath>
+
 #include "jots_driver.hpp"
 
 #include "test_info.hpp"
@@ -8,10 +10,12 @@ using namespace mfem;
 double Reinert_B1_Analytical(const Vector& x, double time);
 
 const int SIM_TIME = 1.0;
-const double EPSILON = 1e-9
+const double EPSILON = 1e-4;
+const int N = 100; // Inclusive end of summation over terms of analytical solution infinite series to include
 
 int main(int argc, char *argv[])
 {  
+    
     // Initialize MPI and HYPRE.
     Mpi::Init(argc, argv);
     int num_procs = Mpi::WorldSize();
@@ -34,8 +38,11 @@ int main(int argc, char *argv[])
     input.SetRestartFreq(INT_MAX);
     input.SetVisFreq(INT_MAX);
 
-    // Only run for 1 physical second
-    input.SetFinalTime(1.0);
+    // Only run for SIM_TIME
+    input.SetFinalTime(SIM_TIME);
+
+    // Reduce dt for test
+    input.Setdt(0.001);
 
     // Create new JOTSDriver
     JOTSDriver* driver = new JOTSDriver(input, myid, num_procs);
@@ -45,29 +52,49 @@ int main(int argc, char *argv[])
 
     // Define exact solution coefficient
     FunctionCoefficient u_exact(Reinert_B1_Analytical);
+    u_exact.SetTime(SIM_TIME);
 
     // Get the finite-element approximation solution
-    double error = driver->GetOutputManager()->ComputeL2Error(u_exact);
+    double error = driver->GetOutputManager()->GetT_gf()->ComputeL2Error(u_exact);
 
-    if (rank == 0)
-        cout << "Error: " << error << endl;
+    if (myid == 0)
+        cout << "Error: " << error;
 
-    if (error > epsilon)
+    if (error > EPSILON)
     {
-        cout << "Failed!" << endl;
+        if (myid == 0)
+            cout << " > " << EPSILON << endl << "Failed!" << endl;
         return 1;
     }
     else
-        cout << "Success!" << endl;
+        if (myid == 0)
+            cout << " <= " << EPSILON << endl << "Success!" << endl;
 
     // Delete driver
     delete driver;
-
+    
 
     return 0;
 }
 
 double Reinert_B1_Analytical(const Vector& x, double time)
 {
+    double theta = 1.0;
+    double alpha = 2.5e-6;
+    double L = 1.0;
+
+    for (int n = 0; n < N+1; n++)
+    {
+        double A = pow(-1.0,n)/(2.0*n+1.0);
+        double B = (-pow(2.0*n+1.0,2.0)*pow(M_PI,2)*alpha*time)/(4.0*pow(L,2));
+        double C = ((2.0*n+1.0)*M_PI*x[0])/(2.0*L);
+
+        theta = theta - (4.0/M_PI)*A*exp(B)*cos(C);
+    }
+    
+    double T_0 = 300.0;
+    double T_D = 500.0;
+
+    return theta*(T_D - T_0) + T_0;
 
 }
