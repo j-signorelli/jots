@@ -28,7 +28,7 @@ class JOTSDriver
 
         PreciceAdapter* adapter;
 
-        Config& user_input;
+        const Config& user_input;
 
         BoundaryCondition** boundary_conditions;
         Array<int>* all_bdr_attr_markers;
@@ -54,9 +54,9 @@ class JOTSDriver
         void PreprocessIteration();
 
     public:
-        JOTSDriver(Config& input, const int myid, const int num_procs);
+        JOTSDriver(const Config& input, const int myid, const int num_procs);
         void Run();
-
+        mfem::ParGridFunction*
 
         ~JOTSDriver();
 

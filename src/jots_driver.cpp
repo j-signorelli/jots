@@ -7,7 +7,7 @@ using namespace precice;
 const string JOTSDriver::LINE = "-------------------------------------------------------------------";
 const double JOTSDriver::TIME_TOLERANCE = 1e-14;
 
-JOTSDriver::JOTSDriver(Config& input, const int myid, const int num_procs)
+JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs)
 : rank(myid),
   size(num_procs),
   adapter(nullptr),
@@ -413,7 +413,6 @@ JOTSDriver::JOTSDriver(Config& input, const int myid, const int num_procs)
     //---------------------------------------------------------------------
     // Create main solution vector from IC
     temp_T_gf->GetTrueDofs(T);
-    //delete temp_T_gf;
     //----------------------------------------------------------------------
     // Instantiate ConductionOperator, sending all necessary parameters
     if (rank == 0)
