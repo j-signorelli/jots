@@ -9,8 +9,8 @@ using namespace mfem;
 
 double Reinert_B1_Analytical(const Vector& x, double time);
 
-const int SIM_TIME = 1.0;
-const double EPSILON = 1e-4;
+const int SIM_TIME = 2.0;
+const double EPSILON = 1e-5;
 const int N = 100; // Inclusive end of summation over terms of analytical solution infinite series to include
 
 int main(int argc, char *argv[])
@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
 
     // Update the mesh file location (may not be relative to that local directory)
     stringstream mesh_file;
-    mesh_file << SOURCE_DIR << "/examples/meshes/block.mesh";
+    mesh_file << SOURCE_DIR << "/examples/meshes/Reinert_1D_block.mesh";
     input.SetMeshFile(mesh_file.str().c_str());
 
     // Suppress any output
@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
     input.SetFinalTime(SIM_TIME);
 
     // Reduce dt for test
-    input.Setdt(0.001);
+    input.Setdt(1e-4);
 
     // Create new JOTSDriver
     JOTSDriver* driver = new JOTSDriver(input, myid, num_procs);
@@ -81,7 +81,7 @@ double Reinert_B1_Analytical(const Vector& x, double time)
 {
     double theta = 1.0;
     double alpha = 2.5e-6;
-    double L = 1.0;
+    double L = 0.01;
 
     for (int n = 0; n < N+1; n++)
     {
