@@ -7,7 +7,7 @@
 using namespace std;
 using namespace mfem;
 
-double Reinert_B1_Analytical(const Vector& x, double time);
+double Reinert_B2_Analytical(const Vector& x, double time);
 
 const int SIM_TIME = 2.0;
 const double EPSILON = 1e-5;
@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
 
     // Get input file for Reinert_B1
     stringstream input_file;
-    input_file << SOURCE_DIR << "/examples/Reinert_B1/Reinert_B1.ini";
+    input_file << SOURCE_DIR << "/examples/Reinert_B2/Reinert_B2.ini";
 
     // Parse the config file
     Config input(input_file.str().c_str());
@@ -51,7 +51,7 @@ int main(int argc, char *argv[])
     driver->Run();
 
     // Define exact solution coefficient
-    FunctionCoefficient u_exact(Reinert_B1_Analytical);
+    FunctionCoefficient u_exact(Reinert_B2_Analytical);
     u_exact.SetTime(SIM_TIME);
 
     // Get the finite-element approximation solution
@@ -78,29 +78,29 @@ int main(int argc, char *argv[])
 
     // Delete driver
     delete driver;
-    
 
     return 0;
 }
 
-double Reinert_B1_Analytical(const Vector& x, double time)
+double Reinert_B2_Analytical(const Vector& x, double time)
 {
-    double theta = 1.0;
     double alpha = 2.5e-6;
     double L = 0.01;
+    double k = 10.0;
+    double q_dot = 7.5e5;
 
-    for (int n = 0; n < N+1; n++)
+    double theta = alpha*time/pow(L,2.0) + 1.0/3.0 - x[0]/L + 0.5*pow(x[0]/L,2.0);
+
+    for (int n = 1; n < N+1; n++)
     {
-        double A = pow(-1.0,n)/(2.0*n+1.0);
-        double B = (-pow(2.0*n+1.0,2.0)*pow(M_PI,2)*alpha*time)/(4.0*pow(L,2));
-        double C = ((2.0*n+1.0)*M_PI*x[0])/(2.0*L);
-
-        theta = theta - (4.0/M_PI)*A*exp(B)*cos(C);
+        double A = -pow(n,2.0)*pow(M_PI,2.0)*alpha*time/pow(L,2.0);
+        double B = n*M_PI*x[0]/L;
+        double C = (2.0/pow(M_PI,2.0))*(1.0/pow(n,2.0));
+        theta -= C*exp(A)*cos(B);
     }
     
     double T_0 = 300.0;
-    double T_D = 500.0;
 
-    return theta*(T_D - T_0) + T_0;
+    return theta*q_dot*L/k + T_0;
 
 }

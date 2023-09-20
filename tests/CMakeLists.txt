@@ -9,8 +9,10 @@ add_executable(Parallel_Reinert_B1 Parallel_Reinert_B1.cpp)
 target_link_libraries(Parallel_Reinert_B1 PUBLIC jotsLib)
 add_test(NAME Parallel_Reinert_B1 COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} ${MPIEXEC_MAX_NUMPROCS} ./Parallel_Reinert_B1)
 
+add_executable(Parallel_Reinert_B2 Parallel_Reinert_B2.cpp)
+target_link_libraries(Parallel_Reinert_B2 PUBLIC jotsLib)
 # Reinert_B2 tests "Transient Heat Conduction with Neumann Boundary Conditions"
-#add_test(NAME Reinert_B2 COMMAND )
+add_test(NAME Parallel_Reinert_B2 COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} ${MPIEXEC_MAX_NUMPROCS} ./Parallel_Reinert_B2)
 
 # Reinert_B3 tests "Transient Heat Conduction with Variable Thermal Properties"
 #add_test(NAME Reinert_B3 COMMAND )
