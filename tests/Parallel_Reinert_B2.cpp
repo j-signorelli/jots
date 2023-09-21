@@ -11,7 +11,7 @@ double Reinert_B2_Analytical(const Vector& x, double time);
 
 int main(int argc, char *argv[])
 {  
-    return Reinert_B2(2, Reinert_B2_Analytical);
+    return Reinert_Test(2, Reinert_B2_Analytical);
 }
 
 double Reinert_B2_Analytical(const Vector& x, double time)

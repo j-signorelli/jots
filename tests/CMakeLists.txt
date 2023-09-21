@@ -15,7 +15,10 @@ target_link_libraries(Parallel_Reinert_B2 PUBLIC jotsLib)
 add_test(NAME Parallel_Reinert_B2 COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} ${MPIEXEC_MAX_NUMPROCS} ./Parallel_Reinert_B2)
 
 # Reinert_B3 tests "Transient Heat Conduction with Variable Thermal Properties"
-#add_test(NAME Reinert_B3 COMMAND )
+add_executable(Parallel_Reinert_B3 Parallel_Reinert_B3.cpp)
+target_link_libraries(Parallel_Reinert_B3 PUBLIC jotsLib)
+add_test(NAME Parallel_Reinert_B3 COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} ${MPIEXEC_MAX_NUMPROCS} ./Parallel_Reinert_B3)
+
 
 # Modal_Oscillation_Plate_preCICE tests specification of isothermal BC from preCICE
 #add_test(NAME Modal_Oscillation_Plate_preCICE COMMAND )
