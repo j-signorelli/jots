@@ -1,6 +1,3 @@
-Given a vector space $V$, the dual space is the span of $\mathcal{L}(V;\mathbb{R})$.
-
-
 # Weak Formulation Derivation
 
 Start with the unsteady thermal conduction equation, applying the following assumptions:
