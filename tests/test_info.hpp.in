@@ -1,2 +1,0 @@
-// Define variables needed in test code
-#define SOURCE_DIR "@PROJECT_SOURCE_DIR@"
