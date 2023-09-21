@@ -4,21 +4,20 @@ message(STATUS "Testing with MPI using: ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_
 
 configure_file(test_helper.hpp.in test_helper.hpp)
 
+function(add_parallel_reg_test test_name test_main_file)
+    add_executable(${test_name} ${test_main_file})
+    target_link_libraries(${test_name} PUBLIC jotsLib)
+    add_test(NAME ${test_name} COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} ${MPIEXEC_MAX_NUMPROCS} ./${test_name})
+endfunction()
+
 # Parallel_Reinert_B1 tests "Transient Heat Conduction with Dirichlet Boundary Conditions"
-add_executable(Parallel_Reinert_B1 Parallel_Reinert_B1.cpp)
-target_link_libraries(Parallel_Reinert_B1 PUBLIC jotsLib)
-add_test(NAME Parallel_Reinert_B1 COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} ${MPIEXEC_MAX_NUMPROCS} ./Parallel_Reinert_B1)
+add_parallel_reg_test(Parallel_Reinert_B1 Parallel_Reinert_B1.cpp)
 
 # Reinert_B2 tests "Transient Heat Conduction with Neumann Boundary Conditions"
-add_executable(Parallel_Reinert_B2 Parallel_Reinert_B2.cpp)
-target_link_libraries(Parallel_Reinert_B2 PUBLIC jotsLib)
-add_test(NAME Parallel_Reinert_B2 COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} ${MPIEXEC_MAX_NUMPROCS} ./Parallel_Reinert_B2)
+add_parallel_reg_test(Parallel_Reinert_B2 Parallel_Reinert_B2.cpp)
 
 # Reinert_B3 tests "Transient Heat Conduction with Variable Thermal Properties"
-add_executable(Parallel_Reinert_B3 Parallel_Reinert_B3.cpp)
-target_link_libraries(Parallel_Reinert_B3 PUBLIC jotsLib)
-add_test(NAME Parallel_Reinert_B3 COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} ${MPIEXEC_MAX_NUMPROCS} ./Parallel_Reinert_B3)
-
+add_parallel_reg_test(Parallel_Reinert_B3 Parallel_Reinert_B3.cpp)
 
 # Modal_Oscillation_Plate_preCICE tests specification of isothermal BC from preCICE
 #add_test(NAME Modal_Oscillation_Plate_preCICE COMMAND )
