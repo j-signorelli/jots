@@ -64,7 +64,7 @@ Thus the equation becomes:
 
 $$\vec{v}^T\bold{M}\dfrac{d \vec{u}}{d t} = \vec{v}^T \bold{K}\vec{u} + \vec{v}^T \vec{N}$$
 
-$$\vec{v}^T\left(\bold{M}\dfrac{d \vec{u}}{d t} - \bold{K}\vec{u} - \vec{N}\right)$$
+$$\vec{v}^T\left(\bold{M}\dfrac{d \vec{u}}{d t} - \bold{K}\vec{u} - \vec{N}\right)=0$$
 
 For this inner product to be zero $\forall\vec{v}$, the vector in parentheses must be identically zero. So the equation of interest is:
 $$
