@@ -31,7 +31,7 @@ double Reinert_B3_Analytical(const Vector& x, double time)
 
     double theta = alpha*time/pow(L,2.0) + 1.0/3.0 - x[0]/L + 0.5*pow(x[0]/L,2.0);
 
-    for (int n = 1; n < N+1; n++)
+    for (int n = 1; n < N_REINERT+1; n++)
     {
         double A = (2.0/pow(M_PI,2.0))*(1.0/pow(n,2));
         double B = -pow(n,2.0)*pow(M_PI,2.0)*alpha*time/pow(L,2.0);

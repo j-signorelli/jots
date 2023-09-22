@@ -19,6 +19,9 @@ add_parallel_reg_test(Parallel_Reinert_B2 Parallel_Reinert_B2.cpp)
 # Reinert_B3 tests "Transient Heat Conduction with Variable Thermal Properties"
 add_parallel_reg_test(Parallel_Reinert_B3 Parallel_Reinert_B3.cpp)
 
+# Restarted_Sinusoidal_Isothermal_Heated_Bar tests restart files
+add_parallel_reg_test(Restart_Files Restart_Files.cpp)
+
 # Modal_Oscillation_Plate_preCICE tests specification of isothermal BC from preCICE
 #add_test(NAME Modal_Oscillation_Plate_preCICE COMMAND )
 

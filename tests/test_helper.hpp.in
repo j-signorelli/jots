@@ -9,13 +9,14 @@
 using namespace mfem;
 using namespace std;
 
-const int SIM_TIME = 2.0;
-const double EPSILON = 1e-5;
-const int N = 100; // Inclusive end of summation over terms of analytical solution infinite series to include
-const double DT = 1e-4;
-
+const int N_REINERT = 100; // Inclusive end of summation over terms of analytical solution infinite series to include
+    
 int Reinert_Test(int test_case_num, std::function<double(const Vector &, double)> Reinert_Analytical)
 {
+    const int SIM_TIME = 2.0;
+    const double EPSILON = 1e-5;
+    const double DT = 1e-4;
+
     // Initialize MPI and HYPRE.
     Mpi::Init();
     int num_procs = Mpi::WorldSize();

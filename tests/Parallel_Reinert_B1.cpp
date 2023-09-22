@@ -20,7 +20,7 @@ double Reinert_B1_Analytical(const Vector& x, double time)
     double alpha = 2.5e-6;
     double L = 0.01;
 
-    for (int n = 0; n < N+1; n++)
+    for (int n = 0; n < N_REINERT+1; n++)
     {
         double A = pow(-1.0,n)/(2.0*n+1.0);
         double B = (-pow(2.0*n+1.0,2.0)*pow(M_PI,2)*alpha*time)/(4.0*pow(L,2));
