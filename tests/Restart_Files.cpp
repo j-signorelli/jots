@@ -8,7 +8,7 @@ using namespace mfem;
 
 int main(int argc, char *argv[])
 {
-    const double EPSILON = 1e-9;
+    const double EPSILON = 1e-12;
 
     // Initialize MPI and HYPRE.
     Mpi::Init();
@@ -49,33 +49,33 @@ int main(int argc, char *argv[])
     // Parse the config file
     Config input_r(input_file_r.str().c_str());
 
+    // TEMP:
+    input_r.SetRestartPrefix("TEST");
+
     // Create restarted JOTSDriver
     JOTSDriver* driver_r = new JOTSDriver(input_r, myid, num_procs);
 
-    cout << "RESTART DRIVER CREATED" << endl;
+    // Get the error per rank 
+    // Not using ComputeL2Error because requires both GFs to be pointing to same Mesh in memory
+    // ^(Not trivial)
+    double error = driver_r->GetOutputManager()->GetT_gf()->DistanceTo(*driver_0->GetOutputManager()->GetT_gf());
 
-    MPI_Barrier(MPI_COMM_WORLD);
-
-    // Check difference between final temperature grid function of initial with restarted
-    GridFunctionCoefficient u_0_final(driver_0->GetOutputManager()->GetT_gf());
-
-    cout << "GFCOEFF CREATED" << endl;
-    MPI_Barrier(MPI_COMM_WORLD);
-
-    // Get the finite-element approximation solution
-    double error = driver_r->GetOutputManager()->GetT_gf()->ComputeL2Error(u_0_final);
-
-    cout << "ERROR CALCULCATED" << endl;
-    MPI_Barrier(MPI_COMM_WORLD);
-
-    if (myid == 0)
-        cout << "Error: " << error;
-
+    // Check if isnan
     if (isnan(error))
-    {
+    {   
         cout << "Failed!" << endl;
         return 1;
     }
+
+    bool success = error <= epsilon;
+
+
+    // TODO: Check on all ranks that error < epsilon and communicate this among all.
+    // If all are success, then continue on and have all return 0
+
+
+    if (myid == 0)
+        cout << "Error: " << error << endl;
 
     if (error > EPSILON)
     {
