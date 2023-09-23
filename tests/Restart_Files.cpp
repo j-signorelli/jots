@@ -40,6 +40,9 @@ int main(int argc, char *argv[])
     // Run driver to end
     driver_0->Run();
 
+    // Wait for all writings to end amongst all ranks
+    MPI_Barrier(MPI_COMM_WORLD);
+
     // Note that restart file should be outputted in whatever current WD is
 
     // Get input file for Restarted_Sinusoidal_Heated_Bar
@@ -49,9 +52,6 @@ int main(int argc, char *argv[])
     // Parse the config file
     Config input_r(input_file_r.str().c_str());
 
-    // TEMP:
-    input_r.SetRestartPrefix("TEST");
-
     // Create restarted JOTSDriver
     JOTSDriver* driver_r = new JOTSDriver(input_r, myid, num_procs);
 
@@ -60,36 +60,41 @@ int main(int argc, char *argv[])
     // ^(Not trivial)
     double error = driver_r->GetOutputManager()->GetT_gf()->DistanceTo(*driver_0->GetOutputManager()->GetT_gf());
 
-    // Check if isnan
-    if (isnan(error))
-    {   
-        cout << "Failed!" << endl;
-        return 1;
-    }
+    bool success = true;
 
-    bool success = error <= epsilon;
-
-
-    // TODO: Check on all ranks that error < epsilon and communicate this among all.
-    // If all are success, then continue on and have all return 0
-
-
-    if (myid == 0)
-        cout << "Error: " << error << endl;
-
-    if (error > EPSILON)
+    // Print the error per rank
+    for (int i = 0; i < num_procs; i++)
     {
-        if (myid == 0)
-            cout << " > " << EPSILON << endl << "Failed!" << endl;
-        return 1;
+        if (myid == i)
+        {
+            cout << "Rank " << i << " ";
+            if (isnan(error))
+            {   
+                cout << "NaN detected -- Failed!" << endl;
+                success = false;
+            }
+            cout << "Error: " << error;
+
+            if (error > EPSILON)
+            {
+                cout << " > " << EPSILON << endl << "Failed!" << endl;
+                success = false;
+            }
+            else
+                cout << " <= " << EPSILON << endl << "Success!" << endl;
+            fflush(stdout);
+        }
+
+        MPI_Barrier(MPI_COMM_WORLD);
     }
-    else
-        if (myid == 0)
-            cout << " <= " << EPSILON << endl << "Success!" << endl;
 
     // Delete the drivers
     delete driver_0;
     delete driver_r;
+    
+    // Return appropriately if failed or not
+    if (!success)
+        return 1;
 
     return 0;
 }
