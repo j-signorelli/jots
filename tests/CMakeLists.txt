@@ -22,6 +22,8 @@ add_parallel_reg_test(Reinert_B3 Reinert_B3.cpp)
 # Restarted_Sinusoidal_Isothermal_Heated_Bar tests restart files
 add_parallel_reg_test(Restart_Files Restart_Files.cpp)
 
+add_test(NAME Reinert_B3_preCICE COMMAND python3 ${PROJECT_SOURCE_DIR}/examples/Reinert_B3_preCICE/dummy/)
+
 # Modal_Oscillation_Plate_preCICE tests specification of isothermal BC from preCICE
 #add_test(NAME Modal_Oscillation_Plate_preCICE COMMAND )
 
