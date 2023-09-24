@@ -10,14 +10,14 @@ function(add_parallel_reg_test test_name test_main_file)
     add_test(NAME ${test_name} COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} ${MPIEXEC_MAX_NUMPROCS} ./${test_name})
 endfunction()
 
-# Parallel_Reinert_B1 tests "Transient Heat Conduction with Dirichlet Boundary Conditions"
-add_parallel_reg_test(Parallel_Reinert_B1 Parallel_Reinert_B1.cpp)
+# Reinert_B1 tests "Transient Heat Conduction with Dirichlet Boundary Conditions"
+add_parallel_reg_test(Reinert_B1 Reinert_B1.cpp)
 
 # Reinert_B2 tests "Transient Heat Conduction with Neumann Boundary Conditions"
-add_parallel_reg_test(Parallel_Reinert_B2 Parallel_Reinert_B2.cpp)
+add_parallel_reg_test(Reinert_B2 Reinert_B2.cpp)
 
 # Reinert_B3 tests "Transient Heat Conduction with Variable Thermal Properties"
-add_parallel_reg_test(Parallel_Reinert_B3 Parallel_Reinert_B3.cpp)
+add_parallel_reg_test(Reinert_B3 Reinert_B3.cpp)
 
 # Restarted_Sinusoidal_Isothermal_Heated_Bar tests restart files
 add_parallel_reg_test(Restart_Files Restart_Files.cpp)
