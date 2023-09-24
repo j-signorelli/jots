@@ -1,5 +1,3 @@
-#include <cmath>
-
 #include "jots_driver.hpp"
 
 #include "test_helper.hpp"

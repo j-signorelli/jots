@@ -1,6 +1,7 @@
 // Define variables needed in test code
 #define SOURCE_DIR "@PROJECT_SOURCE_DIR@"
 
+#pragma once
 #include <cmath>
 
 #include "jots_driver.hpp"
@@ -81,4 +82,85 @@ int Reinert_Test(int test_case_num, std::function<double(const Vector &, double)
     delete driver;
 
     return 0;
+}
+
+double Reinert_B1_Analytical(const Vector& x, double time)
+{
+    double theta = 1.0;
+    double alpha = 2.5e-6;
+    double L = 0.01;
+
+    for (int n = 0; n < N_REINERT+1; n++)
+    {
+        double A = pow(-1.0,n)/(2.0*n+1.0);
+        double B = (-pow(2.0*n+1.0,2.0)*pow(M_PI,2)*alpha*time)/(4.0*pow(L,2));
+        double C = ((2.0*n+1.0)*M_PI*x[0])/(2.0*L);
+
+        theta = theta - (4.0/M_PI)*A*exp(B)*cos(C);
+    }
+    
+    double T_0 = 300.0;
+    double T_D = 500.0;
+
+    return theta*(T_D - T_0) + T_0;
+
+}
+
+double Reinert_B2_Analytical(const Vector& x, double time)
+{
+    double alpha = 2.5e-6;
+    double L = 0.01;
+    double k = 10.0;
+    double q_dot = 7.5e5;
+
+    double theta = alpha*time/pow(L,2.0) + 1.0/3.0 - x[0]/L + 0.5*pow(x[0]/L,2.0);
+
+    for (int n = 1; n < N_REINERT+1; n++)
+    {
+        double A = -pow(n,2.0)*pow(M_PI,2.0)*alpha*time/pow(L,2.0);
+        double B = n*M_PI*x[0]/L;
+        double C = (2.0/pow(M_PI,2.0))*(1.0/pow(n,2.0));
+        theta -= C*exp(A)*cos(B);
+    }
+    
+    double T_0 = 300.0;
+
+    return theta*q_dot*L/k + T_0;
+
+}
+
+double Reinert_B3_Analytical(const Vector& x, double time)
+{
+    double alpha = 2.5e-6;
+    double L = 0.01;
+    double k1 = 10.0;
+    double k2 = 100;
+    double T1 = 300;
+    double T2 = 1300;
+
+    double q_dot = 7.5e5;
+    double T0 = 300;
+
+    double D = ((k2-k1)/(T2-T1))*(1.0/(2.0*k1));
+    double theta_0 = (T0-T1) + D*pow(T0-T1,2.0);
+
+    double theta = alpha*time/pow(L,2.0) + 1.0/3.0 - x[0]/L + 0.5*pow(x[0]/L,2.0);
+
+    for (int n = 1; n < N_REINERT+1; n++)
+    {
+        double A = (2.0/pow(M_PI,2.0))*(1.0/pow(n,2));
+        double B = -pow(n,2.0)*pow(M_PI,2.0)*alpha*time/pow(L,2.0);
+        double C = n*M_PI*x[0]/L;
+        theta -= A*exp(B)*cos(C);
+    }
+    
+    theta *= q_dot*L/k1;
+    theta += theta_0;
+
+    double a = D;
+    double b = 1.0-2.0*D*T1;
+    double c = D*pow(T1,2.0) - T1 - theta;
+
+    return (-b+pow(pow(b,2.0)-4*a*c,0.5))/(2*a);
+
 }
