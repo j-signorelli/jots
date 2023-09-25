@@ -9,50 +9,32 @@ from mpi4py import MPI
 
 import precice
 
-def Reinert_B3_Analytical(x,t,N=100):
+def Reinert_B1_Analytical_HF(x,t,N=100):
     alpha = 2.5e-6
     L = 0.01
-    k1 = 10
-    k2 = 100
-    T1 = 300
-    T2 = 1300
-    
-    q_dot = 7.5e5
-    T0 = 300
-    
-    D = ((k2-k1)/(T2-T1))*(1/(2*k1))
-    theta_0 = (T0 - T1) + D*(T0-T1)**2
-    
-    theta = alpha*t/L**2 + 1/3 - x/L + 0.5*(x/L)**2
-    for n in range(1,N+1):
-        A = (2/np.pi**2)*(1/n**2)
-        B = -n**2*np.pi**2*alpha*t/L**2
-        C = n*np.pi*x/L
-        theta -= A*np.exp(B)*np.cos(C)
-        
-    
-    theta *= q_dot*L/k1
-    theta += theta_0
+    k = 10
+    dTdx = 0
+    T_0 = 300
+    T_D = 500
 
+    for n in range(0,N+1):
+        A = (-1)**n/(2*n+1)
+        B = (-(2*n+1)**2*np.pi**2*alpha*t)/(4*L**2)
+        C = (2*n+1)*np.pi/(2*L)
+        dTdx = dTdx + (T_D - T_0)*C*(4/np.pi)*A*np.exp(B)*np.sin(C*x)
     
-    a = D
-    b = 1-2*D*T1
-    c = D*T1**2-T1-theta
-    
-    T = (-b+(b**2-4*a*c)**0.5)/(2*a)
-
-    return T
+    return -k*dTdx
 
 def main():
 
     configuration_file_name = "../precice-config.xml"
     participant_name = "Dummy"
 
-    write_data_name = 'Heat-Flux'
-    read_data_name = 'Temperature'
+    write_data_name = 'Temperature'
+    read_data_name = 'Heat-Flux'
     mesh_name = 'Dummy-Mesh'
 
-    num_vertices = 1 # Only one needed at x=0 since problem is 1D
+    num_vertices = 1 # Only one needed at x=0.01 since problem is 1D
 
     comm = MPI.COMM_WORLD
     solver_process_index = comm.Get_rank()
@@ -70,7 +52,7 @@ def main():
     
     x = np.linspace(0,1,num_vertices)
     for i in range(num_vertices):
-        vertices[i,0] = x[i]
+        vertices[i,0] = 0.01 #x[i]
         vertices[i,1] = 0
         vertices[i,2] = 0
 
@@ -82,7 +64,7 @@ def main():
     dt = interface.initialize()
     
     time = 0
-    write_data = np.array([-7.5e5]) # Write constant HF
+    write_data = np.array([500]) # Write constant temperature
 
     if (interface.is_action_required(precice.action_write_initial_data())):
         interface.write_block_scalar_data(write_data_id, vertex_ids, write_data)
@@ -99,10 +81,10 @@ def main():
         time += dt
 
 
-        T_received = read_data[0]
-        T_analytical = Reinert_B3_Analytical(0, time)
-        percent_error = abs((T_analytical - T_received)/T_analytical)*100
-        print("DUMMY ({}): t = {:.4f}, Temperature Percent Error is {}".format(solver_process_index, time, percent_error))
+        q_received = read_data[0]
+        q_analytical = Reinert_B1_Analytical_HF(0.01, time)
+        percent_error = abs((q_analytical - q_received)/q_analytical)*100
+        print("DUMMY ({}): t = {:.4f}, HF Percent Error is {}".format(solver_process_index, time, percent_error))
 
         if interface.is_write_data_required(dt):
             interface.write_block_scalar_data(
