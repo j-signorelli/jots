@@ -2,16 +2,16 @@
 #define SOURCE_DIR "@PROJECT_SOURCE_DIR@"
 
 #pragma once
-#include <cmath>
-
 #include "jots_driver.hpp"
 
 
 using namespace mfem;
 using namespace std;
+using namespace precice;
+using namespace precice::constants;
 
 const int N_REINERT = 100; // Inclusive end of summation over terms of analytical solution infinite series to include
-    
+
 int Reinert_Test(int test_case_num, std::function<double(const Vector &, double)> Reinert_Analytical)
 {
     const int SIM_TIME = 2.0;
@@ -84,6 +84,103 @@ int Reinert_Test(int test_case_num, std::function<double(const Vector &, double)
     return 0;
 }
 
+// Adapted from ajaust/precice-parallel-solverdummies
+int Reinert_preCICE_Dummy(int test_case_num, string dataReadName, string dataWriteName, double interfaceX, double constantWriteVal, std::function<double(const Vector &, double)> Reinert_Analytical)
+{
+    const double ALLOWED_PERCENT_ERROR = 1.0; // No errors greater than 1%
+
+    // Initialize MPI
+    MPI_Init(NULL, NULL);
+
+    // Set rank and size
+    int commRank = -1;
+    MPI_Comm_rank(MPI_COMM_WORLD, &commRank);
+    int commSize = -1;
+    MPI_Comm_size(MPI_COMM_WORLD, &commSize);
+
+    // Get config file
+    stringstream configFile;
+    configFile << SOURCE_DIR << "/examples/Reinert_B" << test_case_num << "_preCICE/precice-config.xml";
+    const string solverName = "Dummy";
+    const string meshName = "Dummy-Mesh";
+
+    cout << "DUMMY (" << commRank << "): Running solver dummy with preCICE config file \"" << configFile.str() << "\"and participant name.\"" << solverName << "\".\n";
+
+    SolverInterface interface(solverName, configFile.str(), commRank, commSize);
+
+    int meshID = interface.getMeshID(meshName);
+    int dimensions = interface.getDimensions();
+    int numberOfVertices = 1; // Only need one vertice at x=0
+
+    dataReadName = "Temperature";
+    dataWriteName = "Heat-Flux";
+
+    const int readDataID = interface.getDataID(dataReadName, meshID);
+    const int writeDataID = interface.getDataID(dataWriteName, meshID);
+
+    vector<double> readData(numberOfVertices);
+    vector<double> writeData(numberOfVertices);
+    vector<double> vertices(numberOfVertices*dimensions);
+    vector<int> vertexIDs(numberOfVertices);
+
+    for (int i = 0; i < numberOfVertices; i++)
+    {
+        for (int j = 0; j < dimensions; j++)
+            vertices.at(j+dimensions*i) = 0;
+    }
+    vertices.at(0) = interfaceX;
+    readData.at(0) = 0;
+    writeData.at(0) = constantWriteVal;
+
+    interface.setMeshVertices(meshID, numberOfVertices, vertices.data(), vertexIDs.data());
+
+    double dt = interface.initialize();
+    double time = 0.0;
+    double read_received;
+    double read_analytical;
+    double percent_diff;
+    Vector x(dimensions);
+    x[0] = interfaceX;
+
+    while (interface.isCouplingOngoing())
+    {
+        if (interface.isReadDataAvailable())
+        {
+            interface.readBlockScalarData(readDataID, numberOfVertices, vertexIDs.data(), readData.data());
+        }
+
+        time += dt;
+
+        read_received = readData.at(0);
+        read_analytical = Reinert_Analytical(x,time);
+        percent_diff = abs((read_analytical-read_received)/read_received)*100;
+
+        cout << "DUMMY (" << commRank << "): Analytical v. Received % Difference = " << percent_diff;
+
+        if (percent_diff > ALLOWED_PERCENT_ERROR)
+        {
+            cout << "DUMMY (" << commRank << "):" << "ERROR -- Not receiving correct values" << endl;
+            return 1;
+        }
+
+        if (interface.isWriteDataRequired(dt))
+        {
+            interface.writeBlockScalarData(writeDataID, numberOfVertices, vertexIDs.data(), writeData.data());
+        }
+
+        dt = interface.advance(dt);
+
+        cout << "DUMMY (" << commRank << "): Advancing in time\n";
+    }
+
+    interface.finalize();
+    cout << "DUMMY (" << commRank << "): Closing C++ solver dummy...\n";
+
+    MPI_Finalize();
+
+    return 0;
+}
+
 double Reinert_B1_Analytical(const Vector& x, double time)
 {
     double theta = 1.0;
@@ -103,6 +200,30 @@ double Reinert_B1_Analytical(const Vector& x, double time)
     double T_D = 500.0;
 
     return theta*(T_D - T_0) + T_0;
+
+}
+
+double Reinert_B1_Analytical_HF(const Vector& x, double time)
+{
+    double alpha = 2.5e-6;
+    double L = 0.01;
+    double k = 10.0;
+    double dTdx = 0.0;
+    double T_0 = 300.0;
+    double T_D = 500.0;
+
+
+    for (int n = 0; n < N_REINERT+1; n++)
+    {
+        double A = pow(-1.0,n)/(2.0*n+1.0);
+        double B = (-pow(2.0*n+1.0,2.0)*pow(M_PI,2)*alpha*time)/(4.0*pow(L,2));
+        double C = ((2.0*n+1.0)*M_PI)/(2.0*L);
+
+        dTdx += (T_D - T_0)*C*(4.0/M_PI)*A*exp(B)*cos(C*x[0]);
+    }
+
+
+    return -k*dTdx;
 
 }
 
