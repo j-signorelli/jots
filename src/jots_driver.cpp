@@ -260,7 +260,7 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
             cout << "preCICE Config File: " << user_input.GetPreciceConfigFile() << endl;
         }
 
-        adapter = new PreciceAdapter(user_input.GetPreciceParticipantName(), user_input.GetPreciceConfigFile(), comm, rank, size);
+        adapter = new PreciceAdapter(user_input.GetPreciceParticipantName(), user_input.GetPreciceConfigFile(), rank, size, comm);
 
         if (adapter->GetDimension() != dim)
         {
