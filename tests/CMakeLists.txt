@@ -35,8 +35,3 @@ add_parallel_reg_test(Restart_Files Restart_Files.cpp)
 
 # Reinert_B1_preCICE tests that temperature is received correctly in 1D
 add_precice_test(Reinert_B1_preCICE_Dummy Reinert_B1_preCICE_Dummy.cpp ${PROJECT_SOURCE_DIR}/examples/Reinert_B1_preCICE/jots/ Reinert_B1_preCICE.ini)
-# Modal_Oscillation_Plate_preCICE tests specification of isothermal BC from preCICE
-#add_test(NAME Modal_Oscillation_Plate_preCICE COMMAND )
-
-# Restarted_Sinusoidal_Isothermal_Heated_Bar tests restart files
-#add_test(NAME Restarted_Sinusoidal_Isothermal_Heated_Bar COMMAND )

@@ -2,5 +2,5 @@
 
 int main(int argc, char *argv[])
 {  
-    return Reinert_Test(2, Reinert_B2_Analytical);
+    return Analytical_Reg_Test("Reinert_B2.ini", Reinert_B2_Analytical);
 }

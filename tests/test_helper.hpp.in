@@ -28,7 +28,7 @@ Config GetConfig(string in_file)
     return input;
 }
 
-int Reinert_Test(int test_case_num, std::function<double(const Vector &, double)> Reinert_Analytical)
+int Analytical_Reg_Test(string input_file, std::function<double(const Vector &, double)> Analytical)
 {
     const double EPSILON = 1e-5;
 
@@ -38,12 +38,8 @@ int Reinert_Test(int test_case_num, std::function<double(const Vector &, double)
     int myid = Mpi::WorldRank();
     Hypre::Init();
 
-    // Get test input file for Reinert_B#
-    stringstream input_file;
-    input_file << "Reinert_B" << test_case_num << ".ini";
-
     // Parse the config file
-    Config input = GetConfig(input_file.str());
+    Config input = GetConfig(input_file);
 
     // Create new JOTSDriver
     JOTSDriver* driver = new JOTSDriver(input, myid, num_procs);
@@ -52,7 +48,7 @@ int Reinert_Test(int test_case_num, std::function<double(const Vector &, double)
     driver->Run();
 
     // Define exact solution coefficient
-    FunctionCoefficient u_exact(Reinert_Analytical);
+    FunctionCoefficient u_exact(Analytical);
     u_exact.SetTime(input.GetFinalTime());
 
     // Get the finite-element approximation solution
