@@ -54,7 +54,7 @@ class JOTSDriver
         void PreprocessIteration();
 
     public:
-        JOTSDriver(const Config& input, const int myid, const int num_procs);
+        JOTSDriver(const Config& input, const int myid, const int num_procs, MPI_Comm comm=MPI_COMM_WORLD);
         void Run();
         
         OutputManager* GetOutputManager() { return output; };

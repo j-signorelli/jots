@@ -8,14 +8,14 @@ const string PreciceAdapter::cowid = precice::constants::actionWriteInitialData(
 const string PreciceAdapter::cowic = precice::constants::actionWriteIterationCheckpoint();
 const string PreciceAdapter::coric = precice::constants::actionReadIterationCheckpoint();
 
-PreciceAdapter::PreciceAdapter(string in_part_name, string in_config, const int r, const int s)
+PreciceAdapter::PreciceAdapter(string in_part_name, string in_config, const int r, const int s, MPI_Comm comm)
 : precice_bcs(nullptr),
   participant_name(in_part_name),
   config_file(in_config),
   rank(r),
   size(s)
 {
-    interface = new SolverInterface(participant_name, config_file, rank, size);
+    interface = new SolverInterface(participant_name, config_file, rank, size, &comm);
     dim = interface->getDimensions();
 }
 

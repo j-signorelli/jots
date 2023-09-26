@@ -7,7 +7,7 @@ using namespace precice;
 const string JOTSDriver::LINE = "-------------------------------------------------------------------";
 const double JOTSDriver::TIME_TOLERANCE = 1e-14;
 
-JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs)
+JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs, MPI_Comm comm)
 : rank(myid),
   size(num_procs),
   adapter(nullptr),
@@ -73,7 +73,7 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs)
             cout << "Serial refinements of mesh completed: " << ser_ref << endl;
         //----------------------------------------------------------------------
         // Complete parallel decomposition of serial mesh + refine parallel
-        pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
+        pmesh = new ParMesh(comm, *mesh);
         delete mesh;
         int par_ref = user_input.GetParallelRefine();
 
@@ -117,7 +117,7 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs)
             cout << "Restart simulation..." << endl;
         //----------------------------------------------------------------------
         // Read in VisItDataCollection
-        VisItDataCollection temp_visit_dc(MPI_COMM_WORLD, user_input.GetRestartPrefix());
+        VisItDataCollection temp_visit_dc(comm, user_input.GetRestartPrefix());
         temp_visit_dc.Load(user_input.GetRestartCycle());
 
         if (temp_visit_dc.Error())
@@ -260,7 +260,7 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs)
             cout << "preCICE Config File: " << user_input.GetPreciceConfigFile() << endl;
         }
 
-        adapter = new PreciceAdapter(user_input.GetPreciceParticipantName(), user_input.GetPreciceConfigFile(), rank, size);
+        adapter = new PreciceAdapter(user_input.GetPreciceParticipantName(), user_input.GetPreciceConfigFile(), comm, rank, size);
 
         if (adapter->GetDimension() != dim)
         {
@@ -582,7 +582,7 @@ void JOTSDriver::Run()
         }
 
     }
-
+    
     // Finalize preCICE if used
     if (user_input.UsingPrecice())
         adapter->Interface()->finalize();
