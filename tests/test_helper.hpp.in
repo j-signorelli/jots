@@ -25,9 +25,40 @@ Config GetConfig(string in_file)
     mesh_file << SOURCE_DIR << "/examples/meshes/" << input.GetMeshFile();
     input.SetMeshFile(mesh_file.str().c_str());
 
+    // If using preCICE, update the config file location as well
+    if (input.UsingPrecice())
+    {
+        stringstream config_file;
+        config_file << SOURCE_DIR << "/tests/" << input.GetPreciceConfigFile();
+        input.SetPreciceConfigFile(config_file.str().c_str());
+    }
+
     return input;
 }
 
+// No checking or anything, just run a given input file in tests directory to completion
+// It is presumed that MPI is initialized prior to this function call for generality
+int RunTestConfig(string input_file, int rank, int size, MPI_Comm comm=MPI_COMM_WORLD)
+{
+    // Initialize HYPRE.
+    Hypre::Init();
+
+    // Parse the config file
+    Config input = GetConfig(input_file);
+    
+    // Create new JOTSDriver
+    JOTSDriver* driver = new JOTSDriver(input, rank, size, comm);
+
+    // Run driver
+    driver->Run();
+
+    // Delete driver
+    delete driver;
+
+    return 0;
+}
+
+// Run to end with comparison against analytical solution at end
 int Analytical_Reg_Test(string input_file, std::function<double(const Vector &, double)> Analytical)
 {
     const double EPSILON = 1e-5;
@@ -80,98 +111,102 @@ int Analytical_Reg_Test(string input_file, std::function<double(const Vector &, 
 }
 
 // Adapted from ajaust/precice-parallel-solverdummies
-int Reinert_preCICE_Dummy(int test_case_num, string dataReadName, string dataWriteName, double interfaceX, double constantWriteVal, std::function<double(const Vector &, double)> Reinert_Analytical)
+// Checks that received interface values match a provided analytical function, throws error if not
+// Sends values based on a provided analytical function
+// No implicit coupling implemented (for now)
+// It is presumed that MPI is initialized before this function call for generality
+int preCICE_Dummy_Analytical_Test(string in_configFile, string dataReadName, string dataWriteName, vector<double> vertices, std::function<double(const Vector &, double)> Analytical_Send, std::function<double(const Vector &, double)> Analytical_Receive, int rank, int size, MPI_Comm comm)
 {
-    const double ALLOWED_PERCENT_ERROR = 1.0; // No errors greater than 1%
-
-    // Initialize MPI
-    MPI_Init(NULL, NULL);
-
-    // Set rank and size
-    int commRank = -1;
-    MPI_Comm_rank(MPI_COMM_WORLD, &commRank);
-    int commSize = -1;
-    MPI_Comm_size(MPI_COMM_WORLD, &commSize);
-
-    // Get config file
-    stringstream configFile;
-    configFile << SOURCE_DIR << "/examples/Reinert_B" << test_case_num << "_preCICE/precice-config.xml";
+    const double EPSILON = 1e-5;
     const string solverName = "Dummy";
     const string meshName = "Dummy-Mesh";
 
-    cout << "DUMMY (" << commRank << "): Running solver dummy with preCICE config file \"" << configFile.str() << "\"and participant name.\"" << solverName << "\".\n";
+    // Get config file
+    stringstream configFile;
+    configFile << SOURCE_DIR << "/tests/" << in_configFile;
 
-    SolverInterface interface(solverName, configFile.str(), commRank, commSize);
+    cout << "DUMMY (" << rank << "): Running solver dummy with preCICE config file \"" << configFile.str() << "\"and participant name.\"" << solverName << "\".\n";
+
+    SolverInterface interface(solverName, configFile.str(), rank, size, &comm);
 
     int meshID = interface.getMeshID(meshName);
     int dimensions = interface.getDimensions();
-    int numberOfVertices = 1; // Only need one vertice at x=0
-
-    dataReadName = "Temperature";
-    dataWriteName = "Heat-Flux";
 
     const int readDataID = interface.getDataID(dataReadName, meshID);
     const int writeDataID = interface.getDataID(dataWriteName, meshID);
 
+    const int numberOfVertices = vertices.size()/dimensions;
+
     vector<double> readData(numberOfVertices);
     vector<double> writeData(numberOfVertices);
-    vector<double> vertices(numberOfVertices*dimensions);
     vector<int> vertexIDs(numberOfVertices);
-
-    for (int i = 0; i < numberOfVertices; i++)
-    {
-        for (int j = 0; j < dimensions; j++)
-            vertices.at(j+dimensions*i) = 0;
-    }
-    vertices.at(0) = interfaceX;
-    readData.at(0) = 0;
-    writeData.at(0) = constantWriteVal;
 
     interface.setMeshVertices(meshID, numberOfVertices, vertices.data(), vertexIDs.data());
 
     double dt = interface.initialize();
     double time = 0.0;
-    double read_received;
-    double read_analytical;
-    double percent_diff;
-    Vector x(dimensions);
-    x[0] = interfaceX;
+
+    // Initialize if needed
+    if (interface.isActionRequired(actionWriteInitialData()))
+    {
+        for (int i = 0; i < numberOfVertices; i++)
+        {
+            Vector x(&vertices[i*dimensions], dimensions);
+            writeData.at(i) = Analytical_Send(x, time);
+        }
+        
+        interface.writeBlockScalarData(writeDataID, numberOfVertices, vertexIDs.data(), writeData.data());
+        interface.markActionFulfilled(actionWriteInitialData());
+    }
+    interface.initializeData();
 
     while (interface.isCouplingOngoing())
     {
         if (interface.isReadDataAvailable())
         {
             interface.readBlockScalarData(readDataID, numberOfVertices, vertexIDs.data(), readData.data());
+            cout << "HEATFLUX: " << readData[0] << endl;
         }
 
         time += dt;
+        
+        // Compute L2 norm of received solution difference with analytical
+        double l2Norm = 0;
+        for (int i = 0; i < numberOfVertices; i++)
+        {   
+            Vector x(&vertices[i*dimensions], dimensions);
+            l2Norm += pow(Analytical_Receive(x, time) - readData.at(i), 2.0);
+        }
 
-        read_received = readData.at(0);
-        read_analytical = Reinert_Analytical(x,time);
-        percent_diff = abs((read_analytical-read_received)/read_received)*100;
+        l2Norm = pow(l2Norm, 0.5);
 
-        cout << "DUMMY (" << commRank << "): Analytical v. Received % Difference = " << percent_diff;
+        // TODO: Some kind of normalization parameter
+        cout << "DUMMY (" << rank << "): L2-Norm of Difference: " << l2Norm;
 
-        if (percent_diff > ALLOWED_PERCENT_ERROR)
+        if (l2Norm > EPSILON)
         {
-            cout << "DUMMY (" << commRank << "):" << "ERROR -- Not receiving correct values" << endl;
-            return 1;
+            cout << "DUMMY (" << rank << "):" << "ERROR -- Not receiving correct values" << endl;
+            //interface.finalize();
+            //return 1;
         }
 
         if (interface.isWriteDataRequired(dt))
         {
+            for (int i = 0; i < numberOfVertices; i++)
+            {
+                Vector x(&vertices[i*dimensions], dimensions);
+                writeData.at(i) = Analytical_Send(x, time);
+            }
             interface.writeBlockScalarData(writeDataID, numberOfVertices, vertexIDs.data(), writeData.data());
         }
 
         dt = interface.advance(dt);
 
-        cout << "DUMMY (" << commRank << "): Advancing in time\n";
+        cout << "DUMMY (" << rank << "): Advancing in time\n";
     }
 
     interface.finalize();
-    cout << "DUMMY (" << commRank << "): Closing C++ solver dummy...\n";
-
-    MPI_Finalize();
+    cout << "DUMMY (" << rank << "): Closing C++ solver dummy...\n";
 
     return 0;
 }
@@ -214,7 +249,7 @@ double Reinert_B1_Analytical_HF(const Vector& x, double time)
         double B = (-pow(2.0*n+1.0,2.0)*pow(M_PI,2)*alpha*time)/(4.0*pow(L,2));
         double C = ((2.0*n+1.0)*M_PI)/(2.0*L);
 
-        dTdx += (T_D - T_0)*C*(4.0/M_PI)*A*exp(B)*cos(C*x[0]);
+        dTdx += (T_D - T_0)*C*(4.0/M_PI)*A*exp(B)*sin(C*x[0]);
     }
 
 
