@@ -12,11 +12,25 @@ using namespace precice::constants;
 
 const int N_REINERT = 100; // Inclusive end of summation over terms of analytical solution infinite series to include
 
+Config GetConfig(string in_file)
+{
+    // Parse the config file from the test directory
+    stringstream input_file;
+    input_file << SOURCE_DIR << "/tests/" << in_file;
+
+    Config input(input_file.str().c_str());
+
+    // Update the mesh file location generalized to any build dir
+    stringstream mesh_file;
+    mesh_file << SOURCE_DIR << "/examples/meshes/" << input.GetMeshFile();
+    input.SetMeshFile(mesh_file.str().c_str());
+
+    return input;
+}
+
 int Reinert_Test(int test_case_num, std::function<double(const Vector &, double)> Reinert_Analytical)
 {
-    const int SIM_TIME = 2.0;
     const double EPSILON = 1e-5;
-    const double DT = 1e-4;
 
     // Initialize MPI and HYPRE.
     Mpi::Init();
@@ -24,27 +38,12 @@ int Reinert_Test(int test_case_num, std::function<double(const Vector &, double)
     int myid = Mpi::WorldRank();
     Hypre::Init();
 
-    // Get input file for Reinert_B#
+    // Get test input file for Reinert_B#
     stringstream input_file;
-    input_file << SOURCE_DIR << "/examples/Reinert_B" << test_case_num << "/Reinert_B" << test_case_num << ".ini";
+    input_file << "Reinert_B" << test_case_num << ".ini";
 
     // Parse the config file
-    Config input(input_file.str().c_str());
-
-    // Update the mesh file location (may not be relative to that local directory)
-    stringstream mesh_file;
-    mesh_file << SOURCE_DIR << "/examples/meshes/Reinert_1D_block.mesh";
-    input.SetMeshFile(mesh_file.str().c_str());
-
-    // Suppress any output
-    input.SetRestartFreq(INT_MAX);
-    input.SetVisFreq(INT_MAX);
-
-    // Only run for SIM_TIME
-    input.SetFinalTime(SIM_TIME);
-
-    // Used reduced dt for test
-    input.Setdt(DT);
+    Config input = GetConfig(input_file.str());
 
     // Create new JOTSDriver
     JOTSDriver* driver = new JOTSDriver(input, myid, num_procs);
@@ -54,7 +53,7 @@ int Reinert_Test(int test_case_num, std::function<double(const Vector &, double)
 
     // Define exact solution coefficient
     FunctionCoefficient u_exact(Reinert_Analytical);
-    u_exact.SetTime(SIM_TIME);
+    u_exact.SetTime(input.GetFinalTime());
 
     // Get the finite-element approximation solution
     double error = driver->GetOutputManager()->GetT_gf()->ComputeL2Error(u_exact);

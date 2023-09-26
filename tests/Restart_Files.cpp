@@ -17,22 +17,10 @@ int main(int argc, char *argv[])
     Hypre::Init();
 
     // Get input file for Initial_Sinusoidal_Heated_Bar
-    stringstream input_file_0;
-    input_file_0 << SOURCE_DIR << "/examples/Restarted_Sinusoidal_Isothermal_Heated_Bar/Initial_Sinusoidal_Isothermal_Heated_Bar.ini";
+    string input_file_0 = "Restart_Files.ini";
 
-    // Parse the coninput_file_0fig file
-    Config input_0(input_file_0.str().c_str());
-
-    // Update the mesh file location (may not be relative to that local directory)
-    stringstream mesh_file;
-    mesh_file << SOURCE_DIR << "/examples/meshes/bar.mesh";
-    input_0.SetMeshFile(mesh_file.str().c_str());
-
-    // Suppress any visualization output
-    input_0.SetVisFreq(INT_MAX);
-
-    // Only output at final iteration
-    input_0.SetRestartFreq(input_0.GetFinalTime()/input_0.Getdt());
+    // Parse the config file
+    Config input_0 = GetConfig(input_file_0);
 
     // Create new JOTSDriver
     JOTSDriver* driver_0 = new JOTSDriver(input_0, myid, num_procs);
@@ -45,13 +33,11 @@ int main(int argc, char *argv[])
 
     // Note that restart file should be outputted in whatever current WD is
 
-    // Get input file for Restarted_Sinusoidal_Heated_Bar
-    stringstream input_file_r;
-    input_file_r << SOURCE_DIR << "/examples/Restarted_Sinusoidal_Isothermal_Heated_Bar/Restarted_Sinusoidal_Isothermal_Heated_Bar.ini";
-
-    // Parse the config file
-    Config input_r(input_file_r.str().c_str());
-
+    // Get new Config and update to make it a restarted version of previous
+    Config input_r = GetConfig(input_file_0);
+    input_r.SetRestart(true);
+    input_r.SetRestartCycle(input_0.GetRestartFreq());
+    
     // Create restarted JOTSDriver
     JOTSDriver* driver_r = new JOTSDriver(input_r, myid, num_procs);
 
