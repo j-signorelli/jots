@@ -1,4 +1,6 @@
-# Weak Formulation Derivation
+# Unsteady Heat Transfer
+
+## Weak Formulation Derivation
 
 Start with the unsteady thermal conduction equation, applying the following assumptions:
 
@@ -27,7 +29,7 @@ $$\int_\Omega \rho C \dfrac{\partial u}{\partial t}vd\vec{x} - \int_\Omega \nabl
 
 We can then apply the following Green formula to the second term:
 
-$$\int_\Omega \nabla \cdot (k \nabla u)vd\vec{x} = -\int_\Omega \nabla v \cdot (k\nabla u) d\vec{x} + \int_{\partial \Omega} \hat{n} \cdot (k \nabla u) d\vec{x}$$
+$$\int_\Omega \nabla \cdot (k \nabla u)vd\vec{x} = -\int_\Omega \nabla v \cdot (k\nabla u) d\vec{x} + \int_{\partial \Omega} \hat{n} \cdot (k \nabla u)v d\vec{x}$$
 
 Note from earlier that $ g = \hat{n} \cdot (k \nabla u)$, a specified heat flux on Neumann boundaries. We allow for this heat flux to vary in time as well as in space: $g=g(x,y,z,t)$
 
@@ -37,7 +39,7 @@ $$u(\vec{x},t) \approx u_h(\vec{x},t)= \sum^{N_{\mathcal{V}_h}}_j u_j(t)\phi_j(\
 $$v(\vec{x},t) \approx v_h(\vec{x},t)=\sum^{N_{\mathcal{V}_h}}_j v_j(t)\phi_j(\vec{x})$$
 
 
- where the dual basis $u_j$ is chosen to represent $N_{\mathcal{V}_h}$ nodal degrees of freedom in which at a given point in time: $\{T_j\}\in	\mathbb{R}^{N_{\mathcal{V}_h}}$. Going forward for simplification, all summations are presumed to be over ${N_{\mathcal{V}_h}}$ degrees of freedom: $\sum^{N_{\mathcal{V}_h}}_j=\sum_j$.
+ where the dual basis $u_j$ is chosen to represent $N_{\mathcal{V}_h}$ nodal degrees of freedom in which at a given point in time: $\{u_j\}\in	\mathbb{R}^{N_{\mathcal{V}_h}}$. Going forward for simplification, all summations are presumed to be over ${N_{\mathcal{V}_h}}$ degrees of freedom: $\sum^{N_{\mathcal{V}_h}}_j=\sum_j$.
 
  Plugging the above in:
 
@@ -59,13 +61,13 @@ $$\vec{N}=\left[\int_{\partial \Omega} g(\vec{x},t)\phi_i d\vec{x}\right]=\text{
 
 Thus the equation becomes:
 
-$$\vec{v}^T\bold{M}\dfrac{d \vec{u}}{d t} = \vec{v}^T \bold{K}\vec{u} + \vec{v}^T \vec{N}$$
+$$\vec{v}^T\bold{M}\dfrac{d \vec{u}}{d t} + \vec{v}^T \bold{K}\vec{u} = \vec{v}^T \vec{N}$$
 
-$$\vec{v}^T\left(\bold{M}\dfrac{d \vec{u}}{d t} - \bold{K}\vec{u} - \vec{N}\right)=0$$
+$$\vec{v}^T\left(\bold{M}\dfrac{d \vec{u}}{d t} + \bold{K}\vec{u} - \vec{N}\right)=0$$
 
 For this inner product to be zero $\forall\vec{v}$, the vector in parentheses must be identically zero. So the equation of interest is:
 $$
-\bold{M}\dfrac{d \vec{u}}{d t} - \bold{K}\vec{u} - \vec{N}=\vec{0}$$
+\bold{M}\dfrac{d \vec{u}}{d t} + \bold{K}\vec{u} - \vec{N}=\vec{0}$$
 
 or
 
@@ -77,11 +79,11 @@ $$\dfrac{du_i}{dt} = M_{ik}^{-1} \left( -K_{kj}u_j + N_k\right)=-M_{ik}^{-1}K_{k
 
 Note that generally $\bold{M}=\bold{M}(\vec{u})$,  $\bold{K}=\bold{K}(\vec{u})$, and $\vec{N}=\vec{N}(t)$
 
-# Unsteady Simulations (Time-Integration)
+## Time-Integration
 
 JOTS makes usage of MFEM's layer-of-abstraction `TimeDependentOperator`. Note that $k=\dfrac{d\vec{u}}{dt}$
 
-## Explicit
+### Explicit
 
 For explicit time integration methods,
 
@@ -91,7 +93,7 @@ where
 
 $$\left.\dfrac{d\vec{u}}{dt}\right|_n=f(\vec{u}_n, t_n)=\bold{M}^{-1}(\vec{u}_n)\left[\bold{K}(\vec{u}_n)\vec{u}_{n} + \vec{N}(t_n)\right]$$
 
-## Implicit
+### Implicit
 
 For implicit time-integration methods,
 
@@ -130,7 +132,7 @@ $$\bold{K}(\vec{u}_{n+1})=\bold{K}(\vec{u}_{n}).$$
 
 There are plans to implement nonlinear iterative solvers for these terms and this section will be expanded accordingly.
 
-# Approximations for Nonhomogeneous Non-Constant Dirichlet + Neumann BCs
+## Approximations for Non-Constant Dirichlet + Neumann BCs
 
 
 Nonhomogeneous time-varying Dirichlet boundary conditions involve fixing some values of $\dfrac{d \vec{u}}{dt}$ **in time**, $\dfrac{d\vec{u}_D}{dt}$, since values of $u$ on $\partial \Omega_D$ may change in time. Currently, JOTS assumes that $\dfrac{d\vec{u}_D}{dt}\approx 0$. This is a source of error as solutions to the derivatives of the free DOFs depend on derivatives of the essential DOFs (See [here](https://github.com/mfem/mfem/issues/1720)).
@@ -141,6 +143,48 @@ Some boundary conditions have an analytical expression, so $\dfrac{d\vec{u}_D}{d
 
 However, for now to maintain consistency, the above assumptions are applied uniformly across JOTS. As $\Delta t \rightarrow0$, the error in the assumptions above also approach zero.
 
+# Steady Heat Transfer
+
+## Weak Formulation Derivation
+The following assumptions are made:
+1. Isotropic thermal conductivity $k$ allowed to vary as a function of temperature: $k=k(u)$
+2. No heat generation
+
+With this, the steady heat equation to be solved is:
+$$\nabla \cdot (k \nabla u) = 0$$
+
+As done previously, a weak formulation of this problem is sought. Once again, multiply the heat equation by test function $v$, integrate:
+
+$$\int_\Omega \nabla \cdot (k \nabla u)vd\vec{x} = 0$$
+
+Apply the same Green formula as above to get:
+
+$$\int_\Omega \nabla v \cdot (k\nabla u) d\vec{x} = \int_{\partial \Omega} \hat{n} \cdot (k \nabla u) vd\vec{x}$$
+
+where as before $ g = \hat{n} \cdot (k \nabla u)$, a specified heat flux on Neumann boundaries that *no longer depends on time*.
+
+We no longer presume any dependence on time for the nodal degrees of freedom:
+
+$$u(\vec{x}) \approx u_h(\vec{x})= \sum^{N_{\mathcal{V}_h}}_j u_j\phi_j(\vec{x})$$
+$$v(\vec{x}) \approx v_h(\vec{x})=\sum^{N_{\mathcal{V}_h}}_j v_j\phi_j(\vec{x})$$
+
+Plugging in this finite element approximation to the weak formulation gives:
+
+$$\int_\Omega \left( k(u_h)\sum_j u_j\nabla \phi_j\right)\cdot \left(\sum_i v_i\nabla \phi_i\right) d\vec{x} = \int_{\partial \Omega} g\left(\sum_i v_i \phi_i \right)d\vec{x}$$
+
+Rearranging terms:
+
+$$\sum_i \sum_j v_i\left( \int_\Omega (\nabla \phi_i) \cdot (k(u_h) \nabla \phi_j) d\vec{x}\right)u_j = \sum_i v_i\left( \int_{\partial \Omega} g\phi_i d\vec{x}\right)$$
+
+Thus using the same naming conventions as before:
+
+$$\vec{v}^T \bold{K}\vec{u} = \vec{v}^T \vec{N}$$
+
+And for this inner product to be identically zero for any test function, we get:
+
+$$\bold{K}\vec{u} = \vec{N}$$
+
+where generally this is a nonlinear problem as $\bold{K}=\bold{K}(\vec{u})$.
 
 # Notes:
 
