@@ -10,7 +10,7 @@ using namespace std;
 using namespace precice;
 using namespace precice::constants;
 
-const int N_REINERT = 100; // Inclusive end of summation over terms of analytical solution infinite series to include
+const int N_REINERT = 1000; // Inclusive end of summation over terms of analytical solution infinite series to include
 
 Config GetConfig(string in_file)
 {
@@ -112,10 +112,11 @@ int Analytical_Reg_Test(string input_file, std::function<double(const Vector &, 
 
 // Adapted from ajaust/precice-parallel-solverdummies
 // Checks that received interface values match a provided analytical function, throws error if not
+// Checks every checkEveryIterations iterations
 // Sends values based on a provided analytical function
 // No implicit coupling implemented (for now)
 // It is presumed that MPI is initialized before this function call for generality
-int preCICE_Dummy_Analytical_Test(string in_configFile, string dataReadName, string dataWriteName, vector<double> vertices, std::function<double(const Vector &, double)> Analytical_Send, std::function<double(const Vector &, double)> Analytical_Receive, int rank, int size, MPI_Comm comm)
+int preCICE_Dummy_Analytical_Test(string in_configFile, string dataReadName, string dataWriteName, vector<double> vertices, std::function<double(const Vector &, double)> Analytical_Send, std::function<double(const Vector &, double)> Analytical_Receive, int checkEveryIterations, int rank, int size, MPI_Comm comm)
 {
     const double EPSILON = 1e-5;
     const string solverName = "Dummy";
@@ -145,7 +146,7 @@ int preCICE_Dummy_Analytical_Test(string in_configFile, string dataReadName, str
 
     double dt = interface.initialize();
     double time = 0.0;
-
+    int it = 0;
     // Initialize if needed
     if (interface.isActionRequired(actionWriteInitialData()))
     {
@@ -169,25 +170,27 @@ int preCICE_Dummy_Analytical_Test(string in_configFile, string dataReadName, str
         }
 
         time += dt;
-        
-        // Compute L2 norm of received solution difference with analytical
+        it++;
+
+        // Compute L2 norm of received solution percent difference with analytical
         double l2Norm = 0;
-        for (int i = 0; i < numberOfVertices; i++)
-        {   
-            Vector x(&vertices[i*dimensions], dimensions);
-            l2Norm += pow(Analytical_Receive(x, time) - readData.at(i), 2.0);
-        }
-
-        l2Norm = pow(l2Norm, 0.5);
-
-        // TODO: Some kind of normalization parameter
-        cout << "DUMMY (" << rank << "): L2-Norm of Difference: " << l2Norm;
-
-        if (l2Norm > EPSILON)
+        if (it % checkEveryIterations == 0)
         {
-            cout << "DUMMY (" << rank << "):" << "ERROR -- Not receiving correct values" << endl;
-            //interface.finalize();
-            //return 1;
+            for (int i = 0; i < numberOfVertices; i++)
+            {   
+                Vector x(&vertices[i*dimensions], dimensions);
+                double a = Analytical_Receive(x, time);
+                cout << "ANALYTICAL: " << a << endl;
+                l2Norm += pow(abs((a - readData.at(i))/a)*100, 1.0);
+            }
+
+            cout << "DUMMY (" << rank << "): L2-Norm of % Difference: " << l2Norm << endl;
+    
+            if (l2Norm > EPSILON)
+            {
+                cout << "DUMMY (" << rank << "):" << " ERROR -- Not receiving correct values" << endl;
+                return 1;
+            }
         }
 
         if (interface.isWriteDataRequired(dt))
@@ -243,7 +246,7 @@ double Reinert_B1_Analytical_HF(const Vector& x, double time)
     double T_D = 500.0;
 
 
-    for (int n = 0; n < N_REINERT+1; n++)
+    for (int n = 0; n < N_REINERT*1000+1; n++) // Multiply even further due to added difficulty in getting derivative
     {
         double A = pow(-1.0,n)/(2.0*n+1.0);
         double B = (-pow(2.0*n+1.0,2.0)*pow(M_PI,2)*alpha*time)/(4.0*pow(L,2));
