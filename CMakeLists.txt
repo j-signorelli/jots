@@ -23,9 +23,12 @@ message(STATUS "Found Boost headers: TRUE")
 # Add src directory (creates jotsLib)
 add_subdirectory(src)
 
-# Add regression tests:
-enable_testing()
-add_subdirectory(tests)
+# Add regression tests if specified
+option(ENABLE_TESTING "Enable testing" OFF)
+if (ENABLE_TESTING)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
 
 # Create executable
 add_executable(jots jots_main.cpp)
