@@ -118,7 +118,7 @@ int Analytical_Reg_Test(string input_file, std::function<double(const Vector &, 
 // It is presumed that MPI is initialized before this function call for generality
 int preCICE_Dummy_Analytical_Test(string in_configFile, string dataReadName, string dataWriteName, vector<double> vertices, std::function<double(const Vector &, double)> Analytical_Send, std::function<double(const Vector &, double)> Analytical_Receive, int checkEveryIterations, int rank, int size, MPI_Comm comm)
 {
-    const double EPSILON = 1e-5;
+    const double ALLOWED_PERCENT_DIFFERENCE = 1;
     const string solverName = "Dummy";
     const string meshName = "Dummy-Mesh";
 
@@ -166,30 +166,30 @@ int preCICE_Dummy_Analytical_Test(string in_configFile, string dataReadName, str
         if (interface.isReadDataAvailable())
         {
             interface.readBlockScalarData(readDataID, numberOfVertices, vertexIDs.data(), readData.data());
-            cout << "HEATFLUX: " << readData[0] << endl;
         }
 
         time += dt;
         it++;
 
-        // Compute L2 norm of received solution percent difference with analytical
-        double l2Norm = 0;
+        // Compute received solution percent difference with analytical
         if (it % checkEveryIterations == 0)
         {
             for (int i = 0; i < numberOfVertices; i++)
             {   
                 Vector x(&vertices[i*dimensions], dimensions);
                 double a = Analytical_Receive(x, time);
-                cout << "ANALYTICAL: " << a << endl;
-                l2Norm += pow(abs((a - readData.at(i))/a)*100, 1.0);
-            }
-
-            cout << "DUMMY (" << rank << "): L2-Norm of % Difference: " << l2Norm << endl;
-    
-            if (l2Norm > EPSILON)
-            {
-                cout << "DUMMY (" << rank << "):" << " ERROR -- Not receiving correct values" << endl;
-                return 1;
+                cout << "Vector x: ";
+                x.Print();
+                cout << "Heatflux: " << readData[0] << endl;
+                cout << "Analytical HF: " << a << endl;
+                double percentDiff = abs((a - readData.at(i))/a)*100;
+                cout << "DUMMY (" << rank << "): % Difference: " << percentDiff << endl;
+                if (percentDiff > ALLOWED_PERCENT_DIFFERENCE)
+                {
+                    cout << "DUMMY (" << rank << "):" << " ERROR -- Not receiving correct values" << endl;
+                    MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
+                    return 1;
+                }
             }
         }
 

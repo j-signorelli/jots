@@ -53,7 +53,7 @@ int main(int argc, char **argv)
         // Create lambda function for constant send of 500K temperature
         function<double(const Vector&, double)> Constant_Temp = [=](const Vector&x, double t) -> double { return 500; };
         
-        exit = preCICE_Dummy_Analytical_Test("Reinert_B1_preCICE_config.xml", "Heat-Flux", "Temperature", vertices, Constant_Temp, Reinert_B1_Analytical_HF, 4000, subRank, subSize, subComm);
+        exit = preCICE_Dummy_Analytical_Test("Reinert_B1_preCICE_config.xml", "Heat-Flux", "Temperature", vertices, Constant_Temp, Reinert_B1_Analytical_HF, 100, subRank, subSize, subComm);
         if (exit == 1)
             MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }

@@ -48,8 +48,8 @@
     <m2n:sockets from="Dummy" to="Solid"  exchange-directory="." />
 
     <coupling-scheme:serial-explicit>
-      <time-window-size value="0.00001" />
-      <max-time value="0.1" />
+      <time-window-size value="0.01" />
+      <max-time value="4.0" />
       <participants first="Solid" second="Dummy" />
       <exchange data="Temperature" mesh="Dummy-Mesh" from="Dummy" to="Solid" initialize="yes"/>
       <exchange data="Heat-Flux" mesh="Solid-Mesh" from="Solid" to="Dummy"/>
