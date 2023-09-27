@@ -1,0 +1,320 @@
+// Define variables needed in test code
+#define SOURCE_DIR "@PROJECT_SOURCE_DIR@"
+
+#pragma once
+#include "jots_driver.hpp"
+
+
+using namespace mfem;
+using namespace std;
+using namespace precice;
+using namespace precice::constants;
+
+const int N_REINERT = 1000; // Inclusive end of summation over terms of analytical solution infinite series to include
+
+Config GetConfig(string in_file)
+{
+    // Parse the config file from the test directory
+    stringstream input_file;
+    input_file << SOURCE_DIR << "/tests/" << in_file;
+
+    Config input(input_file.str().c_str());
+
+    // Update the mesh file location generalized to any build dir
+    stringstream mesh_file;
+    mesh_file << SOURCE_DIR << "/examples/meshes/" << input.GetMeshFile();
+    input.SetMeshFile(mesh_file.str().c_str());
+
+    // If using preCICE, update the config file location as well
+    if (input.UsingPrecice())
+    {
+        stringstream config_file;
+        config_file << SOURCE_DIR << "/tests/" << input.GetPreciceConfigFile();
+        input.SetPreciceConfigFile(config_file.str().c_str());
+    }
+
+    return input;
+}
+
+// No checking or anything, just run a given input file in tests directory to completion
+// It is presumed that MPI is initialized prior to this function call for generality
+int RunTestConfig(string input_file, int rank, int size, MPI_Comm comm=MPI_COMM_WORLD)
+{
+    // Initialize HYPRE.
+    Hypre::Init();
+
+    // Parse the config file
+    Config input = GetConfig(input_file);
+    
+    // Create new JOTSDriver
+    JOTSDriver* driver = new JOTSDriver(input, rank, size, comm);
+
+    // Run driver
+    driver->Run();
+
+    // Delete driver
+    delete driver;
+
+    return 0;
+}
+
+// Run to end with comparison against analytical solution at end
+int Analytical_Reg_Test(string input_file, std::function<double(const Vector &, double)> Analytical)
+{
+    const double EPSILON = 1e-5;
+
+    // Initialize MPI and HYPRE.
+    Mpi::Init();
+    int num_procs = Mpi::WorldSize();
+    int myid = Mpi::WorldRank();
+    Hypre::Init();
+
+    // Parse the config file
+    Config input = GetConfig(input_file);
+
+    // Create new JOTSDriver
+    JOTSDriver* driver = new JOTSDriver(input, myid, num_procs);
+
+    // Run driver
+    driver->Run();
+
+    // Define exact solution coefficient
+    FunctionCoefficient u_exact(Analytical);
+    u_exact.SetTime(input.GetFinalTime());
+
+    // Get the finite-element approximation solution
+    double error = driver->GetOutputManager()->GetT_gf()->ComputeL2Error(u_exact);
+
+    if (myid == 0)
+        cout << "Error: " << error;
+
+    if (isnan(error))
+    {
+        cout << "Failed!" << endl;
+        return 1;
+    }
+
+    if (error > EPSILON)
+    {
+        if (myid == 0)
+            cout << " > " << EPSILON << endl << "Failed!" << endl;
+        return 1;
+    }
+    else
+        if (myid == 0)
+            cout << " <= " << EPSILON << endl << "Success!" << endl;
+
+    // Delete driver
+    delete driver;
+
+    return 0;
+}
+
+// Adapted from ajaust/precice-parallel-solverdummies
+// Checks that received interface values match a provided analytical function, throws error if not
+// Checks every checkEveryIterations iterations
+// Sends values based on a provided analytical function
+// No implicit coupling implemented (for now)
+// It is presumed that MPI is initialized before this function call for generality
+int preCICE_Dummy_Analytical_Test(string in_configFile, string dataReadName, string dataWriteName, vector<double> vertices, std::function<double(const Vector &, double)> Analytical_Send, std::function<double(const Vector &, double)> Analytical_Receive, int checkEveryIterations, int rank, int size, MPI_Comm comm)
+{
+    const double ALLOWED_PERCENT_DIFFERENCE = 1;
+    const string solverName = "Dummy";
+    const string meshName = "Dummy-Mesh";
+
+    // Get config file
+    stringstream configFile;
+    configFile << SOURCE_DIR << "/tests/" << in_configFile;
+
+    cout << "DUMMY (" << rank << "): Running solver dummy with preCICE config file \"" << configFile.str() << "\"and participant name.\"" << solverName << "\".\n";
+
+    SolverInterface interface(solverName, configFile.str(), rank, size, &comm);
+
+    int meshID = interface.getMeshID(meshName);
+    int dimensions = interface.getDimensions();
+
+    const int readDataID = interface.getDataID(dataReadName, meshID);
+    const int writeDataID = interface.getDataID(dataWriteName, meshID);
+
+    const int numberOfVertices = vertices.size()/dimensions;
+
+    vector<double> readData(numberOfVertices);
+    vector<double> writeData(numberOfVertices);
+    vector<int> vertexIDs(numberOfVertices);
+
+    interface.setMeshVertices(meshID, numberOfVertices, vertices.data(), vertexIDs.data());
+
+    double dt = interface.initialize();
+    double time = 0.0;
+    int it = 0;
+    // Initialize if needed
+    if (interface.isActionRequired(actionWriteInitialData()))
+    {
+        for (int i = 0; i < numberOfVertices; i++)
+        {
+            Vector x(&vertices[i*dimensions], dimensions);
+            writeData.at(i) = Analytical_Send(x, time);
+        }
+        
+        interface.writeBlockScalarData(writeDataID, numberOfVertices, vertexIDs.data(), writeData.data());
+        interface.markActionFulfilled(actionWriteInitialData());
+    }
+    interface.initializeData();
+
+    while (interface.isCouplingOngoing())
+    {
+        if (interface.isReadDataAvailable())
+        {
+            interface.readBlockScalarData(readDataID, numberOfVertices, vertexIDs.data(), readData.data());
+        }
+
+        time += dt;
+        it++;
+
+        // Compute received solution percent difference with analytical
+        if (it % checkEveryIterations == 0)
+        {
+            for (int i = 0; i < numberOfVertices; i++)
+            {   
+                Vector x(&vertices[i*dimensions], dimensions);
+                double a = Analytical_Receive(x, time);
+                cout << "Vector x: ";
+                x.Print();
+                cout << "Received: " << readData[0] << endl;
+                cout << "Analytical: " << a << endl;
+                double percentDiff = abs((a - readData.at(i))/a)*100;
+                cout << "DUMMY (" << rank << "): % Difference: " << percentDiff << endl;
+                if (percentDiff > ALLOWED_PERCENT_DIFFERENCE)
+                {
+                    cout << "DUMMY (" << rank << "):" << " ERROR -- Not receiving correct values" << endl;
+                    MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
+                    return 1;
+                }
+            }
+        }
+
+        if (interface.isWriteDataRequired(dt))
+        {
+            for (int i = 0; i < numberOfVertices; i++)
+            {
+                Vector x(&vertices[i*dimensions], dimensions);
+                writeData.at(i) = Analytical_Send(x, time);
+            }
+            interface.writeBlockScalarData(writeDataID, numberOfVertices, vertexIDs.data(), writeData.data());
+        }
+
+        dt = interface.advance(dt);
+
+        cout << "DUMMY (" << rank << "): Advancing in time\n";
+    }
+
+    interface.finalize();
+    cout << "DUMMY (" << rank << "): Closing C++ solver dummy...\n";
+
+    return 0;
+}
+
+double Reinert_B1_Analytical(const Vector& x, double time)
+{
+    double theta = 1.0;
+    double alpha = 2.5e-6;
+    double L = 0.01;
+
+    for (int n = 0; n < N_REINERT+1; n++)
+    {
+        double A = pow(-1.0,n)/(2.0*n+1.0);
+        double B = (-pow(2.0*n+1.0,2.0)*pow(M_PI,2)*alpha*time)/(4.0*pow(L,2));
+        double C = ((2.0*n+1.0)*M_PI*x[0])/(2.0*L);
+
+        theta = theta - (4.0/M_PI)*A*exp(B)*cos(C);
+    }
+    
+    double T_0 = 300.0;
+    double T_D = 500.0;
+
+    return theta*(T_D - T_0) + T_0;
+
+}
+
+double Reinert_B1_Analytical_HF(const Vector& x, double time)
+{
+    double alpha = 2.5e-6;
+    double L = 0.01;
+    double k = 10.0;
+    double dTdx = 0.0;
+    double T_0 = 300.0;
+    double T_D = 500.0;
+
+
+    for (int n = 0; n < N_REINERT*1000+1; n++) // Multiply even further due to added difficulty in getting derivative
+    {
+        double A = pow(-1.0,n)/(2.0*n+1.0);
+        double B = (-pow(2.0*n+1.0,2.0)*pow(M_PI,2)*alpha*time)/(4.0*pow(L,2));
+        double C = ((2.0*n+1.0)*M_PI)/(2.0*L);
+
+        dTdx += (T_D - T_0)*C*(4.0/M_PI)*A*exp(B)*sin(C*x[0]);
+    }
+
+
+    return -k*dTdx;
+
+}
+
+double Reinert_B2_Analytical(const Vector& x, double time)
+{
+    double alpha = 2.5e-6;
+    double L = 0.01;
+    double k = 10.0;
+    double q_dot = 7.5e5;
+
+    double theta = alpha*time/pow(L,2.0) + 1.0/3.0 - x[0]/L + 0.5*pow(x[0]/L,2.0);
+
+    for (int n = 1; n < N_REINERT+1; n++)
+    {
+        double A = -pow(n,2.0)*pow(M_PI,2.0)*alpha*time/pow(L,2.0);
+        double B = n*M_PI*x[0]/L;
+        double C = (2.0/pow(M_PI,2.0))*(1.0/pow(n,2.0));
+        theta -= C*exp(A)*cos(B);
+    }
+    
+    double T_0 = 300.0;
+
+    return theta*q_dot*L/k + T_0;
+
+}
+
+double Reinert_B3_Analytical(const Vector& x, double time)
+{
+    double alpha = 2.5e-6;
+    double L = 0.01;
+    double k1 = 10.0;
+    double k2 = 100;
+    double T1 = 300;
+    double T2 = 1300;
+
+    double q_dot = 7.5e5;
+    double T0 = 300;
+
+    double D = ((k2-k1)/(T2-T1))*(1.0/(2.0*k1));
+    double theta_0 = (T0-T1) + D*pow(T0-T1,2.0);
+
+    double theta = alpha*time/pow(L,2.0) + 1.0/3.0 - x[0]/L + 0.5*pow(x[0]/L,2.0);
+
+    for (int n = 1; n < N_REINERT+1; n++)
+    {
+        double A = (2.0/pow(M_PI,2.0))*(1.0/pow(n,2));
+        double B = -pow(n,2.0)*pow(M_PI,2.0)*alpha*time/pow(L,2.0);
+        double C = n*M_PI*x[0]/L;
+        theta -= A*exp(B)*cos(C);
+    }
+    
+    theta *= q_dot*L/k1;
+    theta += theta_0;
+
+    double a = D;
+    double b = 1.0-2.0*D*T1;
+    double c = D*pow(T1,2.0) - T1 - theta;
+
+    return (-b+pow(pow(b,2.0)-4*a*c,0.5))/(2*a);
+
+}

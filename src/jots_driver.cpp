@@ -7,11 +7,11 @@ using namespace precice;
 const string JOTSDriver::LINE = "-------------------------------------------------------------------";
 const double JOTSDriver::TIME_TOLERANCE = 1e-14;
 
-JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_procs)
+JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs, MPI_Comm comm)
 : rank(myid),
   size(num_procs),
   adapter(nullptr),
-  user_input(nullptr),
+  user_input(input),
   boundary_conditions(nullptr),
   initialized_bcs(false),
   k_prop(nullptr),
@@ -40,34 +40,29 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
         )" << endl << "MFEM-Based Thermal Solver w/ preCICE" << endl << "Version 1.1" << endl << LINE << endl;
     }
     //----------------------------------------------------------------------
-    // Parse config file
-    user_input = new Config(input_file);
+    // Print config file
     if (rank == 0)
-      cout << "Configuration file " << input_file << " parsed successfully!" << endl;
-    //----------------------------------------------------------------------
-    // Create solution GF
-    //ParGridFunction* temp_T_gf;
-
+      cout << "Configuration file: " << user_input.GetInputFile() << endl;
     //----------------------------------------------------------------------
     // If not restart, refine mesh and initialize; else load VisItDataCollection
-    if (!user_input->UsesRestart())
+    if (!user_input.UsesRestart())
     {
         if (rank == 0)
             cout << "Non-restart simulation..." << endl;
         //----------------------------------------------------------------------
         // Create serial mesh
-        Mesh* mesh = new Mesh(user_input->GetMeshFile().c_str(), 1);//pass one to generate edges
+        Mesh* mesh = new Mesh(user_input.GetMeshFile().c_str(), 1);//pass one to generate edges
         dim = mesh->Dimension();
         //----------------------------------------------------------------------
         // Print mesh info
         if (rank == 0)
         {
             cout << "\n";
-            cout << "Mesh File: " << user_input->GetMeshFile() << endl;
+            cout << "Mesh File: " << user_input.GetMeshFile() << endl;
         }
         //----------------------------------------------------------------------
         // Refine mesh in serial
-        int ser_ref = user_input->GetSerialRefine();
+        int ser_ref = user_input.GetSerialRefine();
         for (int lev = 0; lev < ser_ref; lev++)
         {
             mesh->UniformRefinement();
@@ -78,9 +73,9 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
             cout << "Serial refinements of mesh completed: " << ser_ref << endl;
         //----------------------------------------------------------------------
         // Complete parallel decomposition of serial mesh + refine parallel
-        pmesh = new ParMesh(MPI_COMM_WORLD, *mesh);
+        pmesh = new ParMesh(comm, *mesh);
         delete mesh;
-        int par_ref = user_input->GetParallelRefine();
+        int par_ref = user_input.GetParallelRefine();
 
         for (int lev = 0; lev < par_ref; lev++)
         {
@@ -94,7 +89,7 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
         }
         //----------------------------------------------------------------------
         // Define parallel FE space on parallel mesh
-        fe_coll = new H1_FECollection(user_input->GetFEOrder(), dim);
+        fe_coll = new H1_FECollection(user_input.GetFEOrder(), dim);
 
         fespace = new ParFiniteElementSpace(pmesh, fe_coll);
         
@@ -104,14 +99,14 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
         
         //----------------------------------------------------------------------
         // Print initial condition info + set T_gf
-        ConstantCoefficient coeff_IC(user_input->GetInitialTemp());
+        ConstantCoefficient coeff_IC(user_input.GetInitialTemp());
         temp_T_gf->ProjectCoefficient(coeff_IC);
         
         it_num = 0;
         time = 0.0;
 
         if (rank == 0)
-            cout << "Initial temperature field: " << user_input->GetInitialTemp() << endl;
+            cout << "Initial temperature field: " << user_input.GetInitialTemp() << endl;
 
     }
     //----------------------------------------------------------------------
@@ -122,8 +117,8 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
             cout << "Restart simulation..." << endl;
         //----------------------------------------------------------------------
         // Read in VisItDataCollection
-        VisItDataCollection temp_visit_dc(MPI_COMM_WORLD, user_input->GetRestartPrefix());
-        temp_visit_dc.Load(user_input->GetRestartCycle());
+        VisItDataCollection temp_visit_dc(comm, user_input.GetRestartPrefix());
+        temp_visit_dc.Load(user_input.GetRestartCycle());
 
         if (temp_visit_dc.Error())
             MFEM_ABORT("Unable to load restart data collection");
@@ -156,7 +151,7 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
 
         if (rank == 0)
         {
-            cout << "Input Restart Root: " << user_input->GetRestartPrefix() << "_" << user_input->GetRestartCycle() << endl;
+            cout << "Input Restart Root: " << user_input.GetRestartPrefix() << "_" << user_input.GetRestartCycle() << endl;
             cout << "\tTime: " << time << endl;
             cout << "\tCycle: " << it_num << endl;
         }
@@ -186,11 +181,11 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
     if (rank == 0)
     {   
         cout << "\n";
-        cout << "Density: " << user_input->GetDensity() << endl;
+        cout << "Density: " << user_input.GetDensity() << endl;
     }
     //----------------------------------------------------------------------
     // Create MaterialProperty object for specific heat
-    vector<string> specific_heat_info = user_input->GetSpecificHeatInfo();
+    vector<string> specific_heat_info = user_input.GetSpecificHeatInfo();
     vector<double> poly_coeffs_C;
     switch (Material_Model_Map.at(specific_heat_info[0]))
     {
@@ -214,7 +209,7 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
         cout << "Specific Heat Model: " << C_prop->GetInitString() << endl;
     //----------------------------------------------------------------------
     // Create MaterialProperty object for conductivity
-    vector<string> cond_info = user_input->GetCondInfo();
+    vector<string> cond_info = user_input.GetCondInfo();
     vector<double> poly_coeffs_k;
     switch (Material_Model_Map.at(cond_info[0]))
     {
@@ -238,34 +233,34 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
         cout << "Thermal Conductivity Model: " << k_prop->GetInitString() << endl;
     //----------------------------------------------------------------------
     // Set ODE time integrator
-    ode_solver = user_input->GetODESolver();
+    ode_solver = user_input.GetODESolver();
     //----------------------------------------------------------------------
     // Print time integration information
     if (rank == 0)
     {
         cout << "\n";
-        cout << "Time Scheme: " << user_input->GetTimeSchemeString() << endl;
-        cout << "Time Step: " << user_input->Getdt() << endl;
-        cout << "Max Time: " << user_input->GetFinalTime() << endl;
+        cout << "Time Scheme: " << user_input.GetTimeSchemeString() << endl;
+        cout << "Time Step: " << user_input.Getdt() << endl;
+        cout << "Max Time: " << user_input.GetFinalTime() << endl;
     
     }
     //----------------------------------------------------------------------
     // Set time stuff
-    dt = user_input->Getdt();
-    tf = user_input->GetFinalTime();
+    dt = user_input.Getdt();
+    tf = user_input.GetFinalTime();
     //----------------------------------------------------------------------
     // Print any precice info + instantiate adapter object if needed
-    if (user_input->UsingPrecice())
+    if (user_input.UsingPrecice())
     {
         if (rank == 0)
         {
             cout << "\n";
             cout << "Using preCICE!" << endl;
-            cout << "preCICE Participant Name: " << user_input->GetPreciceParticipantName() << endl;
-            cout << "preCICE Config File: " << user_input->GetPreciceConfigFile() << endl;
+            cout << "preCICE Participant Name: " << user_input.GetPreciceParticipantName() << endl;
+            cout << "preCICE Config File: " << user_input.GetPreciceConfigFile() << endl;
         }
 
-        adapter = new PreciceAdapter(user_input->GetPreciceParticipantName(), user_input->GetPreciceConfigFile(), rank, size);
+        adapter = new PreciceAdapter(user_input.GetPreciceParticipantName(), user_input.GetPreciceConfigFile(), rank, size, comm);
 
         if (adapter->GetDimension() != dim)
         {
@@ -280,7 +275,7 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
 
     // Confirm user input matches mesh bdr_attributes...
     // Check count
-    if (pmesh->bdr_attributes.Size() != user_input->GetBCCount())
+    if (pmesh->bdr_attributes.Size() != user_input.GetBCCount())
     {
         if (rank == 0)
             MFEM_ABORT("Input file BC count and mesh BC counts do not match.");
@@ -291,19 +286,19 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
     // Also create an array of indices that match mesh bdr attributes to input bdr attributes
     // ^ in event that user inputs bdr attributes in different order than mesh
     vector<int> bdr_index;
-    for (size_t i = 0; i < user_input->GetBCCount(); i++)
+    for (size_t i = 0; i < user_input.GetBCCount(); i++)
     {
         int attr = pmesh->bdr_attributes[i];
         bool one_to_one = false;
 
-        for (size_t j = 0; j < user_input->GetBCCount(); j++)
+        for (size_t j = 0; j < user_input.GetBCCount(); j++)
         {   
-            pair<int, vector<string>> bc = user_input->GetBCInfo(j);
+            pair<int, vector<string>> bc = user_input.GetBCInfo(j);
             if (attr == bc.first)
             {
                 one_to_one = true;
                 bdr_index.push_back(j);
-                j = user_input->GetBCCount();
+                j = user_input.GetBCCount();
             }
         }
         if (!one_to_one)
@@ -320,10 +315,10 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
     //----------------------------------------------------------------------
     // Instantiate boundary conditions + save any precice bc indices
     vector<int> precice_bc_indices;
-    boundary_conditions = new BoundaryCondition*[user_input->GetBCCount()];
-    for (int i = 0; i < user_input->GetBCCount(); i++)
+    boundary_conditions = new BoundaryCondition*[user_input.GetBCCount()];
+    for (int i = 0; i < user_input.GetBCCount(); i++)
     {
-        pair<int, vector<string>> bc = user_input->GetBCInfo(bdr_index[i]);
+        pair<int, vector<string>> bc = user_input.GetBCInfo(bdr_index[i]);
         double value;
         string mesh_name;
         double amp;
@@ -373,21 +368,21 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
     }
     //----------------------------------------------------------------------
     // Send precice bcs to adapter
-    if (user_input->UsingPrecice())
+    if (user_input.UsingPrecice())
         adapter->AddPreciceBCs(boundary_conditions, precice_bc_indices);
     //----------------------------------------------------------------------
     // Prepare BC attr arrays for applying coefficients
-    all_bdr_attr_markers = new Array<int>[user_input->GetBCCount()];
-    for (size_t i = 0; i < user_input->GetBCCount(); i++)
+    all_bdr_attr_markers = new Array<int>[user_input.GetBCCount()];
+    for (size_t i = 0; i < user_input.GetBCCount(); i++)
     {
-        Array<int> bdr_attr(user_input->GetBCCount());
+        Array<int> bdr_attr(user_input.GetBCCount());
         bdr_attr = 0;
         bdr_attr[i] = 1;
         all_bdr_attr_markers[i] = bdr_attr;
    }
     //----------------------------------------------------------------------
     // Print BCs
-    for (size_t i = 0; i < user_input->GetBCCount(); i++)
+    for (size_t i = 0; i < user_input.GetBCCount(); i++)
     {   
         BoundaryCondition* bc = boundary_conditions[i];
 
@@ -401,24 +396,23 @@ JOTSDriver::JOTSDriver(const char* input_file, const int myid, const int num_pro
     if (rank == 0)
     {
         cout << "\n";
-        cout << "Linear Solver: " << user_input->GetSolverString() << endl;
-        cout << "Preconditioner: " << user_input->GetPrecString() << endl;
-        cout << "Max Iterations: " << user_input->GetMaxIter() << endl;
-        cout << "Absolute Tolerance: " << user_input->GetAbsTol() << endl;
-        cout << "Relative Tolerance: " << user_input->GetRelTol() << endl;
+        cout << "Linear Solver: " << user_input.GetSolverString() << endl;
+        cout << "Preconditioner: " << user_input.GetPrecString() << endl;
+        cout << "Max Iterations: " << user_input.GetMaxIter() << endl;
+        cout << "Absolute Tolerance: " << user_input.GetAbsTol() << endl;
+        cout << "Relative Tolerance: " << user_input.GetRelTol() << endl;
     }
     //----------------------------------------------------------------------
     // Print output settings
     if (rank == 0)
     {
         cout << "\n\n";
-        cout << "Restart Frequency: " << user_input->GetRestartFreq() << endl;
-        cout << "Visualization Frequency: " << user_input->GetVisFreq() << endl;
+        cout << "Restart Frequency: " << user_input.GetRestartFreq() << endl;
+        cout << "Visualization Frequency: " << user_input.GetVisFreq() << endl;
     }
     //---------------------------------------------------------------------
     // Create main solution vector from IC
     temp_T_gf->GetTrueDofs(T);
-    //delete temp_T_gf;
     //----------------------------------------------------------------------
     // Instantiate ConductionOperator, sending all necessary parameters
     if (rank == 0)
@@ -469,7 +463,7 @@ void JOTSDriver::Run()
 
     // If using precice: initialize + get/send initial data if needed
     // Make actual precice interface calls directly here for readability/clarity
-    if (user_input->UsingPrecice())
+    if (user_input.UsingPrecice())
     {
         precice_dt = adapter->Interface()->initialize();
         if (adapter->Interface()->isActionRequired(PreciceAdapter::cowid))
@@ -483,11 +477,11 @@ void JOTSDriver::Run()
     bool viz_out = false;
     bool res_out = false;
 
-    while ( (!user_input->UsingPrecice() && time < tf) 
-        || (user_input->UsingPrecice() && adapter->Interface()->isCouplingOngoing()))//Main Solver Loop - use short-circuiting
+    while ( (!user_input.UsingPrecice() && time < tf) 
+        || (user_input.UsingPrecice() && adapter->Interface()->isCouplingOngoing()))//Main Solver Loop - use short-circuiting
     {
 
-        if (user_input->UsingPrecice())
+        if (user_input.UsingPrecice())
         {
             if (adapter->Interface()->isActionRequired(PreciceAdapter::cowic))
             {
@@ -506,7 +500,7 @@ void JOTSDriver::Run()
 
 
         // Update timestep if needed
-        if (user_input->UsingPrecice())
+        if (user_input.UsingPrecice())
         {
             if (precice_dt < dt)
                 dt = precice_dt;
@@ -525,7 +519,7 @@ void JOTSDriver::Run()
         UpdateMatProps();
 
         // Write any preCICE data, reload state if needed
-        if (user_input->UsingPrecice())
+        if (user_input.UsingPrecice())
         {
             if (adapter->Interface()->isWriteDataRequired(dt))
                 adapter->WriteData(T, k_prop);
@@ -562,8 +556,8 @@ void JOTSDriver::Run()
         }
 
         // Output
-        viz_out = user_input->GetVisFreq() != 0 && it_num % user_input->GetVisFreq() == 0;
-        res_out = user_input->GetRestartFreq() != 0 && it_num % user_input->GetRestartFreq() == 0;
+        viz_out = user_input.GetVisFreq() != 0 && it_num % user_input.GetVisFreq() == 0;
+        res_out = user_input.GetRestartFreq() != 0 && it_num % user_input.GetRestartFreq() == 0;
         if (viz_out || res_out)
         {
             if (rank == 0)
@@ -588,9 +582,9 @@ void JOTSDriver::Run()
         }
 
     }
-
+    
     // Finalize preCICE if used
-    if (user_input->UsingPrecice())
+    if (user_input.UsingPrecice())
         adapter->Interface()->finalize();
 
 
@@ -620,7 +614,7 @@ void JOTSDriver::PreprocessIteration()
 
     bool n_changed = false;
     bool d_changed = false;
-    for (size_t i = 0; i < user_input->GetBCCount(); i++)
+    for (size_t i = 0; i < user_input.GetBCCount(); i++)
     {   
         // Update coefficients (could be preCICE calls, could be SetTime calls, etc.)
         if (!boundary_conditions[i]->IsConstant() || !initialized_bcs) // If not constant in time or not yet initialized for first iteration
@@ -663,11 +657,10 @@ JOTSDriver::~JOTSDriver()
     delete adapter;
     delete k_prop;
     delete C_prop;
-    for (size_t i = 0; i < user_input->GetBCCount(); i++)
+    for (size_t i = 0; i < user_input.GetBCCount(); i++)
         delete boundary_conditions[i];
     delete[] boundary_conditions;
     delete[] all_bdr_attr_markers;
-    delete user_input;
     delete ode_solver;
     delete pmesh;
     delete fe_coll;

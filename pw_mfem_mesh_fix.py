@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 """
 Script to fix PW-exported MFEM mesh files
 """

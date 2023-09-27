@@ -28,7 +28,8 @@ class JOTSDriver
 
         PreciceAdapter* adapter;
 
-        Config* user_input;
+        const Config& user_input;
+
         BoundaryCondition** boundary_conditions;
         Array<int>* all_bdr_attr_markers;
         bool initialized_bcs;
@@ -53,9 +54,10 @@ class JOTSDriver
         void PreprocessIteration();
 
     public:
-        JOTSDriver(const char* input_file, const int myid, const int num_procs);
+        JOTSDriver(const Config& input, const int myid, const int num_procs, MPI_Comm comm=MPI_COMM_WORLD);
         void Run();
-
+        
+        OutputManager* GetOutputManager() { return output; };
 
         ~JOTSDriver();
 

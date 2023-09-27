@@ -1,6 +1,3 @@
-Given a vector space $V$, the dual space is the span of $\mathcal{L}(V;\mathbb{R})$.
-
-
 # Weak Formulation Derivation
 
 Start with the unsteady thermal conduction equation, applying the following assumptions:
@@ -64,7 +61,7 @@ Thus the equation becomes:
 
 $$\vec{v}^T\bold{M}\dfrac{d \vec{u}}{d t} = \vec{v}^T \bold{K}\vec{u} + \vec{v}^T \vec{N}$$
 
-$$\vec{v}^T\left(\bold{M}\dfrac{d \vec{u}}{d t} - \bold{K}\vec{u} - \vec{N}\right)$$
+$$\vec{v}^T\left(\bold{M}\dfrac{d \vec{u}}{d t} - \bold{K}\vec{u} - \vec{N}\right)=0$$
 
 For this inner product to be zero $\forall\vec{v}$, the vector in parentheses must be identically zero. So the equation of interest is:
 $$

@@ -1,20 +1,16 @@
 # Require same CMake as MFEM
 cmake_minimum_required(VERSION 3.10)
 
-# Require C++11
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED True)
-
 # Define our project
-project(jots VERSION 1.0
-	     LANGUAGES CXX)
+project(jots VERSION 1.1 LANGUAGES CXX)
+
+# Create interface library for compiler flag requirements (requiring C++11)
+add_library(compiler_flag_requirements INTERFACE)
+target_compile_features(compiler_flag_requirements INTERFACE cxx_std_11)
 
 # Get preCICE
 find_package(PRECICE REQUIRED CONFIG NAMES precice)
-# if (DEFINED PRECICE_FOUND)
-#	add_compile_definitions(PRECICE_ENABLED)
 message(STATUS "Found preCICE config: TRUE")
-#endif()
 
 # Get MFEM
 find_package(MFEM REQUIRED CONFIG)
@@ -27,11 +23,19 @@ message(STATUS "Found Boost headers: TRUE")
 # Add src directory (creates jotsLib)
 add_subdirectory(src)
 
+# Add regression tests if specified
+option(ENABLE_TESTING "Enable testing" OFF)
+if (ENABLE_TESTING)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
+
 # Create executable
 add_executable(jots jots_main.cpp)
-target_link_libraries(jots PRIVATE precice::precice)
-target_link_libraries(jots PRIVATE mfem) # See the MFEMConfig.cmake file as this is name of library
-target_link_libraries(jots PRIVATE jotsLib)
+target_link_libraries(jots PUBLIC jotsLib)
 
-# Also include jotsLib files (replicating Step2 tutorial for cmake)
-target_include_directories(jots PUBLIC src)
+message(STATUS "Install directory: ${CMAKE_INSTALL_PREFIX}")
+
+# Install
+install(TARGETS jots DESTINATION bin)
+install(FILES "${PROJECT_SOURCE_DIR}/pw_mfem_mesh_fix.py" DESTINATION bin)

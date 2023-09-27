@@ -7,11 +7,14 @@ add_library(jotsLib conduction_operator.cpp
 			  output_manager.cpp
 			  jots_driver.cpp)
 
-# Link MFEM as conduction_operator needs it
-target_link_libraries(jotsLib PRIVATE mfem)
+target_include_directories(jotsLib INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 
-# Link Boost headers library as config_file.cpp needs it
-target_link_libraries(jotsLib PRIVATE Boost::headers)
 
-# Link preCICE as many things need it
-target_link_libraries(jotsLib PRIVATE precice::precice)
+# Link dependencies and any additional compiler flags
+set(dependencies mfem Boost::headers precice::precice)
+target_link_libraries(jotsLib PUBLIC ${dependencies} compiler_flag_requirements)
+
+# Install
+set(installable_libs jotsLib compiler_flag_requirements)
+install(TARGETS ${installable_libs} DESTINATION lib)
+install(FILES "jots_driver.hpp" DESTINATION include)
