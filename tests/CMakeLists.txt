@@ -22,5 +22,8 @@ add_parallel_reg_test(Reinert_B3 Reinert_B3.cpp)
 # Restarted_Sinusoidal_Isothermal_Heated_Bar tests restart files
 add_parallel_reg_test(Restart_Files Restart_Files.cpp)
 
-# Reinert_B1_preCICE tests that temperature is received correctly in 1D
+# Reinert_B1_preCICE tests that HF is received correctly in 1D + temperature sent
 add_parallel_reg_test(Reinert_B1_preCICE Reinert_B1_preCICE.cpp)
+
+# Reinert_B3_preCICE tests that temperature is received correctly in 1D + HF sent
+add_parallel_reg_test(Reinert_B3_preCICE Reinert_B3_preCICE.cpp)

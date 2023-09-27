@@ -180,8 +180,8 @@ int preCICE_Dummy_Analytical_Test(string in_configFile, string dataReadName, str
                 double a = Analytical_Receive(x, time);
                 cout << "Vector x: ";
                 x.Print();
-                cout << "Heatflux: " << readData[0] << endl;
-                cout << "Analytical HF: " << a << endl;
+                cout << "Received: " << readData[0] << endl;
+                cout << "Analytical: " << a << endl;
                 double percentDiff = abs((a - readData.at(i))/a)*100;
                 cout << "DUMMY (" << rank << "): % Difference: " << percentDiff << endl;
                 if (percentDiff > ALLOWED_PERCENT_DIFFERENCE)
