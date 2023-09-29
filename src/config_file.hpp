@@ -25,6 +25,7 @@ class Config
         int serial_refine;            /*!< \brief Number of times to refine mesh before parallel decomposition */
         int parallel_refine;          /*!< \brief Number of times to refine mesh after parallel decomposition  */
         
+        // Material properties:
         double density;
         std::vector<std::string> specific_heat_info;
         std::vector<std::string> conductivity_info;
@@ -45,7 +46,7 @@ class Config
         double tf;                    /*!< \brief Final time to run to */
         double dt;                    /*!< \brief Delta time, timestep */
 
-        SOLVER solver;                /*!< \brief Linear system solver type */
+        LS_SOLVER solver;                /*!< \brief Linear system solver type */
         PRECONDITIONER prec;          /*!< \brief Preconditioner to use */
         double abs_tol;               /*!< \brief Solver absolute tolerance */
         double rel_tol;               /*!< \brief Solver relative tolerance */
@@ -152,7 +153,7 @@ class Config
 
         mfem::IterativeSolver* GetSolver(MPI_Comm comm_) const; // Returns IterativeSolver that must be deleted by caller!
 
-        void SetSolver(SOLVER in_solver) { solver = in_solver; };
+        void SetSolver(LS_SOLVER in_solver) { solver = in_solver; };
 
         std::string GetSolverString() const;
 

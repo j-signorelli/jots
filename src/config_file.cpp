@@ -105,7 +105,7 @@ void Config::ReadTimeInt()
 void Config::ReadLinSolSettings()
 {
     // Read LinearSolverSettings
-    solver = Solver_Map.at(property_tree.get("LinearSolverSettings.Solver", "FGMRES"));
+    solver = Solver_Map.at(property_tree.get("LinearSolverSettings.Lin_Sys_Solver", "FGMRES"));
     prec = Preconditioner_Map.at(property_tree.get("LinearSolverSettings.Preconditioner", "Chebyshev"));
     abs_tol = property_tree.get("LinearSolverSettings.Absolute_Tolerance", 1e-16);
     rel_tol = property_tree.get("LinearSolverSettings.Relative_Tolerance", 1e-10);
@@ -156,13 +156,13 @@ IterativeSolver* Config::GetSolver(MPI_Comm comm_) const
 {
     switch (solver)
     {
-        case SOLVER::CG:
+        case LS_SOLVER::CG:
             return new CGSolver(comm_);
             break;
-        case SOLVER::GMRES:
+        case LS_SOLVER::GMRES:
             return new GMRESSolver(comm_);
             break;
-        case SOLVER::FGMRES:
+        case LS_SOLVER::FGMRES:
             return new FGMRESSolver(comm_);
             break;
     }
@@ -172,13 +172,13 @@ string Config::GetSolverString() const
 {
     switch (solver)
     {
-        case SOLVER::CG:
+        case LS_SOLVER::CG:
             return "Conjugate Gradient";
             break;
-        case SOLVER::GMRES:
+        case LS_SOLVER::GMRES:
             return "GMRES";
             break;
-        case SOLVER::FGMRES:
+        case LS_SOLVER::FGMRES:
             return "FGMRES";
             break;
     }
