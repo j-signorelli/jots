@@ -20,6 +20,7 @@ class Config
 
         std::string input_file;            /*!< \brief Input file to parse */
 
+        SIMULATION_TYPE sim_type;
         std::string mesh_file;             /*!< \brief Mesh file to read in */
         int fe_order;                 /*!< \brief FE Order (solution mapping order, not necessarily same as geometric mapping order from mesh file) */
         int serial_refine;            /*!< \brief Number of times to refine mesh before parallel decomposition */
@@ -72,6 +73,10 @@ class Config
         std::string GetInputFile() const { return input_file; };
 
         void SetInputFile(std::string in_file) { input_file = in_file; };
+
+        SIMULATION_TYPE GetSimType() const { return sim_type; };
+
+        void SetSimType(SIMULATION in_type) { sim_type = in_type; };
 
         std::string GetMeshFile() const { return mesh_file; };
 

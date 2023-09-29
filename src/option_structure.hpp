@@ -4,6 +4,16 @@
 
 // This idea for arranging settings below was taken from SU2 v6.0:
 
+
+enum class SIMULATION_TYPE
+{
+  UNSTEADY=0,
+  STEADY=1
+}
+static const std::map<std::string, SIMULATION_TYPE> Simulation_Type_Map = {{"Unsteady", SIMULATION_TYPE::UNSTEADY},
+                                                                           {"Steady", SIMULATION_TYPE::STEADY}};
+
+
 enum class TIME_SCHEME
 {
 
