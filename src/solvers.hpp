@@ -8,8 +8,9 @@ class Solver
     private:
     protected:
         mfem::Vector sol;
-
+        bool initialized;
     public:
+        Solver(): initialized(false) {}; // TODO: How to not be able to run any implemented functions if not initialized?
         virtual void InitializeSolver() = 0;
         virtual bool Running() = 0;
         virtual void PreprocessIteration() = 0;

@@ -150,7 +150,6 @@ string Config::GetTimeSchemeString() const
         case TIME_SCHEME::RK4:
             return "RK4";
     }
-
 }
 
 IterativeSolver* Config::GetSolver(MPI_Comm comm_) const

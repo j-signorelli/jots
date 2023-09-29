@@ -30,6 +30,7 @@ class JOTSDriver
         static const std::string LINE;
         static const double TIME_TOLERANCE;
 
+        const SIMULATION_TYPE sim_type;
 	    const int rank;
         const int size;
         MPI_Comm comm;
@@ -48,8 +49,7 @@ class JOTSDriver
         Array<int>* all_bdr_attr_markers;
         bool initialized_bcs;
         
-        MaterialProperty* k_prop;
-        MaterialProperty* C_prop;
+        std::map<MATERIAL_PROPERTY, MaterialProperty*> mat_props;
 
         mfem::ODESolver* ode_solver;
         mfem::ParMesh* pmesh;

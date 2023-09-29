@@ -8,7 +8,8 @@ const string JOTSDriver::LINE = "-----------------------------------------------
 const double JOTSDriver::TIME_TOLERANCE = 1e-14;
 
 JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs, MPI_Comm in_comm)
-: rank(myid),
+: sim_type(input.GetSimType()),
+  rank(myid),
   size(num_procs),
   comm(in_comm),
   adapter(nullptr),
@@ -51,11 +52,15 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
     // Process MaterialProperties
     ProcessMaterialProperties();
     //----------------------------------------------------------------------
-    // Process TimeIntegration (if unsteady)
-    ProcessTimeIntegration();
-    //----------------------------------------------------------------------
-    // Process preCICE (if using)
-    ProcessPrecice();
+    // Only process if running unsteady
+    if (sim_type == SIMULATION_TYPE::UNSTEADY)
+    {
+        // Process TimeIntegration (if unsteady)
+        ProcessTimeIntegration();
+        //----------------------------------------------------------------------
+        // Process preCICE (if using)
+        ProcessPrecice();
+    }
     //----------------------------------------------------------------------
     // Process BoundaryConditions
     ProcessBoundaryConditions();
@@ -85,6 +90,21 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
 
 void JOTSDriver::ProcessFiniteElementSetup()
 {
+    //Create appropriate Solver object + print
+    if (rank == 0)
+        cout << "Simulation Type: ";
+
+    //switch (sim_type)
+    //{
+    //    case SIMULATION_TYPE::UNSTEADY:
+            solver = new UnsteadyHeatTransfer();
+            cout << "Unsteady" << endl;
+    //}
+
+    // Create map of material properties
+    // if (solver->UsesMaterialProperty(MATERIAL_PROPERTY::DENSITY))
+    // etc....
+
     // If not restart, refine mesh and initialize; else load VisItDataCollection
     if (!user_input.UsesRestart())
     {
@@ -193,7 +213,8 @@ void JOTSDriver::ProcessFiniteElementSetup()
         if (rank == 0)
         {
             cout << "Input Restart Root: " << user_input.GetRestartPrefix() << "_" << user_input.GetRestartCycle() << endl;
-            cout << "\tTime: " << time << endl;
+            if (sim_type == SIMULATION_TYPE::UNSTEADY)
+                cout << "\tTime: " << time << endl;
             cout << "\tCycle: " << it_num << endl;
         }
     }
@@ -222,36 +243,43 @@ void JOTSDriver::ProcessFiniteElementSetup()
 void JOTSDriver::ProcessMaterialProperties()
 {   
     //----------------------------------------------------------------------
-    // Print material properties
-    if (rank == 0)
-    {   
-        cout << "\n";
-        cout << "Density: " << user_input.GetDensity() << endl;
-    }
+    // Figure out required material properties from solver + add to map
+
     //----------------------------------------------------------------------
-    // Create MaterialProperty object for specific heat
-    vector<string> specific_heat_info = user_input.GetSpecificHeatInfo();
-    vector<double> poly_coeffs_C;
-    switch (Material_Model_Map.at(specific_heat_info[0]))
+    // Only read in + print density and specific heat if unsteady simulation
+    if (sim_type == SIMULATION_TYPE::UNSTEADY)
     {
-        case MATERIAL_MODEL::UNIFORM: // Uniform
-            C_prop = new UniformProperty(stod(specific_heat_info[1].c_str()));
-            break;
-        case MATERIAL_MODEL::POLYNOMIAL: // Polynomial
+        if (rank == 0)
+        {   
+            cout << "\n";
+            cout << "Density: " << user_input.GetDensity() << endl;
+        }
+        //----------------------------------------------------------------------
+        // Create MaterialProperty object for specific heat
+        vector<string> specific_heat_info = user_input.GetSpecificHeatInfo();
+        vector<double> poly_coeffs_C;
+        switch (Material_Model_Map.at(specific_heat_info[0]))
+        {
+            case MATERIAL_MODEL::UNIFORM: // Uniform
+                C_prop = new UniformProperty(stod(specific_heat_info[1].c_str()));
+                break;
+            case MATERIAL_MODEL::POLYNOMIAL: // Polynomial
 
-            for (int i = 1; i < specific_heat_info.size(); i++)
-                poly_coeffs_C.push_back(stod(specific_heat_info[i].c_str()));
+                for (int i = 1; i < specific_heat_info.size(); i++)
+                    poly_coeffs_C.push_back(stod(specific_heat_info[i].c_str()));
 
-            C_prop = new PolynomialProperty(poly_coeffs_C, *fespace);
-            break;
-        default:
-            MFEM_ABORT("Unknown/Invalid specific heat model specified");
-            return;
+                C_prop = new PolynomialProperty(poly_coeffs_C, *fespace);
+                break;
+            default:
+                MFEM_ABORT("Unknown/Invalid specific heat model specified");
+                return;
+        }
+        //----------------------------------------------------------------------
+        // Print specific heat model info
+        if (rank == 0)
+            cout << "Specific Heat Model: " << C_prop->GetInitString() << endl;
     }
-    //----------------------------------------------------------------------
-    // Print specific heat model info
-    if (rank == 0)
-        cout << "Specific Heat Model: " << C_prop->GetInitString() << endl;
+
     //----------------------------------------------------------------------
     // Create MaterialProperty object for conductivity
     vector<string> cond_info = user_input.GetCondInfo();
@@ -279,7 +307,7 @@ void JOTSDriver::ProcessMaterialProperties()
 }
 
 void JOTSDriver::ProcessTimeIntegration()
-{
+{   
     // Set ODE time integrator
     ode_solver = user_input.GetODESolver();
     //----------------------------------------------------------------------
@@ -699,8 +727,9 @@ void JOTSDriver::PreprocessIteration()
 JOTSDriver::~JOTSDriver()
 {
     delete adapter;
-    delete k_prop;
-    delete C_prop;
+    //delete k_prop;
+    //delete C_prop;
+    // TODO: release memory for material property map
     for (size_t i = 0; i < user_input.GetBCCount(); i++)
         delete boundary_conditions[i];
     delete[] boundary_conditions;
