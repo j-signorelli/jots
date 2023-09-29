@@ -15,7 +15,6 @@ class Solver
         virtual void PreprocessIteration() = 0;
         virtual void Iterate() = 0;
         
-
 }
 
 class UnsteadyHeatSolver : public Solver

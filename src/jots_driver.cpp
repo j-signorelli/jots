@@ -7,9 +7,10 @@ using namespace precice;
 const string JOTSDriver::LINE = "-------------------------------------------------------------------";
 const double JOTSDriver::TIME_TOLERANCE = 1e-14;
 
-JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs, MPI_Comm comm)
+JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs, MPI_Comm in_comm)
 : rank(myid),
   size(num_procs),
+  comm(in_comm),
   adapter(nullptr),
   user_input(input),
   boundary_conditions(nullptr),
@@ -44,6 +45,46 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
     if (rank == 0)
       cout << "Configuration file: " << user_input.GetInputFile() << endl;
     //----------------------------------------------------------------------
+    // Process FiniteElementSetup
+    ProcessFiniteElementSetup();
+    //----------------------------------------------------------------------
+    // Process MaterialProperties
+    ProcessMaterialProperties();
+    //----------------------------------------------------------------------
+    // Process TimeIntegration (if unsteady)
+    ProcessTimeIntegration();
+    //----------------------------------------------------------------------
+    // Process preCICE (if using)
+    ProcessPrecice();
+    //----------------------------------------------------------------------
+    // Process BoundaryConditions
+    ProcessBoundaryConditions();
+    //----------------------------------------------------------------------
+    // Process LinearSolverSettings
+    ProcessLinearSolverSettings();
+    //----------------------------------------------------------------------
+    // Process Output
+    ProcessOutput();
+    //---------------------------------------------------------------------
+    // Create main solution vector from IC
+    temp_T_gf->GetTrueDofs(T);
+    //----------------------------------------------------------------------
+    // Instantiate ConductionOperator, sending all necessary parameters
+    if (rank == 0)
+    {
+        cout << LINE << endl;
+        cout << "Initializing operator... ";
+    }
+    oper = new ConductionOperator(user_input, boundary_conditions, all_bdr_attr_markers, C_prop, k_prop, *fespace, time);
+    if (rank == 0)
+        cout << "Done!" << endl;
+    //----------------------------------------------------------------------
+    // Instantiate OutputManager
+    output = new OutputManager(rank, fespace, user_input, T, C_prop, k_prop);
+}
+
+void JOTSDriver::ProcessFiniteElementSetup()
+{
     // If not restart, refine mesh and initialize; else load VisItDataCollection
     if (!user_input.UsesRestart())
     {
@@ -176,6 +217,10 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
     HYPRE_BigInt fe_size = fespace->GlobalTrueVSize();
     if (rank == 0)
         cout << "Number of temperature nodes: " << fe_size << endl;
+}
+
+void JOTSDriver::ProcessMaterialProperties()
+{   
     //----------------------------------------------------------------------
     // Print material properties
     if (rank == 0)
@@ -231,7 +276,10 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
     // Print conductivity model info
     if (rank == 0)
         cout << "Thermal Conductivity Model: " << k_prop->GetInitString() << endl;
-    //----------------------------------------------------------------------
+}
+
+void JOTSDriver::ProcessTimeIntegration()
+{
     // Set ODE time integrator
     ode_solver = user_input.GetODESolver();
     //----------------------------------------------------------------------
@@ -248,7 +296,10 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
     // Set time stuff
     dt = user_input.Getdt();
     tf = user_input.GetFinalTime();
-    //----------------------------------------------------------------------
+}
+
+void JOTSDriver::ProcessPrecice()
+{
     // Print any precice info + instantiate adapter object if needed
     if (user_input.UsingPrecice())
     {
@@ -268,7 +319,10 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
             return;
         }
     }
-    //----------------------------------------------------------------------
+}
+
+void JOTSDriver::ProcessBoundaryConditions()
+{
     // Verify input config BCs appropriately match input mesh BCs
     if (rank == 0)
         cout << "\n";
@@ -391,7 +445,10 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
             cout << "Boundary Attribute " << bc->GetBdrAttr() << ": " << bc->GetInitString() << endl;
         }
     }
-    //----------------------------------------------------------------------
+}
+
+void JOTSDriver::ProcessLinearSolverSettings()
+{
     // Print linear solver settings
     if (rank == 0)
     {
@@ -402,7 +459,10 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
         cout << "Absolute Tolerance: " << user_input.GetAbsTol() << endl;
         cout << "Relative Tolerance: " << user_input.GetRelTol() << endl;
     }
-    //----------------------------------------------------------------------
+}
+
+void JOTSDriver::ProcessOutput()
+{
     // Print output settings
     if (rank == 0)
     {
@@ -410,22 +470,6 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
         cout << "Restart Frequency: " << user_input.GetRestartFreq() << endl;
         cout << "Visualization Frequency: " << user_input.GetVisFreq() << endl;
     }
-    //---------------------------------------------------------------------
-    // Create main solution vector from IC
-    temp_T_gf->GetTrueDofs(T);
-    //----------------------------------------------------------------------
-    // Instantiate ConductionOperator, sending all necessary parameters
-    if (rank == 0)
-    {
-        cout << LINE << endl;
-        cout << "Initializing operator... ";
-    }
-    oper = new ConductionOperator(user_input, boundary_conditions, all_bdr_attr_markers, C_prop, k_prop, *fespace, time);
-    if (rank == 0)
-        cout << "Done!" << endl;
-    //----------------------------------------------------------------------
-    // Instantiate OutputManager
-    output = new OutputManager(rank, fespace, user_input, T, C_prop, k_prop);
 }
 
 void JOTSDriver::Run()

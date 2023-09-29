@@ -12,13 +12,27 @@
 #include "output_manager.hpp"
 
 class JOTSDriver
-{
+{   
+    private:
+
+        void ProcessFiniteElementSetup();
+        void ProcessMaterialProperties();
+        void ProcessTimeIntegration();
+        void ProcessPrecice();
+        void ProcessBoundaryConditions();
+        void ProcessLinearSolverSettings();
+        void ProcessOutput();
+
+        //void InitializeSolver();
+
+
     protected:
         static const std::string LINE;
         static const double TIME_TOLERANCE;
 
 	    const int rank;
         const int size;
+        MPI_Comm comm;
 
         int dim;
         int it_num;
@@ -54,12 +68,10 @@ class JOTSDriver
         void PreprocessIteration();
 
     public:
-        JOTSDriver(const Config& input, const int myid, const int num_procs, MPI_Comm comm=MPI_COMM_WORLD);
+        JOTSDriver(const Config& input, const int myid, const int num_procs, MPI_Comm in_comm=MPI_COMM_WORLD);
         void Run();
         
         OutputManager* GetOutputManager() { return output; };
 
         ~JOTSDriver();
-
-    private:
 };
