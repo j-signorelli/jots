@@ -65,16 +65,16 @@ enum class MATERIAL_MODEL
 static const std::map<std::string, MATERIAL_MODEL> Material_Model_Map = {{"Uniform", MATERIAL_MODEL::UNIFORM},
                                                                              {"Polynomial", MATERIAL_MODEL::POLYNOMIAL}};
                                                                     
-enum class LS_SOLVER
+enum class SOLVER
 {
   CG=0,
   GMRES=1,
   FGMRES=2
 };
 
-static const std::map<std::string, LS_SOLVER> Solver_Map = {{"CG", LS_SOLVER::CG},
-                                                         {"GMRES", LS_SOLVER::GMRES},
-                                                         {"FGMRES", LS_SOLVER::FGMRES}};
+static const std::map<std::string, SOLVER> Solver_Map = {{"CG", SOLVER::CG},
+                                                         {"GMRES", SOLVER::GMRES},
+                                                         {"FGMRES", SOLVER::FGMRES}};
 
 
 enum class PRECONDITIONER

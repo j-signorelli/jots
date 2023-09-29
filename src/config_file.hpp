@@ -46,7 +46,7 @@ class Config
         double tf;                    /*!< \brief Final time to run to */
         double dt;                    /*!< \brief Delta time, timestep */
 
-        LS_SOLVER solver;                /*!< \brief Linear system solver type */
+        SOLVER solver;                /*!< \brief Linear system solver type */
         PRECONDITIONER prec;          /*!< \brief Preconditioner to use */
         double abs_tol;               /*!< \brief Solver absolute tolerance */
         double rel_tol;               /*!< \brief Solver relative tolerance */
@@ -153,7 +153,7 @@ class Config
 
         mfem::IterativeSolver* GetSolver(MPI_Comm comm_) const; // Returns IterativeSolver that must be deleted by caller!
 
-        void SetSolver(LS_SOLVER in_solver) { solver = in_solver; };
+        void SetSolver(SOLVER in_solver) { solver = in_solver; };
 
         std::string GetSolverString() const;
 
