@@ -51,12 +51,8 @@ class JOTSDriver
         BoundaryCondition** boundary_conditions;
         Array<int>* all_bdr_attr_markers;
         bool initialized_bcs;
-        
 
-        MaterialProperty* k_prop;
-        MaterialProperty* C_prop;
-
-        //std::map<MATERIAL_PROPERTY, MaterialProperty*> mat_props;
+        std::map<MATERIAL_PROPERTY, MaterialProperty*> mat_props;
 
         mfem::ODESolver* ode_solver;
         mfem::ParMesh* pmesh;

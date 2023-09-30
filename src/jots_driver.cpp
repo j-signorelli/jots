@@ -16,8 +16,6 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
   user_input(input),
   boundary_conditions(nullptr),
   initialized_bcs(false),
-  k_prop(nullptr),
-  C_prop(nullptr),
   ode_solver(nullptr),
   pmesh(nullptr),
   fe_coll(nullptr),
@@ -80,12 +78,12 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
         cout << LINE << endl;
         cout << "Initializing operator... ";
     }
-    oper = new ConductionOperator(user_input, boundary_conditions, all_bdr_attr_markers, C_prop, k_prop, *fespace, time);
+    oper = new ConductionOperator(user_input, boundary_conditions, all_bdr_attr_markers, mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT], mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY], *fespace, time);
     if (rank == 0)
         cout << "Done!" << endl;
     //----------------------------------------------------------------------
     // Instantiate OutputManager
-    output = new OutputManager(rank, fespace, user_input, T, C_prop, k_prop);
+    output = new OutputManager(rank, fespace, user_input, T, mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT], mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY]);
 }
 
 void JOTSDriver::ProcessFiniteElementSetup()
@@ -241,7 +239,7 @@ void JOTSDriver::ProcessMaterialProperties()
     //----------------------------------------------------------------------
     // Figure out required material properties from solver + add to map
     // Currently does not check for duplicates in map, as JOTS only runs one solver at a time presently
-
+    // TODO: Maybe generalize below into loop over single switch-case?
     //----------------------------------------------------------------------
     // Process density
     if (sim->UsesMaterialProperty(MATERIAL_PROPERTY::DENSITY))
@@ -250,7 +248,7 @@ void JOTSDriver::ProcessMaterialProperties()
         {   
             cout << "\n";
             cout << "Density: " << user_input.GetDensity() << endl;
-        }
+        } // TODO: Update density to have it's own matprop var?
     }
     //----------------------------------------------------------------------
     // Process Specific Heat
@@ -262,14 +260,14 @@ void JOTSDriver::ProcessMaterialProperties()
         switch (Material_Model_Map.at(specific_heat_info[0]))
         {
             case MATERIAL_MODEL::UNIFORM: // Uniform
-                C_prop = new UniformProperty(stod(specific_heat_info[1].c_str()));
+                mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT] = new UniformProperty(stod(specific_heat_info[1].c_str()));
                 break;
             case MATERIAL_MODEL::POLYNOMIAL: // Polynomial
 
                 for (int i = 1; i < specific_heat_info.size(); i++)
                     poly_coeffs_C.push_back(stod(specific_heat_info[i].c_str()));
 
-                C_prop = new PolynomialProperty(poly_coeffs_C, *fespace);
+                mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT] = new PolynomialProperty(poly_coeffs_C, *fespace);
                 break;
             default:
                 MFEM_ABORT("Unknown/Invalid specific heat model specified");
@@ -277,7 +275,7 @@ void JOTSDriver::ProcessMaterialProperties()
         }
         // Print specific heat model info
         if (rank == 0)
-            cout << "Specific Heat Model: " << C_prop->GetInitString() << endl;
+            cout << "Specific Heat Model: " << mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT]->GetInitString() << endl;
     }
 
     //----------------------------------------------------------------------
@@ -290,14 +288,14 @@ void JOTSDriver::ProcessMaterialProperties()
         switch (Material_Model_Map.at(cond_info[0]))
         {
             case MATERIAL_MODEL::UNIFORM: // Uniform conductivity
-                k_prop = new UniformProperty(stod(cond_info[1].c_str()));
+                mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY] = new UniformProperty(stod(cond_info[1].c_str()));
                 break;
             case MATERIAL_MODEL::POLYNOMIAL: // Polynomial model for conductivity
 
                 for (int i = 1; i < cond_info.size(); i++)
                     poly_coeffs_k.push_back(stod(cond_info[i].c_str()));
 
-                k_prop = new PolynomialProperty(poly_coeffs_k, *fespace);
+                mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY] = new PolynomialProperty(poly_coeffs_k, *fespace);
                 break;
             default:
                 MFEM_ABORT("Unknown/Invalid thermal conductivity model specified");
@@ -305,7 +303,7 @@ void JOTSDriver::ProcessMaterialProperties()
         }
         // Print conductivity model info
         if (rank == 0)
-            cout << "Thermal Conductivity Model: " << k_prop->GetInitString() << endl;
+            cout << "Thermal Conductivity Model: " << mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY]->GetInitString() << endl;
     }
 }
 
@@ -543,7 +541,7 @@ void JOTSDriver::Run()
         precice_dt = adapter->Interface()->initialize();
         if (adapter->Interface()->isActionRequired(PreciceAdapter::cowid))
         {
-            adapter->WriteData(T, k_prop);
+            adapter->WriteData(T, mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY]);
             adapter->Interface()->markActionFulfilled(PreciceAdapter::cowid);
         }
         adapter->Interface()->initializeData();
@@ -597,7 +595,7 @@ void JOTSDriver::Run()
         if (user_input.UsingPrecice())
         {
             if (adapter->Interface()->isWriteDataRequired(dt))
-                adapter->WriteData(T, k_prop);
+                adapter->WriteData(T, mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY]);
 
             // Advance preCICE
             adapter->Interface()->advance(dt);
@@ -667,21 +665,21 @@ void JOTSDriver::Run()
 
 void JOTSDriver::UpdateMatProps()
 {
-    if (!k_prop->IsConstant())
-        k_prop->UpdateCoeff(T); // Update k coefficient
+    if (!mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY]->IsConstant())
+        mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY]->UpdateCoeff(T); // Update k coefficient
 
-    if (!C_prop->IsConstant())
-        C_prop->UpdateCoeff(T); // Update C coefficient
+    if (!mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT]->IsConstant())
+        mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT]->UpdateCoeff(T); // Update C coefficient
 }
 
 void JOTSDriver::PreprocessIteration()
 {
     // If specific heat not constant, it may have changed -> Update mass BLF
-    if (!C_prop->IsConstant())
+    if (!mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT]->IsConstant())
         oper->UpdateMass();
 
     // If conductivity not constant, it may have changed -> Update stiffness BLF
-    if (!k_prop->IsConstant())
+    if (!mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY]->IsConstant())
         oper->UpdateStiffness();
 
     // Update time-dependent/non-constant boundary condition coefficients
@@ -731,9 +729,8 @@ JOTSDriver::~JOTSDriver()
 {
     delete sim;
     delete adapter;
-    delete k_prop;
-    delete C_prop;
-    // TODO: release memory for material property map
+    for (auto it = mat_props.begin(); it != mat_props.end(); it++)
+        delete it->second;
     for (size_t i = 0; i < user_input.GetBCCount(); i++)
         delete boundary_conditions[i];
     delete[] boundary_conditions;
