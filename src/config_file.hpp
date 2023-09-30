@@ -76,7 +76,7 @@ class Config
 
         SIMULATION_TYPE GetSimType() const { return sim_type; };
 
-        void SetSimType(SIMULATION in_type) { sim_type = in_type; };
+        void SetSimType(SIMULATION_TYPE in_type) { sim_type = in_type; };
 
         std::string GetMeshFile() const { return mesh_file; };
 

@@ -9,7 +9,7 @@ enum class SIMULATION_TYPE
 {
   UNSTEADY=0,
   STEADY=1
-}
+};
 static const std::map<std::string, SIMULATION_TYPE> Simulation_Type_Map = {{"Unsteady", SIMULATION_TYPE::UNSTEADY},
                                                                            {"Steady", SIMULATION_TYPE::STEADY}};
 
@@ -19,7 +19,7 @@ enum class MATERIAL_PROPERTY
   DENSITY=0,
   SPECIFIC_HEAT=1,
   THERMAL_CONDUCTIVITY=2
-}
+};
 
 enum class TIME_SCHEME
 {

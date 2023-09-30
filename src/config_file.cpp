@@ -33,7 +33,7 @@ void Config::SetInputStringVector(string in, vector<string>& output) // Comma de
 void Config::ReadFESetup()
 {   
     // Read FiniteElementSetup
-    sim_type = Simulation_Type_Map.at(property_tree.get("FiniteElementSetup.Simulation_Type", SIMULATION_TYPE::UNSTEADY))
+    sim_type = Simulation_Type_Map.at(property_tree.get("FiniteElementSetup.Simulation_Type", "Unsteady"));
     BINARY_CHOICE restart_choice = Binary_Choice_Map.at(property_tree.get("FiniteElementSetup.Use_Restart", "No"));
     use_restart = restart_choice == BINARY_CHOICE::YES ? true : false;
 

@@ -97,13 +97,9 @@ void JOTSDriver::ProcessFiniteElementSetup()
     //switch (sim_type)
     //{
     //    case SIMULATION_TYPE::UNSTEADY:
-            solver = new UnsteadyHeatTransfer();
+            sim = new UnsteadyHeatSimulation();
             cout << "Unsteady" << endl;
     //}
-
-    // Create map of material properties
-    // if (solver->UsesMaterialProperty(MATERIAL_PROPERTY::DENSITY))
-    // etc....
 
     // If not restart, refine mesh and initialize; else load VisItDataCollection
     if (!user_input.UsesRestart())
@@ -244,17 +240,22 @@ void JOTSDriver::ProcessMaterialProperties()
 {   
     //----------------------------------------------------------------------
     // Figure out required material properties from solver + add to map
+    // Currently does not check for duplicates in map, as JOTS only runs one solver at a time presently
 
     //----------------------------------------------------------------------
-    // Only read in + print density and specific heat if unsteady simulation
-    if (sim_type == SIMULATION_TYPE::UNSTEADY)
+    // Process density
+    if (sim->UsesMaterialProperty(MATERIAL_PROPERTY::DENSITY))
     {
         if (rank == 0)
         {   
             cout << "\n";
             cout << "Density: " << user_input.GetDensity() << endl;
         }
-        //----------------------------------------------------------------------
+    }
+    //----------------------------------------------------------------------
+    // Process Specific Heat
+    if (sim->UsesMaterialProperty(MATERIAL_PROPERTY::SPECIFIC_HEAT))
+    {
         // Create MaterialProperty object for specific heat
         vector<string> specific_heat_info = user_input.GetSpecificHeatInfo();
         vector<double> poly_coeffs_C;
@@ -274,36 +275,38 @@ void JOTSDriver::ProcessMaterialProperties()
                 MFEM_ABORT("Unknown/Invalid specific heat model specified");
                 return;
         }
-        //----------------------------------------------------------------------
         // Print specific heat model info
         if (rank == 0)
             cout << "Specific Heat Model: " << C_prop->GetInitString() << endl;
     }
 
     //----------------------------------------------------------------------
-    // Create MaterialProperty object for conductivity
-    vector<string> cond_info = user_input.GetCondInfo();
-    vector<double> poly_coeffs_k;
-    switch (Material_Model_Map.at(cond_info[0]))
+    // Process Thermal Conductivity
+    if (sim->UsesMaterialProperty(MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY))
     {
-        case MATERIAL_MODEL::UNIFORM: // Uniform conductivity
-            k_prop = new UniformProperty(stod(cond_info[1].c_str()));
-            break;
-        case MATERIAL_MODEL::POLYNOMIAL: // Polynomial model for conductivity
+        // Create MaterialProperty object for conductivity
+        vector<string> cond_info = user_input.GetCondInfo();
+        vector<double> poly_coeffs_k;
+        switch (Material_Model_Map.at(cond_info[0]))
+        {
+            case MATERIAL_MODEL::UNIFORM: // Uniform conductivity
+                k_prop = new UniformProperty(stod(cond_info[1].c_str()));
+                break;
+            case MATERIAL_MODEL::POLYNOMIAL: // Polynomial model for conductivity
 
-            for (int i = 1; i < cond_info.size(); i++)
-                poly_coeffs_k.push_back(stod(cond_info[i].c_str()));
+                for (int i = 1; i < cond_info.size(); i++)
+                    poly_coeffs_k.push_back(stod(cond_info[i].c_str()));
 
-            k_prop = new PolynomialProperty(poly_coeffs_k, *fespace);
-            break;
-        default:
-            MFEM_ABORT("Unknown/Invalid thermal conductivity model specified");
-            return;
+                k_prop = new PolynomialProperty(poly_coeffs_k, *fespace);
+                break;
+            default:
+                MFEM_ABORT("Unknown/Invalid thermal conductivity model specified");
+                return;
+        }
+        // Print conductivity model info
+        if (rank == 0)
+            cout << "Thermal Conductivity Model: " << k_prop->GetInitString() << endl;
     }
-    //----------------------------------------------------------------------
-    // Print conductivity model info
-    if (rank == 0)
-        cout << "Thermal Conductivity Model: " << k_prop->GetInitString() << endl;
 }
 
 void JOTSDriver::ProcessTimeIntegration()
@@ -726,9 +729,10 @@ void JOTSDriver::PreprocessIteration()
 
 JOTSDriver::~JOTSDriver()
 {
+    delete sim;
     delete adapter;
-    //delete k_prop;
-    //delete C_prop;
+    delete k_prop;
+    delete C_prop;
     // TODO: release memory for material property map
     for (size_t i = 0; i < user_input.GetBCCount(); i++)
         delete boundary_conditions[i];

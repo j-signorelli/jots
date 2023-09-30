@@ -10,6 +10,7 @@
 #include "material_property.hpp"
 #include "precice_adapter.hpp"
 #include "output_manager.hpp"
+#include "simulations.hpp"
 
 class JOTSDriver
 {   
@@ -41,6 +42,8 @@ class JOTSDriver
         double dt;
         double tf;
 
+        Simulation* sim;
+
         PreciceAdapter* adapter;
 
         const Config& user_input;
@@ -49,7 +52,11 @@ class JOTSDriver
         Array<int>* all_bdr_attr_markers;
         bool initialized_bcs;
         
-        std::map<MATERIAL_PROPERTY, MaterialProperty*> mat_props;
+
+        MaterialProperty* k_prop;
+        MaterialProperty* C_prop;
+
+        //std::map<MATERIAL_PROPERTY, MaterialProperty*> mat_props;
 
         mfem::ODESolver* ode_solver;
         mfem::ParMesh* pmesh;
