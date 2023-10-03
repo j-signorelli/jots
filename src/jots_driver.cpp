@@ -18,6 +18,7 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
   boundary_conditions(nullptr),
   initialized_bcs(false),
   ode_solver(nullptr),
+  lin_solver(nullptr),
   pmesh(nullptr),
   fe_coll(nullptr),
   fespace(nullptr),
@@ -273,17 +274,28 @@ void JOTSDriver::ProcessMaterialProperties()
 
 void JOTSDriver::ProcessTimeIntegration()
 {   
-    // Set ODE time integrator
-    ode_solver = user_input.GetODESolver();
     //----------------------------------------------------------------------
     // Print time integration information
     if (rank == 0)
     {
         cout << "\n";
-        cout << "Time Scheme: " << user_input.GetTimeSchemeString() << endl;
+        cout << "Time Scheme: " << user_input.GetTimeSchemeLabel() << endl;
         cout << "Time Step: " << user_input.Getdt() << endl;
         cout << "Max Time: " << user_input.GetFinalTime() << endl;
     
+    }
+    //----------------------------------------------------------------------
+    // Set ODE time integrator
+    switch (Time_Scheme_Map.at(user_input.GetTimeSchemeLabel()))
+    {
+        case TIME_SCHEME::EULER_IMPLICIT:
+            ode_solver = new BackwardEulerSolver;
+            break;
+        case TIME_SCHEME::EULER_EXPLICIT:
+            ode_solver = new ForwardEulerSolver;
+            break;
+        case TIME_SCHEME::RK4:
+            ode_solver = new RK4Solver;
     }
     //----------------------------------------------------------------------
     // Set time stuff
@@ -443,11 +455,36 @@ void JOTSDriver::ProcessLinearSolverSettings()
     if (rank == 0)
     {
         cout << "\n";
-        cout << "Linear Solver: " << user_input.GetSolverString() << endl;
-        cout << "Preconditioner: " << user_input.GetPrecString() << endl;
+        cout << "Linear Solver: " << user_input.GetSolverLabel() << endl;
+        cout << "Preconditioner: " << user_input.GetPrecLabel() << endl;
         cout << "Max Iterations: " << user_input.GetMaxIter() << endl;
         cout << "Absolute Tolerance: " << user_input.GetAbsTol() << endl;
         cout << "Relative Tolerance: " << user_input.GetRelTol() << endl;
+    }
+
+    // Set lin sys solver
+    switch (Solver_Map.at(user_input.GetSolverLabel()))
+    {
+        case SOLVER::CG:
+            lin_solver = new CGSolver(comm);
+            break;
+        case SOLVER::GMRES:
+            lin_solver = new GMRESSolver(comm);
+            break;
+        case SOLVER::FGMRES:
+            lin_solver = new FGMRESSolver(comm);
+            break;
+    }
+
+    // Set preconditioner
+    switch (Preconditioner_Map.at(user_input.GetPrecLabel()))
+    {
+        case PRECONDITIONER::JACOBI:
+            prec = HypreSmoother::Jacobi;
+            break;
+        case PRECONDITIONER::CHEBYSHEV:
+            prec = HypreSmoother::Chebyshev;
+            break;
     }
 }
 
@@ -697,6 +734,7 @@ JOTSDriver::~JOTSDriver()
     delete[] boundary_conditions;
     delete[] all_bdr_attr_markers;
     delete ode_solver;
+    delete lin_solver;
     delete pmesh;
     delete fe_coll;
     delete oper;

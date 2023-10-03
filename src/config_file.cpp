@@ -33,7 +33,7 @@ void Config::SetInputStringVector(string in, vector<string>& output) // Comma de
 void Config::ReadFESetup()
 {   
     // Read FiniteElementSetup
-    sim_type = Simulation_Type_Map.at(property_tree.get("FiniteElementSetup.Simulation_Type", "Unsteady"));
+    sim_type = property_tree.get("FiniteElementSetup.Simulation_Type", "Unsteady");
     BINARY_CHOICE restart_choice = Binary_Choice_Map.at(property_tree.get("FiniteElementSetup.Use_Restart", "No"));
     use_restart = restart_choice == BINARY_CHOICE::YES ? true : false;
 
@@ -115,14 +115,14 @@ void Config::ReadTimeInt()
     if (property_tree.find("TimeIntegration") == property_tree.not_found())
     {
         using_time_integration = false;
-        time_scheme = TIME_SCHEME::EULER_IMPLICIT;
+        time_scheme_label = "Euler_Implicit";
         dt = 0.1;
         tf = 10.0;
     }
     else
     {
         using_time_integration = true;
-        time_scheme = Time_Scheme_Map.at(property_tree.get("TimeIntegration.Time_Scheme", "Euler_Implicit"));
+        time_scheme_label = property_tree.get("TimeIntegration.Time_Scheme", "Euler_Implicit");
         dt = property_tree.get("TimeIntegration.Delta_Time", 0.1);
         tf = property_tree.get("TimeIntegration.Final_Time", 10.0);
     }
@@ -131,8 +131,8 @@ void Config::ReadTimeInt()
 void Config::ReadLinSolSettings()
 {
     // Read LinearSolverSettings
-    solver = Solver_Map.at(property_tree.get("LinearSolverSettings.Solver", "FGMRES"));
-    prec = Preconditioner_Map.at(property_tree.get("LinearSolverSettings.Preconditioner", "Chebyshev"));
+    solver_label = property_tree.get("LinearSolverSettings.Solver", "FGMRES");
+    prec_label = property_tree.get("LinearSolverSettings.Preconditioner", "Chebyshev");
     abs_tol = property_tree.get("LinearSolverSettings.Absolute_Tolerance", 1e-16);
     rel_tol = property_tree.get("LinearSolverSettings.Relative_Tolerance", 1e-10);
     max_iter = property_tree.get("LinearSolverSettings.Max_Iterations", 100);
@@ -144,94 +144,4 @@ void Config::ReadOutput()
     restart_freq = property_tree.get("Output.Restart_Freq", 10);
     vis_freq = property_tree.get("Output.Visualization_Freq", 10);
 
-}
-
-
-ODESolver* Config::GetODESolver() const
-{
-    switch (time_scheme)
-    {
-        case TIME_SCHEME::EULER_IMPLICIT:
-            return new BackwardEulerSolver;
-            break;
-        case TIME_SCHEME::EULER_EXPLICIT:
-            return new ForwardEulerSolver;
-            break;
-        case TIME_SCHEME::RK4:
-            return new RK4Solver;
-    }
-}
-
-string Config::GetTimeSchemeString() const
-{
-    switch (time_scheme)
-    {
-        case TIME_SCHEME::EULER_IMPLICIT:
-            return "Euler Implicit";
-            break;
-        case TIME_SCHEME::EULER_EXPLICIT:
-            return "Euler Explicit";
-            break;
-        case TIME_SCHEME::RK4:
-            return "RK4";
-    }
-}
-
-IterativeSolver* Config::GetSolver(MPI_Comm comm_) const
-{
-    switch (solver)
-    {
-        case SOLVER::CG:
-            return new CGSolver(comm_);
-            break;
-        case SOLVER::GMRES:
-            return new GMRESSolver(comm_);
-            break;
-        case SOLVER::FGMRES:
-            return new FGMRESSolver(comm_);
-            break;
-    }
-}
-
-string Config::GetSolverString() const
-{
-    switch (solver)
-    {
-        case SOLVER::CG:
-            return "Conjugate Gradient";
-            break;
-        case SOLVER::GMRES:
-            return "GMRES";
-            break;
-        case SOLVER::FGMRES:
-            return "FGMRES";
-            break;
-    }
-
-}
-// TODO: clean up these "GetStrings" such that not needing to copy + paste ideally
-HypreSmoother::Type Config::GetPrec() const
-{
-    switch (prec)
-    {
-        case PRECONDITIONER::JACOBI:
-            return HypreSmoother::Jacobi;
-            break;
-        case PRECONDITIONER::CHEBYSHEV:
-            return HypreSmoother::Chebyshev;
-            break;
-    }
-}
-
-string Config::GetPrecString() const
-{
-    switch (prec)
-    {
-        case PRECONDITIONER::JACOBI:
-            return "Jacobi";
-            break;
-        case PRECONDITIONER::CHEBYSHEV:
-            return "Chebyshev";
-            break;
-    }
 }

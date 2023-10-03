@@ -55,6 +55,9 @@ class JOTSDriver
         std::map<MATERIAL_PROPERTY, MaterialProperty*> mat_props;
 
         mfem::ODESolver* ode_solver;
+        mfem::IterativeSolver* lin_solver;
+        mfem::HypreSmoother::Type prec;
+        
         mfem::ParMesh* pmesh;
         mfem::FiniteElementCollection* fe_coll;
         mfem::ParFiniteElementSpace* fespace;

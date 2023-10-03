@@ -7,8 +7,6 @@
 #include "boost/foreach.hpp"
 #include "boost/algorithm/string/trim.hpp"
 #include "boost/algorithm/string.hpp"
-#include "mfem/mfem.hpp"
-#include "precice/SolverInterface.hpp"
 
 #include "option_structure.hpp"
 
@@ -20,7 +18,7 @@ class Config
 
         std::string input_file;            /*!< \brief Input file to parse */
 
-        SIMULATION_TYPE sim_type;
+        std::string sim_type_label;
         std::string mesh_file;             /*!< \brief Mesh file to read in */
         int fe_order;                 /*!< \brief FE Order (solution mapping order, not necessarily same as geometric mapping order from mesh file) */
         int serial_refine;            /*!< \brief Number of times to refine mesh before parallel decomposition */
@@ -43,13 +41,13 @@ class Config
         std::vector<std::pair<int, std::vector<std::string>>> bc_info; // Array of pairs where first value is attribute, second is string vector for that BC
         
         bool using_time_integration;
-        TIME_SCHEME time_scheme;      /*!< \brief Time integration scheme to use */
+        std::string time_scheme_label;      /*!< \brief Time integration scheme to use */
         double t0;                    /*!< \brief Starting time */
         double tf;                    /*!< \brief Final time to run to */
         double dt;                    /*!< \brief Delta time, timestep */
 
-        SOLVER solver;                /*!< \brief Linear system solver type */
-        PRECONDITIONER prec;          /*!< \brief Preconditioner to use */
+        std::string solver_label;                /*!< \brief Linear system solver type */
+        std::string prec_label;          /*!< \brief Preconditioner to use */
         double abs_tol;               /*!< \brief Solver absolute tolerance */
         double rel_tol;               /*!< \brief Solver relative tolerance */
         int max_iter;                 /*!< \brief Maximum solver iterations */
@@ -75,9 +73,9 @@ class Config
 
         void SetInputFile(std::string in_file) { input_file = in_file; };
 
-        SIMULATION_TYPE GetSimType() const { return sim_type; };
+        std::string GetSimTypeLabel() const { return sim_type_label; };
 
-        void SetSimType(SIMULATION_TYPE in_type) { sim_type = in_type; };
+        void SetSimTypeLabel(std::string in_type_label) { sim_type_label = in_type_label; };
 
         std::string GetMeshFile() const { return mesh_file; };
 
@@ -137,15 +135,13 @@ class Config
 
         void SetBCInfo(int i, std::pair<int, std::vector<std::string>> in_bc) { bc_info[i] = in_bc; };
 
-        mfem::ODESolver* GetODESolver() const; // Returns ODESolver that must be deleted by caller!
-        
-        void SetODESolver(TIME_SCHEME in_scheme) { time_scheme = in_scheme; };
-
         bool UsingTimeIntegration() const { return using_time_integration; };
 
         void SetTimeIntegration(bool in_using) { using_time_integration = in_using; };
 
-        std::string GetTimeSchemeString() const;
+        void SetTimeSchemeLabel(std::string in_scheme) { time_scheme_label = in_scheme; };
+
+        std::string GetTimeSchemeLabel() const { return time_scheme_label; };
 
         double GetFinalTime() const { return tf; };
 
@@ -155,17 +151,13 @@ class Config
 
         void Setdt(double in_dt) { dt = in_dt; };
 
-        mfem::IterativeSolver* GetSolver(MPI_Comm comm_) const; // Returns IterativeSolver that must be deleted by caller!
+        std::string GetSolverLabel() const { return solver_label; };
 
-        void SetSolver(SOLVER in_solver) { solver = in_solver; };
+        void SetSolverLabel(std::string in_solver) { solver_label = in_solver; };
 
-        std::string GetSolverString() const;
+        std::string GetPrecLabel() const { return prec_label; };
 
-        mfem::HypreSmoother::Type GetPrec() const;
-
-        void SetPrec(PRECONDITIONER in_prec) { prec = in_prec; };
-
-        std::string GetPrecString()  const;
+        void SetPrecLabel(std::string in_prec) { prec_label = in_prec; };
 
         int GetMaxIter() const { return max_iter; };
 
