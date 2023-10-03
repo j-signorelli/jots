@@ -65,7 +65,7 @@ protected:
 
 public:
    // Note: bdr attributes array cannot be constant. May move into BoundaryCondition class in future
-   ConductionOperator(const Config& in_config, const BoundaryCondition* const* in_bcs, mfem::Array<int>* all_bdr_attr_markers, const MaterialProperty* C_prop, const MaterialProperty* k_prop, ParFiniteElementSpace &f, double t_0);
+   ConductionOperator(const Config& in_config, const BoundaryCondition* const* in_bcs, mfem::Array<int>* all_bdr_attr_markers, const MaterialProperty* rho_prop, const MaterialProperty* C_prop, const MaterialProperty* k_prop, ParFiniteElementSpace &f, double t_0);
 
    void Mult(const Vector &u, Vector &du_dt) const;
    

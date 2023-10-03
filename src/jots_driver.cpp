@@ -77,12 +77,12 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
         cout << LINE << endl;
         cout << "Initializing operator... ";
     }
-    oper = new ConductionOperator(user_input, boundary_conditions, all_bdr_attr_markers, mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT], mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY], *fespace, time);
+    oper = new ConductionOperator(user_input, boundary_conditions, all_bdr_attr_markers, mat_props[MATERIAL_PROPERTY::DENSITY], mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT], mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY], *fespace, time);
     if (rank == 0)
         cout << "Done!" << endl;
     //----------------------------------------------------------------------
     // Instantiate OutputManager
-    output = new OutputManager(rank, fespace, user_input, T, mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT], mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY]);
+    output = new OutputManager(rank, fespace, user_input, T, mat_props[MATERIAL_PROPERTY::DENSITY], mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT], mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY]);
 }
 
 void JOTSDriver::ProcessFiniteElementSetup()
@@ -227,67 +227,48 @@ void JOTSDriver::ProcessFiniteElementSetup()
 
 void JOTSDriver::ProcessMaterialProperties()
 {   
-    //----------------------------------------------------------------------
-    // Figure out required material properties from solver + add to map
-    // Currently does not check for duplicates in map, as JOTS only runs one solver at a time presently
-    // TODO: Maybe generalize below into loop over single switch-case?
-    //----------------------------------------------------------------------
-    // Process density
     if (rank == 0)
-        {   
-            cout << "\n";
-            cout << "Density: " << user_input.GetDensity() << endl;
-        } // TODO: Update density to have it's own matprop var?
+        cout << "\n";
     
-    //----------------------------------------------------------------------
-    // Process Specific Heat
-    // Create MaterialProperty object for specific heat
-    vector<string> specific_heat_info = user_input.GetSpecificHeatInfo();
-    vector<double> poly_coeffs_C;
-    switch (Material_Model_Map.at(specific_heat_info[0]))
-    {
-        case MATERIAL_MODEL::UNIFORM: // Uniform
-            mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT] = new UniformProperty(stod(specific_heat_info[1].c_str()));
-            break;
-        case MATERIAL_MODEL::POLYNOMIAL: // Polynomial
+    // Loop over INPUT material property info map from Config
+    map<string, vector<string>> in_mat_props = user_input.GetMaterialPropertyInfoMap();
+    map<string, vector<string>>::iterator it;
 
-            for (int i = 1; i < specific_heat_info.size(); i++)
-                poly_coeffs_C.push_back(stod(specific_heat_info[i].c_str()));
+    for (it = in_mat_props.begin(); it != in_mat_props.end(); it++)
+    {   
+        // Print label
+        string label = it->first;
+        if (rank == 0)
+            cout << label << ": ";
+        
+        // Get material property type
+        MATERIAL_PROPERTY mp = Material_Property_Map.at(label);
 
-            mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT] = new PolynomialProperty(poly_coeffs_C, *fespace);
-            break;
-        default:
-            MFEM_ABORT("Unknown/Invalid specific heat model specified");
-            return;
+        // Add material property to material property map
+        vector<string> mp_info = it->second;
+        vector<double> poly_coeffs;
+
+        switch (Material_Model_Map.at(mp_info[0]))
+        {
+            case MATERIAL_MODEL::UNIFORM: // Uniform
+                mat_props[mp] = new UniformProperty(stod(mp_info[1].c_str()));
+                break;
+            case MATERIAL_MODEL::POLYNOMIAL: // Polynomial
+
+                for (int i = 1; i < mp_info.size(); i++)
+                    poly_coeffs.push_back(stod(mp_info[i].c_str()));
+
+                mat_props[mp] = new PolynomialProperty(poly_coeffs, *fespace);
+                break;
+            default:
+                MFEM_ABORT("Unknown/Invalid material model specified");
+                return;
+        }
+
+        // Print remaining portion of label
+        cout << mat_props[mp]->GetInitString() << endl;
     }
-    // Print specific heat model info
-    if (rank == 0)
-        cout << "Specific Heat Model: " << mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT]->GetInitString() << endl;
 
-    //----------------------------------------------------------------------
-    // Process Thermal Conductivity
-    // Create MaterialProperty object for conductivity
-    vector<string> cond_info = user_input.GetCondInfo();
-    vector<double> poly_coeffs_k;
-    switch (Material_Model_Map.at(cond_info[0]))
-    {
-        case MATERIAL_MODEL::UNIFORM: // Uniform conductivity
-            mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY] = new UniformProperty(stod(cond_info[1].c_str()));
-            break;
-        case MATERIAL_MODEL::POLYNOMIAL: // Polynomial model for conductivity
-
-            for (int i = 1; i < cond_info.size(); i++)
-                poly_coeffs_k.push_back(stod(cond_info[i].c_str()));
-
-            mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY] = new PolynomialProperty(poly_coeffs_k, *fespace);
-            break;
-        default:
-            MFEM_ABORT("Unknown/Invalid thermal conductivity model specified");
-            return;
-    }
-    // Print conductivity model info
-    if (rank == 0)
-        cout << "Thermal Conductivity Model: " << mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY]->GetInitString() << endl;
 }
 
 void JOTSDriver::ProcessTimeIntegration()
@@ -709,7 +690,7 @@ JOTSDriver::~JOTSDriver()
 {
     delete sim;
     delete adapter;
-    for (auto it = mat_props.begin(); it != mat_props.end(); it++)
+    for (map<MATERIAL_PROPERTY, MaterialProperty*>::iterator it = mat_props.begin(); it != mat_props.end(); it++)
         delete it->second;
     for (size_t i = 0; i < user_input.GetBCCount(); i++)
         delete boundary_conditions[i];

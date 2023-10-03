@@ -50,9 +50,22 @@ void Config::ReadFESetup()
 void Config::ReadMatProps()
 {
     // Read MaterialProperties
-    density = property_tree.get("MaterialProperties.Density", 1.0);
-    SetInputStringVector(property_tree.get("MaterialProperties.Specific_Heat_C", "Uniform, 1000"), specific_heat_info);
-    SetInputStringVector(property_tree.get("MaterialProperties.Thermal_Conductivity_k", "Uniform, 100"), conductivity_info);
+    BOOST_FOREACH(const bp::ptree::value_type &v , property_tree.get_child("MaterialProperties"))
+    {   
+        // Get the material property label
+        string label = v.first;
+
+        // Get material property info:
+        vector<string> mat_prop_info;
+        SetInputStringVector(v.second.data(), mat_prop_info);
+        
+        // Add to mat_prop_info
+        mat_prop_info_map[label] = mat_prop_info;
+        
+    }
+    //density = property_tree.get("MaterialProperties.Density", 1.0);
+    //SetInputStringVector(property_tree.get("MaterialProperties.Specific_Heat_C", "Uniform, 1000"), specific_heat_info);
+    //SetInputStringVector(property_tree.get("MaterialProperties.Thermal_Conductivity_k", "Uniform, 100"), conductivity_info);
 }
 
 void Config::ReadPrecice()

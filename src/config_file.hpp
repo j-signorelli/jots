@@ -27,9 +27,7 @@ class Config
         int parallel_refine;          /*!< \brief Number of times to refine mesh after parallel decomposition  */
         
         // Material properties:
-        double density;
-        std::vector<std::string> specific_heat_info;
-        std::vector<std::string> conductivity_info;
+        std::map<std::string, std::vector<std::string>> mat_prop_info_map; // Map of material properties, key is mat prop label and value is string vector for that mat prop
 
         bool use_restart;             /*!< \brief Boolean indicating if restart file should be loaded up as initial condition */
         std::string restart_prefix;          /*!< \brief Restart file to load + use; only read if use_restart is true */
@@ -40,7 +38,8 @@ class Config
         std::string precice_participant_name;
         std::string precice_config_file;
 
-        size_t bc_count;        
+        size_t bc_count;   
+        // TODO: Update this to just a map with int keys and vector values?     
         std::vector<std::pair<int, std::vector<std::string>>> bc_info; // Array of pairs where first value is attribute, second is string vector for that BC
         
         bool using_time_integration;
@@ -96,17 +95,11 @@ class Config
 
         void SetParallelRefine(int in_ref) { parallel_refine = in_ref; };
 
-        double GetDensity() const { return density; };
-        
-        void SetDensity(double in_rho) { density = in_rho; };
+        std::map<std::string, std::vector<std::string>> GetMaterialPropertyInfoMap() const { return mat_prop_info_map; };
 
-        std::vector<std::string> GetSpecificHeatInfo() const { return specific_heat_info; };
+        std::vector<std::string> GetMaterialPropertyInfo(std::string mat_prop_label) const { return mat_prop_info_map.at(mat_prop_label); };
 
-        void SetSpecificHeatInfo(std::vector<std::string> in_info) { specific_heat_info = in_info; };
-
-        std::vector<std::string> GetCondInfo() const { return conductivity_info; };
-        
-        void SetCondInfo(std::vector<std::string> in_info) { conductivity_info = in_info; };
+        void SetMaterialPropertyInfo(std::string mat_prop_label, std::vector<std::string> info) { mat_prop_info_map[mat_prop_label] = info; };
 
         bool UsesRestart() const { return use_restart; };
 

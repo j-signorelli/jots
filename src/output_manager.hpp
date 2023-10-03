@@ -27,7 +27,7 @@ class OutputManager
 
     protected:
     public:
-        OutputManager(const int in_rank, mfem::ParFiniteElementSpace* fespace, const Config& user_input, const mfem::Vector& in_T_ref, const MaterialProperty* C_prop, const MaterialProperty* k_prop);
+        OutputManager(const int in_rank, mfem::ParFiniteElementSpace* fespace, const Config& user_input, const mfem::Vector& in_T_ref, const MaterialProperty* rho_prop, const MaterialProperty* C_prop, const MaterialProperty* k_prop);
         void WriteVizOutput(const int it_num, const double time);
         void WriteRestartOutput(const int it_num, const double time);
 

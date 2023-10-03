@@ -21,6 +21,10 @@ enum class MATERIAL_PROPERTY
   THERMAL_CONDUCTIVITY=2
 };
 
+static const std::map<std::string, MATERIAL_PROPERTY> Material_Property_Map = {{"Density_rho", MATERIAL_PROPERTY::DENSITY},
+                                                                               {"Specific_Heat_C", MATERIAL_PROPERTY::SPECIFIC_HEAT},
+                                                                               {"Thermal_Conductivity_k", MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY}};
+
 enum class TIME_SCHEME
 {
 

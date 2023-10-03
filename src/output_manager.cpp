@@ -5,7 +5,7 @@ using namespace mfem;
 
 //const int OutputManager::RESTART_PRECISION = 16;
 
-OutputManager::OutputManager(const int in_rank, ParFiniteElementSpace* fespace, const Config& user_input, const Vector& in_T_ref, const MaterialProperty* C_prop, const MaterialProperty* k_prop)
+OutputManager::OutputManager(const int in_rank, ParFiniteElementSpace* fespace, const Config& user_input, const Vector& in_T_ref, const MaterialProperty* rho_prop, const MaterialProperty* C_prop, const MaterialProperty* k_prop)
 : rank(in_rank),
   T_ref(in_T_ref),
   C_coeff(C_prop->GetCoeffRef()),
@@ -38,7 +38,7 @@ OutputManager::OutputManager(const int in_rank, ParFiniteElementSpace* fespace, 
 
     // Density:
     rho_gf = new ParGridFunction(fespace);
-    ConstantCoefficient rho_coeff(user_input.GetDensity());
+    ConstantCoefficient rho_coeff(rho_prop->GetLocalValue(0));
     rho_gf->ProjectCoefficient(rho_coeff);
     paraview_dc->RegisterField("Density", rho_gf);
 
