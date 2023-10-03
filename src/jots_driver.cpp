@@ -12,6 +12,7 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
   rank(myid),
   size(num_procs),
   comm(in_comm),
+  sim(nullptr),
   adapter(nullptr),
   user_input(input),
   boundary_conditions(nullptr),
@@ -47,18 +48,16 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
     // Process FiniteElementSetup
     ProcessFiniteElementSetup();
     //----------------------------------------------------------------------
-    // Process MaterialProperties
+    // Process MaterialProperties in config file
     ProcessMaterialProperties();
     //----------------------------------------------------------------------
-    // Only process if running unsteady
-    if (sim_type == SIMULATION_TYPE::UNSTEADY)
-    {
-        // Process TimeIntegration (if unsteady)
+    // Process TimeIntegration (if using (required for unsteady))
+    if (user_input.UsingTimeIntegration())
         ProcessTimeIntegration();
-        //----------------------------------------------------------------------
-        // Process preCICE (if using)
+    //----------------------------------------------------------------------
+    // Process preCICE (if using)
+    if (user_input.UsingPrecice())
         ProcessPrecice();
-    }
     //----------------------------------------------------------------------
     // Process BoundaryConditions
     ProcessBoundaryConditions();
@@ -88,16 +87,9 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
 
 void JOTSDriver::ProcessFiniteElementSetup()
 {
-    //Create appropriate Solver object + print
+    // Print appropriate solver type + get required material properties, add them to map
     if (rank == 0)
         cout << "Simulation Type: ";
-
-    //switch (sim_type)
-    //{
-    //    case SIMULATION_TYPE::UNSTEADY:
-            sim = new UnsteadyHeatSimulation();
-            cout << "Unsteady" << endl;
-    //}
 
     // If not restart, refine mesh and initialize; else load VisItDataCollection
     if (!user_input.UsesRestart())
@@ -207,8 +199,7 @@ void JOTSDriver::ProcessFiniteElementSetup()
         if (rank == 0)
         {
             cout << "Input Restart Root: " << user_input.GetRestartPrefix() << "_" << user_input.GetRestartCycle() << endl;
-            if (sim_type == SIMULATION_TYPE::UNSTEADY)
-                cout << "\tTime: " << time << endl;
+            cout << "\tTime: " << time << endl;
             cout << "\tCycle: " << it_num << endl;
         }
     }
@@ -242,69 +233,61 @@ void JOTSDriver::ProcessMaterialProperties()
     // TODO: Maybe generalize below into loop over single switch-case?
     //----------------------------------------------------------------------
     // Process density
-    if (sim->UsesMaterialProperty(MATERIAL_PROPERTY::DENSITY))
-    {
-        if (rank == 0)
+    if (rank == 0)
         {   
             cout << "\n";
             cout << "Density: " << user_input.GetDensity() << endl;
         } // TODO: Update density to have it's own matprop var?
-    }
+    
     //----------------------------------------------------------------------
     // Process Specific Heat
-    if (sim->UsesMaterialProperty(MATERIAL_PROPERTY::SPECIFIC_HEAT))
+    // Create MaterialProperty object for specific heat
+    vector<string> specific_heat_info = user_input.GetSpecificHeatInfo();
+    vector<double> poly_coeffs_C;
+    switch (Material_Model_Map.at(specific_heat_info[0]))
     {
-        // Create MaterialProperty object for specific heat
-        vector<string> specific_heat_info = user_input.GetSpecificHeatInfo();
-        vector<double> poly_coeffs_C;
-        switch (Material_Model_Map.at(specific_heat_info[0]))
-        {
-            case MATERIAL_MODEL::UNIFORM: // Uniform
-                mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT] = new UniformProperty(stod(specific_heat_info[1].c_str()));
-                break;
-            case MATERIAL_MODEL::POLYNOMIAL: // Polynomial
+        case MATERIAL_MODEL::UNIFORM: // Uniform
+            mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT] = new UniformProperty(stod(specific_heat_info[1].c_str()));
+            break;
+        case MATERIAL_MODEL::POLYNOMIAL: // Polynomial
 
-                for (int i = 1; i < specific_heat_info.size(); i++)
-                    poly_coeffs_C.push_back(stod(specific_heat_info[i].c_str()));
+            for (int i = 1; i < specific_heat_info.size(); i++)
+                poly_coeffs_C.push_back(stod(specific_heat_info[i].c_str()));
 
-                mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT] = new PolynomialProperty(poly_coeffs_C, *fespace);
-                break;
-            default:
-                MFEM_ABORT("Unknown/Invalid specific heat model specified");
-                return;
-        }
-        // Print specific heat model info
-        if (rank == 0)
-            cout << "Specific Heat Model: " << mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT]->GetInitString() << endl;
+            mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT] = new PolynomialProperty(poly_coeffs_C, *fespace);
+            break;
+        default:
+            MFEM_ABORT("Unknown/Invalid specific heat model specified");
+            return;
     }
+    // Print specific heat model info
+    if (rank == 0)
+        cout << "Specific Heat Model: " << mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT]->GetInitString() << endl;
 
     //----------------------------------------------------------------------
     // Process Thermal Conductivity
-    if (sim->UsesMaterialProperty(MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY))
+    // Create MaterialProperty object for conductivity
+    vector<string> cond_info = user_input.GetCondInfo();
+    vector<double> poly_coeffs_k;
+    switch (Material_Model_Map.at(cond_info[0]))
     {
-        // Create MaterialProperty object for conductivity
-        vector<string> cond_info = user_input.GetCondInfo();
-        vector<double> poly_coeffs_k;
-        switch (Material_Model_Map.at(cond_info[0]))
-        {
-            case MATERIAL_MODEL::UNIFORM: // Uniform conductivity
-                mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY] = new UniformProperty(stod(cond_info[1].c_str()));
-                break;
-            case MATERIAL_MODEL::POLYNOMIAL: // Polynomial model for conductivity
+        case MATERIAL_MODEL::UNIFORM: // Uniform conductivity
+            mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY] = new UniformProperty(stod(cond_info[1].c_str()));
+            break;
+        case MATERIAL_MODEL::POLYNOMIAL: // Polynomial model for conductivity
 
-                for (int i = 1; i < cond_info.size(); i++)
-                    poly_coeffs_k.push_back(stod(cond_info[i].c_str()));
+            for (int i = 1; i < cond_info.size(); i++)
+                poly_coeffs_k.push_back(stod(cond_info[i].c_str()));
 
-                mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY] = new PolynomialProperty(poly_coeffs_k, *fespace);
-                break;
-            default:
-                MFEM_ABORT("Unknown/Invalid thermal conductivity model specified");
-                return;
-        }
-        // Print conductivity model info
-        if (rank == 0)
-            cout << "Thermal Conductivity Model: " << mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY]->GetInitString() << endl;
+            mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY] = new PolynomialProperty(poly_coeffs_k, *fespace);
+            break;
+        default:
+            MFEM_ABORT("Unknown/Invalid thermal conductivity model specified");
+            return;
     }
+    // Print conductivity model info
+    if (rank == 0)
+        cout << "Thermal Conductivity Model: " << mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY]->GetInitString() << endl;
 }
 
 void JOTSDriver::ProcessTimeIntegration()
@@ -330,23 +313,20 @@ void JOTSDriver::ProcessTimeIntegration()
 void JOTSDriver::ProcessPrecice()
 {
     // Print any precice info + instantiate adapter object if needed
-    if (user_input.UsingPrecice())
+    if (rank == 0)
     {
-        if (rank == 0)
-        {
-            cout << "\n";
-            cout << "Using preCICE!" << endl;
-            cout << "preCICE Participant Name: " << user_input.GetPreciceParticipantName() << endl;
-            cout << "preCICE Config File: " << user_input.GetPreciceConfigFile() << endl;
-        }
+        cout << "\n";
+        cout << "Using preCICE!" << endl;
+        cout << "preCICE Participant Name: " << user_input.GetPreciceParticipantName() << endl;
+        cout << "preCICE Config File: " << user_input.GetPreciceConfigFile() << endl;
+    }
 
-        adapter = new PreciceAdapter(user_input.GetPreciceParticipantName(), user_input.GetPreciceConfigFile(), rank, size, comm);
+    adapter = new PreciceAdapter(user_input.GetPreciceParticipantName(), user_input.GetPreciceConfigFile(), rank, size, comm);
 
-        if (adapter->GetDimension() != dim)
-        {
-            MFEM_ABORT("preCICE dimensions and mesh file dimensions are not the same!");
-            return;
-        }
+    if (adapter->GetDimension() != dim)
+    {
+        MFEM_ABORT("preCICE dimensions and mesh file dimensions are not the same!");
+        return;
     }
 }
 

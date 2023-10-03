@@ -7,17 +7,18 @@ class Simulation
 {
     private:
     protected:
-        mfem::Vector sol;
+        mfem::Vector u;
+        mfem::Vector u_saved;
     public:
-        virtual bool UsesMaterialProperty(MATERIAL_PROPERTY mat_prop) = 0;
+        void SaveOldState() { u_saved = u; };
+        void ReloadOldState() { u = u_saved;};
+        void SetFromGF(mfem::ParGridFunction* in_u) { in_u->GetTrueDofs(u); };
 
         virtual void InitializeSolver() = 0;
         virtual bool Running() = 0;
         virtual void PreprocessIteration() = 0;
         virtual void Iterate() = 0;
         
-        void SaveOldState();
-        void ReloadOldState();
 };
 
 class UnsteadyHeatSimulation : public Simulation
@@ -29,7 +30,7 @@ class UnsteadyHeatSimulation : public Simulation
         //ConductionOperator* oper;
     public:
         UnsteadyHeatSimulation() {};
-        bool UsesMaterialProperty(MATERIAL_PROPERTY mat_prop);
+
         void InitializeSolver() {};
         bool Running() {};
         void PreprocessIteration() {};

@@ -42,6 +42,8 @@ class Config
 
         size_t bc_count;        
         std::vector<std::pair<int, std::vector<std::string>>> bc_info; // Array of pairs where first value is attribute, second is string vector for that BC
+        
+        bool using_time_integration;
         TIME_SCHEME time_scheme;      /*!< \brief Time integration scheme to use */
         double t0;                    /*!< \brief Starting time */
         double tf;                    /*!< \brief Final time to run to */
@@ -145,6 +147,10 @@ class Config
         mfem::ODESolver* GetODESolver() const; // Returns ODESolver that must be deleted by caller!
         
         void SetODESolver(TIME_SCHEME in_scheme) { time_scheme = in_scheme; };
+
+        bool UsingTimeIntegration() const { return using_time_integration; };
+
+        void SetTimeIntegration(bool in_using) { using_time_integration = in_using; };
 
         std::string GetTimeSchemeString() const;
 

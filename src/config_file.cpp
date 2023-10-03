@@ -98,9 +98,21 @@ void Config::ReadBCs()
 void Config::ReadTimeInt()
 {
     // Read TimeIntegration
-    time_scheme = Time_Scheme_Map.at(property_tree.get("TimeIntegration.Time_Scheme", "Euler_Implicit"));
-    dt = property_tree.get("TimeIntegration.Delta_Time", 0.1);
-    tf = property_tree.get("TimeIntegration.Final_Time", 10.0);
+    // If no time integration, then do nothing and set using_time_integration
+    if (property_tree.find("TimeIntegration") == property_tree.not_found())
+    {
+        using_time_integration = false;
+        time_scheme = TIME_SCHEME::EULER_IMPLICIT;
+        dt = 0.1;
+        tf = 10.0;
+    }
+    else
+    {
+        using_time_integration = true;
+        time_scheme = Time_Scheme_Map.at(property_tree.get("TimeIntegration.Time_Scheme", "Euler_Implicit"));
+        dt = property_tree.get("TimeIntegration.Delta_Time", 0.1);
+        tf = property_tree.get("TimeIntegration.Final_Time", 10.0);
+    }
 }
 
 void Config::ReadLinSolSettings()
