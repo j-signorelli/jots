@@ -31,7 +31,6 @@ class JOTSDriver
         static const std::string LINE;
         static const double TIME_TOLERANCE;
 
-        const SIMULATION_TYPE sim_type;
 	    const int rank;
         const int size;
         MPI_Comm comm;
@@ -55,9 +54,6 @@ class JOTSDriver
         std::map<MATERIAL_PROPERTY, MaterialProperty*> mat_props;
 
         mfem::ODESolver* ode_solver;
-        mfem::IterativeSolver* lin_solver;
-        mfem::HypreSmoother::Type prec;
-        
         mfem::ParMesh* pmesh;
         mfem::FiniteElementCollection* fe_coll;
         mfem::ParFiniteElementSpace* fespace;

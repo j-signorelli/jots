@@ -8,8 +8,7 @@ const string JOTSDriver::LINE = "-----------------------------------------------
 const double JOTSDriver::TIME_TOLERANCE = 1e-14;
 
 JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs, MPI_Comm in_comm)
-: sim_type(input.GetSimType()),
-  rank(myid),
+: rank(myid),
   size(num_procs),
   comm(in_comm),
   sim(nullptr),
@@ -18,7 +17,6 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
   boundary_conditions(nullptr),
   initialized_bcs(false),
   ode_solver(nullptr),
-  lin_solver(nullptr),
   pmesh(nullptr),
   fe_coll(nullptr),
   fespace(nullptr),
@@ -461,31 +459,6 @@ void JOTSDriver::ProcessLinearSolverSettings()
         cout << "Absolute Tolerance: " << user_input.GetAbsTol() << endl;
         cout << "Relative Tolerance: " << user_input.GetRelTol() << endl;
     }
-
-    // Set lin sys solver
-    switch (Solver_Map.at(user_input.GetSolverLabel()))
-    {
-        case SOLVER::CG:
-            lin_solver = new CGSolver(comm);
-            break;
-        case SOLVER::GMRES:
-            lin_solver = new GMRESSolver(comm);
-            break;
-        case SOLVER::FGMRES:
-            lin_solver = new FGMRESSolver(comm);
-            break;
-    }
-
-    // Set preconditioner
-    switch (Preconditioner_Map.at(user_input.GetPrecLabel()))
-    {
-        case PRECONDITIONER::JACOBI:
-            prec = HypreSmoother::Jacobi;
-            break;
-        case PRECONDITIONER::CHEBYSHEV:
-            prec = HypreSmoother::Chebyshev;
-            break;
-    }
 }
 
 void JOTSDriver::ProcessOutput()
@@ -734,7 +707,6 @@ JOTSDriver::~JOTSDriver()
     delete[] boundary_conditions;
     delete[] all_bdr_attr_markers;
     delete ode_solver;
-    delete lin_solver;
     delete pmesh;
     delete fe_coll;
     delete oper;

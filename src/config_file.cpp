@@ -3,8 +3,6 @@
 
 namespace bp = boost::property_tree;
 using namespace std;
-using namespace mfem;
-using namespace precice;
 
 Config::Config(const char* in_file) : input_file(in_file)
 {   
@@ -33,7 +31,7 @@ void Config::SetInputStringVector(string in, vector<string>& output) // Comma de
 void Config::ReadFESetup()
 {   
     // Read FiniteElementSetup
-    sim_type = property_tree.get("FiniteElementSetup.Simulation_Type", "Unsteady");
+    sim_type_label = property_tree.get("FiniteElementSetup.Simulation_Type", "Unsteady");
     BINARY_CHOICE restart_choice = Binary_Choice_Map.at(property_tree.get("FiniteElementSetup.Use_Restart", "No"));
     use_restart = restart_choice == BINARY_CHOICE::YES ? true : false;
 

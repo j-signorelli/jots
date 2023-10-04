@@ -53,7 +53,7 @@ void ConductionOperator::PreprocessSolver(const Config& in_config)
    //----------------------------------------------------------------
    // Prepare explicit solver
    
-   expl_solver = in_config.GetSolver(fespace.GetComm());
+   expl_solver = Factory::GetSolver(in_config.GetSolverLabel(), fespace.GetComm());
 
    // Set up the solver for Mult
    expl_solver->iterative_mode = false; // If true, would use second argument of Mult() as initial guess; here it is set to false
@@ -63,12 +63,12 @@ void ConductionOperator::PreprocessSolver(const Config& in_config)
    expl_solver->SetMaxIter(max_iter); // Sets maximum number of iterations
    expl_solver->SetPrintLevel(0); // Print all information about detected issues
 
-   expl_prec.SetType(in_config.GetPrec()); // Set type of preconditioning (relaxation type) 
+   expl_prec.SetType(Factory::GetPrec(in_config.GetPrecLabel())); // Set type of preconditioning (relaxation type) 
    expl_solver->SetPreconditioner(expl_prec); // Set preconditioner to matrix inversion solver
 
    //----------------------------------------------------------------
    // Prepare implicit solver
-   impl_solver = in_config.GetSolver(fespace.GetComm());
+   impl_solver = Factory::GetSolver(in_config.GetSolverLabel(), fespace.GetComm());
    
    // Set up solver for ImplicitSolve
    impl_solver->iterative_mode = false;
@@ -76,7 +76,7 @@ void ConductionOperator::PreprocessSolver(const Config& in_config)
    impl_solver->SetAbsTol(abs_tol);
    impl_solver->SetMaxIter(max_iter);
    impl_solver->SetPrintLevel(0);
-   impl_prec.SetType(in_config.GetPrec());
+   impl_prec.SetType(Factory::GetPrec(in_config.GetPrecLabel()));
    impl_solver->SetPreconditioner(impl_prec);
    
 
