@@ -709,6 +709,7 @@ JOTSDriver::~JOTSDriver()
     delete ode_solver;
     delete pmesh;
     delete fe_coll;
+    delete fespace;
     delete oper;
     delete output;
     delete temp_T_gf;
