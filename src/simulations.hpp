@@ -7,9 +7,12 @@ class Simulation
 {
     private:
     protected:
+        const std::string solution_name;
         mfem::Vector u;
         mfem::Vector u_saved;
     public:
+        std::string GetSolutionName() { return solution_name; };
+        //mfem::Vector& GetSolutionVectorRef()
         void SaveOldState() { u_saved = u; };
         void ReloadOldState() { u = u_saved;};
         void SetFromGF(mfem::ParGridFunction* in_u) { in_u->GetTrueDofs(u); };
@@ -29,7 +32,7 @@ class UnsteadyHeatSimulation : public Simulation
         double dt;
         //ConductionOperator* oper;
     public:
-        UnsteadyHeatSimulation() {};
+        UnsteadyHeatSimulation() : solution_name("Temperature") {};
 
         void InitializeSolver() {};
         bool Running() {};

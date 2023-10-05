@@ -21,8 +21,8 @@ class JOTSDriver
         void ProcessTimeIntegration();
         void ProcessPrecice();
         void ProcessBoundaryConditions();
-        void ProcessLinearSolverSettings();
-        void ProcessOutput();
+        void PrintLinearSolverSettings();
+        void PrintOutput();
 
         //void InitializeSolver();
 

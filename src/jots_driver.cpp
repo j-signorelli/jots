@@ -62,26 +62,34 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
     ProcessBoundaryConditions();
     //----------------------------------------------------------------------
     // Process LinearSolverSettings
-    ProcessLinearSolverSettings();
+    PrintLinearSolverSettings();
     //----------------------------------------------------------------------
-    // Process Output
-    ProcessOutput();
+    // Print Output Settings
+    PrintOutputSettings();
     //---------------------------------------------------------------------
-    // Create main solution vector from IC
-    temp_T_gf->GetTrueDofs(T);
-    //----------------------------------------------------------------------
-    // Instantiate ConductionOperator, sending all necessary parameters
+    // Create Simulation object
     if (rank == 0)
     {
         cout << LINE << endl;
-        cout << "Initializing operator... ";
+        cout << "Initializing simulation... ";
     }
+    switch (Simulation_Type_Map.at(user_input.GetSimTypeLabel()))
+    {
+        case SIMULATION_TYPE::UNSTEADY:
+            sim = new UnsteadyHeatSimulation();
+            break;
+        case SIMULATION_TYPE::STEADY:
+            break;
+    }
+    temp_T_gf->GetTrueDofs(T);
+    // Register solution vector with OutputManager
+    output->RegisterSolutionVector(sim->GetSolutionName(), T);
+    //----------------------------------------------------------------------
+    // Instantiate ConductionOperator, sending all necessary parameters
     oper = new ConductionOperator(user_input, boundary_conditions, all_bdr_attr_markers, mat_props[MATERIAL_PROPERTY::DENSITY], mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT], mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY], *fespace, time);
     if (rank == 0)
         cout << "Done!" << endl;
     //----------------------------------------------------------------------
-    // Instantiate OutputManager
-    output = new OutputManager(rank, fespace, user_input, T, mat_props[MATERIAL_PROPERTY::DENSITY], mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT], mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY]);
 }
 
 void JOTSDriver::ProcessFiniteElementSetup()
@@ -222,6 +230,10 @@ void JOTSDriver::ProcessFiniteElementSetup()
     HYPRE_BigInt fe_size = fespace->GlobalTrueVSize();
     if (rank == 0)
         cout << "Number of temperature nodes: " << fe_size << endl;
+
+    // Instantiate OutputManager
+    output = new OutputManager(rank, *fespace, user_input);
+
 }
 
 void JOTSDriver::ProcessMaterialProperties()
@@ -231,9 +243,8 @@ void JOTSDriver::ProcessMaterialProperties()
     
     // Loop over INPUT material property info map from Config
     map<string, vector<string>> in_mat_props = user_input.GetMaterialPropertyInfoMap();
-    map<string, vector<string>>::iterator it;
 
-    for (it = in_mat_props.begin(); it != in_mat_props.end(); it++)
+    for (map<string, vector<string>>::iterator it = in_mat_props.begin(); it != in_mat_props.end(); it++)
     {   
         // Print label
         string label = it->first;
@@ -266,6 +277,9 @@ void JOTSDriver::ProcessMaterialProperties()
 
         // Print remaining portion of label
         cout << mat_props[mp]->GetInitString() << endl;
+
+        // Register material property output
+        output->RegisterCoefficient(mp_info[0], mat_props[mp]->GetCoeffRef());
     }
 
 }
@@ -447,7 +461,7 @@ void JOTSDriver::ProcessBoundaryConditions()
     }
 }
 
-void JOTSDriver::ProcessLinearSolverSettings()
+void JOTSDriver::PrintLinearSolverSettings()
 {
     // Print linear solver settings
     if (rank == 0)
@@ -461,7 +475,7 @@ void JOTSDriver::ProcessLinearSolverSettings()
     }
 }
 
-void JOTSDriver::ProcessOutput()
+void JOTSDriver::PrintOutput()
 {
     // Print output settings
     if (rank == 0)
