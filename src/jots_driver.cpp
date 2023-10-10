@@ -64,8 +64,8 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
     // Process LinearSolverSettings
     PrintLinearSolverSettings();
     //----------------------------------------------------------------------
-    // Print Output Settings
-    PrintOutputSettings();
+    // Print Output settings
+    PrintOutput();
     //---------------------------------------------------------------------
     // Create Simulation object
     if (rank == 0)
@@ -242,12 +242,13 @@ void JOTSDriver::ProcessMaterialProperties()
         cout << "\n";
     
     // Loop over INPUT material property info map from Config
-    map<string, vector<string>> in_mat_props = user_input.GetMaterialPropertyInfoMap();
+    // Get keys
+    vector<string> in_mat_prop_labels = user_input.GetMaterialPropertyKeys();
 
-    for (map<string, vector<string>>::iterator it = in_mat_props.begin(); it != in_mat_props.end(); it++)
+    for (int i = 0; i < in_mat_prop_labels.size(); i++)
     {   
         // Print label
-        string label = it->first;
+        string label = in_mat_prop_labels[i];
         if (rank == 0)
             cout << label << ": ";
         
@@ -255,7 +256,7 @@ void JOTSDriver::ProcessMaterialProperties()
         MATERIAL_PROPERTY mp = Material_Property_Map.at(label);
 
         // Add material property to material property map
-        vector<string> mp_info = it->second;
+        vector<string> mp_info = user_input.GetMaterialPropertyInfo(label);
         vector<double> poly_coeffs;
 
         switch (Material_Model_Map.at(mp_info[0]))
@@ -276,10 +277,11 @@ void JOTSDriver::ProcessMaterialProperties()
         }
 
         // Print remaining portion of label
-        cout << mat_props[mp]->GetInitString() << endl;
+        if (rank == 0)
+            cout << mat_props[mp]->GetInitString() << endl;
 
         // Register material property output
-        output->RegisterCoefficient(mp_info[0], mat_props[mp]->GetCoeffRef());
+        output->RegisterCoefficient(label, mat_props[mp]->GetCoeffRef());
     }
 
 }
@@ -341,7 +343,7 @@ void JOTSDriver::ProcessBoundaryConditions()
     if (rank == 0)
         cout << "\n";
 
-    // Confirm user input matches mesh bdr_attributes...
+    // Confirm user input matches mesh bdr_attributes size...
     // Check count
     if (pmesh->bdr_attributes.Size() != user_input.GetBCCount())
     {
@@ -351,22 +353,18 @@ void JOTSDriver::ProcessBoundaryConditions()
     }
     
     // Check one-to-oneness
-    // Also create an array of indices that match mesh bdr attributes to input bdr attributes
-    // ^ in event that user inputs bdr attributes in different order than mesh
-    vector<int> bdr_index;
-    for (size_t i = 0; i < user_input.GetBCCount(); i++)
+    vector<int> bc_keys = user_input.GetBCKeys();
+    for (size_t i = 0; i < pmesh->bdr_attributes.Size(); i++)
     {
         int attr = pmesh->bdr_attributes[i];
         bool one_to_one = false;
 
-        for (size_t j = 0; j < user_input.GetBCCount(); j++)
-        {   
-            pair<int, vector<string>> bc = user_input.GetBCInfo(j);
-            if (attr == bc.first)
+        for (size_t j = 0; j < bc_keys.size(); j++)
+        {
+            if (attr == bc_keys[j])
             {
                 one_to_one = true;
-                bdr_index.push_back(j);
-                j = user_input.GetBCCount();
+                j = bc_keys.size();
             }
         }
         if (!one_to_one)
@@ -385,52 +383,53 @@ void JOTSDriver::ProcessBoundaryConditions()
     vector<int> precice_bc_indices;
     boundary_conditions = new BoundaryCondition*[user_input.GetBCCount()];
     for (int i = 0; i < user_input.GetBCCount(); i++)
-    {
-        pair<int, vector<string>> bc = user_input.GetBCInfo(bdr_index[i]);
+    {   
+        int attr = pmesh->bdr_attributes[i];
+        vector<string> bc_info = user_input.GetBCInfo(attr);
         double value;
         string mesh_name;
         double amp;
         double afreq;
         double phase;
         double shift;
-        switch (Boundary_Condition_Map.at(bc.second[0]))
+        switch (Boundary_Condition_Map.at(bc_info[0]))
         {
             case BOUNDARY_CONDITION::ISOTHERMAL:
-                value = stod(bc.second[1].c_str());
-                boundary_conditions[i] =  new UniformConstantIsothermalBC(bc.first, value);
+                value = stod(bc_info[1].c_str());
+                boundary_conditions[i] =  new UniformConstantIsothermalBC(attr, value);
                 break;
             case BOUNDARY_CONDITION::HEATFLUX:
-                value = stod(bc.second[1].c_str());
-                boundary_conditions[i] =  new UniformConstantHeatFluxBC(bc.first, value);
+                value = stod(bc_info[1].c_str());
+                boundary_conditions[i] =  new UniformConstantHeatFluxBC(attr, value);
                 break;
             case BOUNDARY_CONDITION::PRECICE_ISOTHERMAL:
-                mesh_name = bc.second[1];
-                value = stod(bc.second[2].c_str());
-                boundary_conditions[i] =  new PreciceIsothermalBC(bc.first, *fespace, mesh_name, value);
+                mesh_name = bc_info[1];
+                value = stod(bc_info[2].c_str());
+                boundary_conditions[i] =  new PreciceIsothermalBC(attr, *fespace, mesh_name, value);
                 precice_bc_indices.push_back(i);
                 break;
             case BOUNDARY_CONDITION::PRECICE_HEATFLUX:
-                mesh_name = bc.second[1];
-                value = stod(bc.second[2].c_str());
-                boundary_conditions[i] =  new PreciceHeatFluxBC(bc.first, *fespace, mesh_name, value);
+                mesh_name = bc_info[1];
+                value = stod(bc_info[2].c_str());
+                boundary_conditions[i] =  new PreciceHeatFluxBC(attr, *fespace, mesh_name, value);
                 precice_bc_indices.push_back(i);
                 break;
             case BOUNDARY_CONDITION::SINUSOIDAL_ISOTHERMAL:
-                amp = stod(bc.second[1].c_str());
-                afreq = stod(bc.second[2].c_str());
-                phase = stod(bc.second[3].c_str());
-                shift = stod(bc.second[4].c_str());
-                boundary_conditions[i] = new UniformSinusoidalIsothermalBC(bc.first, time, amp, afreq, phase, shift);
+                amp = stod(bc_info[1].c_str());
+                afreq = stod(bc_info[2].c_str());
+                phase = stod(bc_info[3].c_str());
+                shift = stod(bc_info[4].c_str());
+                boundary_conditions[i] = new UniformSinusoidalIsothermalBC(attr, time, amp, afreq, phase, shift);
                 break;
             case BOUNDARY_CONDITION::SINUSOIDAL_HEATFLUX:
-                amp = stod(bc.second[1].c_str());
-                afreq = stod(bc.second[2].c_str());
-                phase = stod(bc.second[3].c_str());
-                shift = stod(bc.second[4].c_str());
-                boundary_conditions[i] = new UniformSinusoidalHeatFluxBC(bc.first, time, amp, afreq, phase, shift);
+                amp = stod(bc_info[1].c_str());
+                afreq = stod(bc_info[2].c_str());
+                phase = stod(bc_info[3].c_str());
+                shift = stod(bc_info[4].c_str());
+                boundary_conditions[i] = new UniformSinusoidalHeatFluxBC(attr, time, amp, afreq, phase, shift);
                 break;
             default:
-                MFEM_ABORT("Invalid/Unknown boundary condition specified: '" + bc.second[0] + "'");
+                MFEM_ABORT("Invalid/Unknown boundary condition specified: '" + bc_info[0] + "'");
                 return;
         }
     }

@@ -4,17 +4,38 @@
 
 #include "config_file.hpp"
 #include "material_property.hpp"
+#include "helper_functions.hpp"
+
+struct CoefficientOutput
+{
+    mfem::Coefficient& coeff_ref; //ProjectCoefficient not const! Cannot have as const
+    mfem::ParGridFunction* pgf;
+
+    CoefficientOutput(mfem::Coefficient& in_coeff, mfem::ParFiniteElementSpace* f) : coeff_ref(in_coeff), pgf(nullptr) { pgf = new mfem::ParGridFunction(f); };
+    ~CoefficientOutput() { delete pgf; };
+};
+
+
+struct VectorOutput
+{
+    const mfem::Vector& vector_ref;
+    mfem::ParGridFunction* pgf;
+
+    VectorOutput(const mfem::Vector& in_vec, mfem::ParFiniteElementSpace* f) : vector_ref(in_vec), pgf(nullptr) { pgf = new mfem::ParGridFunction(f); };
+    ~VectorOutput() { delete pgf; };
+};
 
 class OutputManager
 {
     private:
-        const static int RESTART_PRECISION;
         mfem::VisItDataCollection* visit_dc;
         mfem::ParaViewDataCollection* paraview_dc;
 
         mfem::ParFiniteElementSpace& fespace;
-        std::map<std::string, std::pair<mfem::Coefficient&, mfem::ParGridFunction*>> coeff_output_map;
-        std::map<std::string, std::pair<const mfem::Vector&, mfem::ParGridFunction*>> vector_output_map;
+        mfem::ConstantCoefficient rank_coeff;
+
+        std::map<std::string, CoefficientOutput*> coeff_output_map;
+        std::map<std::string, VectorOutput*> vector_output_map;
 
         const int rank;
 
@@ -30,7 +51,7 @@ class OutputManager
         void WriteVizOutput(const int it_num, const double time);
         void WriteRestartOutput(const int it_num, const double time);
 
-        const mfem::ParGridFunction* GetT_gf();
+        const mfem::ParGridFunction* GetVectorPGF(std::string vec_label);
 
         ~OutputManager();
 };

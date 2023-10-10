@@ -11,6 +11,7 @@ class Simulation
         mfem::Vector u;
         mfem::Vector u_saved;
     public:
+        Simulation(const std::string in_name) : solution_name(in_name) {};
         std::string GetSolutionName() { return solution_name; };
         //mfem::Vector& GetSolutionVectorRef()
         void SaveOldState() { u_saved = u; };
@@ -32,7 +33,7 @@ class UnsteadyHeatSimulation : public Simulation
         double dt;
         //ConductionOperator* oper;
     public:
-        UnsteadyHeatSimulation() : solution_name("Temperature") {};
+        UnsteadyHeatSimulation() : Simulation("Temperature") {};
 
         void InitializeSolver() {};
         bool Running() {};

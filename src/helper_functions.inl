@@ -1,9 +1,10 @@
 using namespace mfem;
+using namespace std;
 
 namespace Factory
 {
 
-inline IterativeSolver* GetSolver(std::string solver_label, MPI_Comm comm_)
+inline IterativeSolver* GetSolver(string solver_label, MPI_Comm comm_)
 {
     switch (Solver_Map.at(solver_label))
     {
@@ -21,7 +22,7 @@ inline IterativeSolver* GetSolver(std::string solver_label, MPI_Comm comm_)
     return nullptr;
 }
 
-inline HypreSmoother::Type GetPrec(std::string prec_label) 
+inline HypreSmoother::Type GetPrec(string prec_label) 
 {
     switch (Preconditioner_Map.at(prec_label))
     {
@@ -34,6 +35,23 @@ inline HypreSmoother::Type GetPrec(std::string prec_label)
     }
 
     return HypreSmoother::Jacobi;
+}
+
+}
+
+namespace Helper
+{
+    
+template<typename Key, typename Value>
+inline vector<Key> GetKeyVector(map<Key, Value> in_map)
+{
+    vector<Key> keys;
+    for (typename map<Key, Value>::iterator it = in_map.begin(); it != in_map.end(); it++)
+    {
+        keys.push_back(it->first);
+    }
+
+    return keys;
 }
 
 }

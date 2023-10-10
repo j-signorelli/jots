@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
     // Get the error per rank 
     // Not using ComputeL2Error because requires both GFs to be pointing to same Mesh in memory
     // ^(Not trivial)
-    double error = driver_r->GetOutputManager()->GetT_gf()->DistanceTo(*driver_0->GetOutputManager()->GetT_gf());
+    double error = driver_r->GetOutputManager()->GetVectorPGF("Temperature")->DistanceTo(*driver_0->GetOutputManager()->GetVectorPGF("Temperature"));
 
     // Print the error per rank
     for (int i = 0; i < num_procs; i++)

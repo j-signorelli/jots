@@ -83,7 +83,7 @@ int Analytical_Reg_Test(string input_file, std::function<double(const Vector &, 
     u_exact.SetTime(input.GetFinalTime());
 
     // Get the finite-element approximation solution
-    double error = driver->GetOutputManager()->GetT_gf()->ComputeL2Error(u_exact);
+    double error = driver->GetOutputManager()->GetVectorPGF("Temperature")->ComputeL2Error(u_exact);
 
     if (myid == 0)
         cout << "Error: " << error;

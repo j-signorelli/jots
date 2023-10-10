@@ -3,10 +3,9 @@
 using namespace std;
 using namespace mfem;
 
-//const int OutputManager::RESTART_PRECISION = 16;
-
 OutputManager::OutputManager(const int in_rank, ParFiniteElementSpace& f, const Config& user_input)
 : rank(in_rank),
+  rank_coeff(in_rank),
   fespace(f)
 {   
     //------------------------------------------------
@@ -29,7 +28,6 @@ OutputManager::OutputManager(const int in_rank, ParFiniteElementSpace& f, const 
     //------------------------------------------------
     // Instantiate rank output
     // Rank:
-    ConstantCoefficient rank_coeff(in_rank);
     RegisterCoefficient("Rank", rank_coeff);
 
 }
@@ -37,53 +35,54 @@ OutputManager::OutputManager(const int in_rank, ParFiniteElementSpace& f, const 
 void OutputManager::RegisterCoefficient(const string output_name, Coefficient& coeff)
 {
 
-    // Create new grid function for it and add Coefficient reference and GF pair to map
-    pair<Coefficient&, ParGridFunction*> coeff_pair(coeff, new ParGridFunction(&fespace));
-    coeff_output_map[output_name] = coeff_pair;
+    // Create new CoefficientOutput + PGF for it
+    coeff_output_map[output_name] = new CoefficientOutput(coeff, &fespace);
 
     // Project coefficient onto it
-    coeff_output_map[output_name].second->ProjectCoefficient(coeff);
+    coeff_output_map[output_name]->pgf->ProjectCoefficient(coeff);
 
     // Register
-    paraview_dc->RegisterField(output_name, coeff_output_map[output_name].second);
+    paraview_dc->RegisterField(output_name, coeff_output_map[output_name]->pgf);
 }
 
 void OutputManager::RegisterSolutionVector(const string output_name, const Vector& vec)
 {
     // Create new grid function for it and add Vector reference and GF pair to map
-    pair<const Vector&, ParGridFunction*> vec_pair(vec, new ParGridFunction(&fespace));
-    vector_output_map[output_name] = vec_pair;
+    VectorOutput(vec, &fespace);
+    vector_output_map[output_name] = new VectorOutput(vec, &fespace);
 
-    // Project coefficient onto it
-    vector_output_map[output_name].second->SetFromTrueDofs(vec);
+    // Set PGF from vector
+    vector_output_map[output_name]->pgf->SetFromTrueDofs(vec);
 
     // Register to both ParaView + Restarts
-    paraview_dc->RegisterField(output_name, vector_output_map[output_name].second);
-    visit_dc->RegisterField(output_name, vector_output_map[output_name].second);
+    paraview_dc->RegisterField(output_name, vector_output_map[output_name]->pgf);
+    visit_dc->RegisterField(output_name, vector_output_map[output_name]->pgf);
 }
 
 void OutputManager::UpdateGridFunctions()
 {
     // Update all coefficient-driven GFs
-    for (map<string, pair<Coefficient&, ParGridFunction*>> it = coeff_output_map.begin(); it != coeff_output_map; it++)
+    vector<string> coeff_labels = Helper::GetKeyVector(coeff_output_map);
+    for (int i = 0; i < coeff_labels.size(); i++)
     {
-        string key = it->first;
-        coeff_output_map[key].second->ProjectCoefficient(coeff_output_map[key].first);
+        string key = coeff_labels[i];
+        coeff_output_map[key]->pgf->ProjectCoefficient(coeff_output_map[key]->coeff_ref);
     }
 
     // Update all vector-driven GFs
-    for (map<string, pair<Vector&, ParGridFunction*>> it = vector_output_map.begin(); it != vector_output_map; it++)
+    vector<string> vector_labels = Helper::GetKeyVector(vector_output_map);
+    for (int i = 0; i < vector_labels.size(); i++)
     {
-        string key = it->first;
-        vector_output_map[key].second->SetFromTrueDofs(vector_output_map[key].first);
+        string key = vector_labels[i];
+        vector_output_map[key]->pgf->SetFromTrueDofs(vector_output_map[key]->vector_ref);
     }
     
 }
 
-const ParGridFunction* OutputManager::GetT_gf()
+const ParGridFunction* OutputManager::GetVectorPGF(string vec_label)
 {
     UpdateGridFunctions();
-    return T_gf;
+    return vector_output_map[vec_label]->pgf;
 }
 
 void OutputManager::WriteVizOutput(const int it_num, const double time)
@@ -106,8 +105,8 @@ OutputManager::~OutputManager()
 {
     delete visit_dc;
     delete paraview_dc;
-    for (map<string, pair<Coefficient&, ParGridFunction*>> it = coeff_output_map.begin(); it != coeff_output_map.end(); it++)
-        delete it->second.second;
-    for (map<string, pair<Vector&, ParGridFunction*>> it = vector_output_map.begin(); it != vector_output_map.end(); it++)
-        delete it->second.second;   
+    for (auto const& x : coeff_output_map)
+        delete x.second;
+    for (auto const& x : vector_output_map)
+        delete x.second;   
 }

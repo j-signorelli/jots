@@ -13,4 +13,7 @@ mfem::HypreSmoother::Type GetPrec(std::string prec_label);
 
 }
 
-#include "factory_functions.inl"
+template<typename Key, typename Value>
+std::vector<Key> GetKeyVector(std::map<Key, Value> in_map);
+
+#include "helper_functions.inl"

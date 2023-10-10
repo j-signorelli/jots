@@ -6,7 +6,7 @@
 #include "config_file.hpp"
 #include "boundary_condition.hpp"
 #include "material_property.hpp"
-#include "factory_functions.hpp"
+#include "helper_functions.hpp"
 
 using namespace mfem;
 

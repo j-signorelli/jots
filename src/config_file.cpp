@@ -100,8 +100,8 @@ void Config::ReadBCs()
         vector<string> single_bc_info;
         SetInputStringVector(v.second.data(), single_bc_info);
         
-        // Add to bc_info
-        bc_info.push_back(make_pair(attr, single_bc_info));
+        // Add to bc_info_map
+        bc_info_map[attr] = single_bc_info;
         
     }
 }

@@ -9,6 +9,7 @@
 #include "boost/algorithm/string.hpp"
 
 #include "option_structure.hpp"
+#include "helper_functions.hpp"
 
 class Config
 {
@@ -36,9 +37,8 @@ class Config
         std::string precice_participant_name;
         std::string precice_config_file;
 
-        size_t bc_count;   
-        // TODO: Update this to just a map with int keys and vector values?     
-        std::vector<std::pair<int, std::vector<std::string>>> bc_info; // Array of pairs where first value is attribute, second is string vector for that BC
+        size_t bc_count;     
+        std::map<int, std::vector<std::string>> bc_info_map; // Map where key is attribute, value is string vector for that BC
         
         bool using_time_integration;
         std::string time_scheme_label;      /*!< \brief Time integration scheme to use */
@@ -93,7 +93,7 @@ class Config
 
         void SetParallelRefine(int in_ref) { parallel_refine = in_ref; };
 
-        std::map<std::string, std::vector<std::string>> GetMaterialPropertyInfoMap() const { return mat_prop_info_map; };
+        std::vector<std::string> GetMaterialPropertyKeys() const { return Helper::GetKeyVector(mat_prop_info_map); };
 
         std::vector<std::string> GetMaterialPropertyInfo(std::string mat_prop_label) const { return mat_prop_info_map.at(mat_prop_label); };
 
@@ -115,9 +115,7 @@ class Config
 
         void SetInitialTemp(double in_temp) { initial_temp = in_temp; };
 
-        int GetBCCount() const {return bc_info.size(); };
-
-        void ResizeBCs(int in_bc_count) { bc_info.resize(in_bc_count); };
+        int GetBCCount() const {return bc_info_map.size(); };
 
         bool UsingPrecice() const { return with_precice; };
 
@@ -131,9 +129,11 @@ class Config
     
         void SetPreciceConfigFile(std::string in_file) { precice_config_file = in_file; };
 
-        std::pair<int, std::vector<std::string>> GetBCInfo(int i) const { return bc_info[i]; };
+        std::vector<int> GetBCKeys() const { return Helper::GetKeyVector(bc_info_map); };
 
-        void SetBCInfo(int i, std::pair<int, std::vector<std::string>> in_bc) { bc_info[i] = in_bc; };
+        std::vector<std::string> GetBCInfo(int attr) const { return bc_info_map.at(attr); };
+
+        void SetBCInfo(int attr, std::vector<std::string> in_bc) { bc_info_map[attr] = in_bc; };
 
         bool UsingTimeIntegration() const { return using_time_integration; };
 
