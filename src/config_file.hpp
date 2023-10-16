@@ -135,6 +135,8 @@ class Config
 
         void SetBCInfo(int attr, std::vector<std::string> in_bc) { bc_info_map[attr] = in_bc; };
 
+        void DeleteBCInfo(int attr) { bc_info_map.erase(attr); };
+        
         bool UsingTimeIntegration() const { return using_time_integration; };
 
         void SetTimeIntegration(bool in_using) { using_time_integration = in_using; };
