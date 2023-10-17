@@ -5,12 +5,15 @@ using namespace mfem;
 using namespace precice;
 
 const string JOTSDriver::LINE = "-------------------------------------------------------------------";
-const double JOTSDriver::TIME_TOLERANCE = 1e-14;
 
 JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs, MPI_Comm in_comm)
 : rank(myid),
   size(num_procs),
   comm(in_comm),
+  it_num(0),
+  time(0.0),
+  dt(0.0),
+  tf(0.0),
   sim(nullptr),
   adapter(nullptr),
   user_input(input),
@@ -21,7 +24,7 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
   fe_coll(nullptr),
   fespace(nullptr),
   oper(nullptr),
-  temp_T_gf(nullptr)
+  temp_u_gf(nullptr)
 {   
     if (rank == 0)
     {
@@ -61,7 +64,7 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
     // Process BoundaryConditions
     ProcessBoundaryConditions();
     //----------------------------------------------------------------------
-    // Process LinearSolverSettings
+    // Print LinearSolverSettings
     PrintLinearSolverSettings();
     //----------------------------------------------------------------------
     // Print Output settings
@@ -76,20 +79,34 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
     switch (Simulation_Type_Map.at(user_input.GetSimTypeLabel()))
     {
         case SIMULATION_TYPE::UNSTEADY:
-            sim = new UnsteadyHeatSimulation();
+            sim = new UnsteadyHeatSimulation(temp_u_gf,
+                                             user_input,
+                                             boundary_conditions,
+                                             all_bdr_attr_markers,
+                                             mat_props[MATERIAL_PROPERTY::DENSITY], 
+                                             mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT],
+                                             mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY],
+                                             *fespace,
+                                             time);
             break;
         case SIMULATION_TYPE::STEADY:
             break;
     }
-    temp_T_gf->GetTrueDofs(T);
     // Register solution vector with OutputManager
-    output->RegisterSolutionVector(sim->GetSolutionName(), T);
+    output->RegisterSolutionVector(sim->GetSolutionName(), sim->GetConstSolutionRef());
     //----------------------------------------------------------------------
-    // Instantiate ConductionOperator, sending all necessary parameters
-    oper = new ConductionOperator(user_input, boundary_conditions, all_bdr_attr_markers, mat_props[MATERIAL_PROPERTY::DENSITY], mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT], mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY], *fespace, time);
     if (rank == 0)
         cout << "Done!" << endl;
     //----------------------------------------------------------------------
+
+    // Initialize material properties w/ solution field (only pertinent for non-uniform non-constant ones)
+    if (rank == 0)
+        cout << "Initializing material properties field...";
+
+    UpdateMatProps();
+
+    if (rank == 0)
+        cout << " Done!" << endl;
 }
 
 void JOTSDriver::ProcessFiniteElementSetup()
@@ -149,15 +166,13 @@ void JOTSDriver::ProcessFiniteElementSetup()
         
         //----------------------------------------------------------------------
         // Create solution GF
-        temp_T_gf = new ParGridFunction(fespace);
+        temp_u_gf = new ParGridFunction(fespace);
         
         //----------------------------------------------------------------------
         // Print initial condition info + set T_gf
         ConstantCoefficient coeff_IC(user_input.GetInitialTemp());
-        temp_T_gf->ProjectCoefficient(coeff_IC);
+        temp_u_gf->ProjectCoefficient(coeff_IC);
         
-        it_num = 0;
-        time = 0.0;
 
         if (rank == 0)
             cout << "Initial temperature field: " << user_input.GetInitialTemp() << endl;
@@ -184,16 +199,15 @@ void JOTSDriver::ProcessFiniteElementSetup()
 
         //----------------------------------------------------------------------
         // Get the temperature grid function
-        temp_T_gf = temp_visit_dc.GetParField("Temperature");
+        temp_u_gf = temp_visit_dc.GetParField("Temperature");
 
         // Take ownership of fe_coll and fespace (See MakeOwner docs)
-        fe_coll = temp_T_gf->OwnFEC();
-        fespace = temp_T_gf->ParFESpace();
-        temp_T_gf->MakeOwner(NULL);
+        fe_coll = temp_u_gf->OwnFEC();
+        fespace = temp_u_gf->ParFESpace();
+        temp_u_gf->MakeOwner(NULL);
 
         // Now take ownership of mesh and temperature field
         // NOTE: If any further fields are added to restarts, they MUST be taken and deallocated here!!!!!
-        // temp_T_gf deallocated below
         // pmesh deallocated in destructor
         
         temp_visit_dc.SetOwnData(false);
@@ -299,20 +313,7 @@ void JOTSDriver::ProcessTimeIntegration()
     
     }
     //----------------------------------------------------------------------
-    // Set ODE time integrator
-    switch (Time_Scheme_Map.at(user_input.GetTimeSchemeLabel()))
-    {
-        case TIME_SCHEME::EULER_IMPLICIT:
-            ode_solver = new BackwardEulerSolver;
-            break;
-        case TIME_SCHEME::EULER_EXPLICIT:
-            ode_solver = new ForwardEulerSolver;
-            break;
-        case TIME_SCHEME::RK4:
-            ode_solver = new RK4Solver;
-    }
-    //----------------------------------------------------------------------
-    // Set time stuff
+    // Set dt and tf
     dt = user_input.Getdt();
     tf = user_input.GetFinalTime();
 }
@@ -487,36 +488,10 @@ void JOTSDriver::PrintOutput()
 
 void JOTSDriver::Run()
 {   
-    // Initialize material properties (only pertinent for non-uniform non-constant ones)
-    if (rank == 0)
-        cout << "Initializing material properties field...";
 
-    UpdateMatProps();
-
-    if (rank == 0)
-        cout << " Done!" << endl;
-    
-
-    // Initialize the ODE Solver
-    if (rank == 0)
-        cout << "Initializing solver...";
-
-    ode_solver->Init(*oper);
-
-    if (rank == 0)
-        cout << " Done!" << endl;
-
-
-
-    double precice_dt = 0;
-    // Implicit coupling:
-    double precice_saved_time = 0;
-    double precice_saved_it_num = 0;
-
-    // Output IC as ParaView
-    if (it_num == 0)
+    // Output IC to ParaView if time-integrating simulation
+    if (it_num == 0 && user_input.UsingTimeIntegration())
         output->WriteVizOutput(it_num, time);
-
 
     // If using precice: initialize + get/send initial data if needed
     // Make actual precice interface calls directly here for readability/clarity
@@ -531,15 +506,13 @@ void JOTSDriver::Run()
         adapter->Interface()->initializeData();
     }
     
-    bool viz_out = false;
-    bool res_out = false;
-
-    while ( (!user_input.UsingPrecice() && time < tf) 
-        || (user_input.UsingPrecice() && adapter->Interface()->isCouplingOngoing()))//Main Solver Loop - use short-circuiting
+    while ((!user_input.UsingPrecice() && sim->IsRunning()) 
+    || (user_input.UsingPrecice() && adapter->Interface()->isCouplingOngoing())) // use short-circuiting
     {
-
+        // Handle preCICE calls
         if (user_input.UsingPrecice())
         {
+            // Implicit coupling: save state
             if (adapter->Interface()->isActionRequired(PreciceAdapter::cowic))
             {
                 precice_saved_time = time;
@@ -547,33 +520,21 @@ void JOTSDriver::Run()
                 adapter->SaveOldState(T);
                 adapter->Interface()->markActionFulfilled(PreciceAdapter::cowic);
             }
+
+            // Get read data
             if (adapter->Interface()->isReadDataAvailable())
                 adapter->GetReadData();
-        }
 
-
-        // Update BCs and update BLFs + LFs in operator, if required
-        PreprocessIteration();
-
-
-        // Update timestep if needed
-        if (user_input.UsingPrecice())
-        {
+            // Update timestep if needed
             if (precice_dt < dt)
                 dt = precice_dt;
         }
 
-        // Step in time - time automatically updated
-        // NOTE: Do NOT use ANY ODE-Solvers that update dt
-        ode_solver->Step(T, time, dt);        
-        it_num++; // increment it_num
+        // Preprocess iteration
+        PreprocessIteration();
 
-        // Leave solver if time now greater than tf -- solution is done
-        if (time > tf && abs(time-tf) > TIME_TOLERANCE)
-            continue;
-        
-        // Update material properties with new temperature
-        UpdateMatProps();
+        // Iterate + update material properties field
+        Iteration();
 
         // Write any preCICE data, reload state if needed
         if (user_input.UsingPrecice())
@@ -597,47 +558,7 @@ void JOTSDriver::Run()
             }
         }
    
-
-        // Print current timestep information:
-        if (rank == 0)
-        {
-            printf("Step #%10i || Time: %1.6e out of %-1.6e || dt: %1.6e \n", it_num, time, tf, dt);
-                
-        }
-        
-        // Check if blow up
-        if (T.Max() > 1e10)
-        {
-            MFEM_ABORT("JOTS has blown up");
-            return;
-        }
-
-        // Output
-        viz_out = user_input.GetVisFreq() != 0 && it_num % user_input.GetVisFreq() == 0;
-        res_out = user_input.GetRestartFreq() != 0 && it_num % user_input.GetRestartFreq() == 0;
-        if (viz_out || res_out)
-        {
-            if (rank == 0)
-                cout << LINE << endl;
-                
-            if (viz_out)
-            {
-                if (rank == 0)
-                    cout << "Saving Paraview Data: Cycle " << it_num << endl;
-                output->WriteVizOutput(it_num, time);
-            }
-
-            if (res_out)
-            {
-                if (rank == 0)
-                    cout << "Saving Restart File: Cycle " << it_num << endl;
-                output->WriteRestartOutput(it_num, time);
-            }
-
-            if (rank == 0)
-                cout << LINE << endl;
-        }
-
+        PostprocessIteration();
     }
     
     // Finalize preCICE if used
@@ -649,72 +570,105 @@ void JOTSDriver::Run()
 
 void JOTSDriver::UpdateMatProps()
 {
-    if (!mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY]->IsConstant())
-        mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY]->UpdateCoeff(T); // Update k coefficient
-
-    if (!mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT]->IsConstant())
-        mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT]->UpdateCoeff(T); // Update C coefficient
+    for (auto& x : mat_props)
+        if (!x.second->IsConstant()) //x.second is MaterialProperty* value
+        {
+            // Update coefficient using current solution field
+            x.second->UpdateCoeff(sim->GetConstSolutionRef());
+        }
 }
 
-void JOTSDriver::PreprocessIteration()
+void JOTSDriver::UpdateBCs()
 {
-    // If specific heat not constant, it may have changed -> Update mass BLF
-    if (!mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT]->IsConstant())
-        oper->UpdateMass();
-
-    // If conductivity not constant, it may have changed -> Update stiffness BLF
-    if (!mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY]->IsConstant())
-        oper->UpdateStiffness();
-
-    // Update time-dependent/non-constant boundary condition coefficients
-    temp_T_gf->SetFromTrueDofs(T);
-
-    bool n_changed = false;
-    bool d_changed = false;
     for (size_t i = 0; i < user_input.GetBCCount(); i++)
     {   
         // Update coefficients (could be preCICE calls, could be SetTime calls, etc.)
-        if (!boundary_conditions[i]->IsConstant() || !initialized_bcs) // If not constant in time or not yet initialized for first iteration
+        if (!boundary_conditions[i]->IsConstant() || !initialized_bcs) // If not constant or not yet initialized for first iteration
         {
             boundary_conditions[i]->UpdateCoeff();
-
-            if (boundary_conditions[i]->IsEssential())
-            {
-                // Project correct values on boundary for essential BCs
-                d_changed = true;
-                temp_T_gf->ProjectBdrCoefficient(boundary_conditions[i]->GetCoeffRef(), all_bdr_attr_markers[i]);
-            }
-            else
-            {
-                n_changed = true; // Flag that Neumann LF must be updated
-            }
         }
     }
 
     if (!initialized_bcs)
         initialized_bcs = true;
+}
 
-    if (d_changed)
+void JOTSDriver::PreprocessIteration()
+{
+    // Update BCs (should I not have time be a reference to the BCs but instead pass it as an argument?)
+    //              ^^More general and in-line with BCs being f(x,t)
+
+    // Apply Dirichlet BCs to the simulation solution vector
+
+    // Reassemble BLFs and LFs if required
+
+    sim->UpdateDataStructures();
+
+}
+
+void JOTSDriver::Iteration()
+{
+    // Step simulation
+    // Any updates in time should be handled by Simulation class
+    // NOTE: Do NOT use ANY ODE-Solvers that update dt
+    sim->Iterate();
+
+    it_num++; // increment it_num - universal metric
+    
+    // Update material properties with new solution field - important to do before preCICE writes
+    UpdateMatProps();
+}
+
+void JOTSDriver::PostprocessIteration()
+{   
+
+    // Print current timestep information:
+    if (rank == 0)
     {
-        // Apply changed Dirichlet BCs to T
-        temp_T_gf->GetTrueDofs(T);
-        // Here is where can set tmp_du_dt to be used if HO wanted
-        // For higher-order, need T from n-1 timestep in addition to n timestep? is this worth doing?
-        // Need to save previous timestep temperature in restarts
+        printf("Step #%10i || Time: %1.6e out of %-1.6e || dt: %1.6e \n", it_num, time, tf, dt);
+            
+    }
+    
+    // Check if blow up
+    if (T.Max() > 1e10)
+    {
+        MFEM_ABORT("JOTS has blown up");
+        return;
     }
 
-    // If any non-constant Neumann terms, update Neumann linear form
-    if (n_changed)
-        oper->UpdateNeumannTerm();
+    // Write any output files if required
+    bool viz_out = user_input.GetVisFreq() != 0 && it_num % user_input.GetVisFreq() == 0;
+    bool res_out = user_input.GetRestartFreq() != 0 && it_num % user_input.GetRestartFreq() == 0;
+    if (viz_out || res_out)
+    {
+        if (rank == 0)
+            cout << LINE << endl;
+            
+        if (viz_out)
+        {
+            if (rank == 0)
+                cout << "Saving Paraview Data: Cycle " << it_num << endl;
+            output->WriteVizOutput(it_num, time);
+        }
 
+        if (res_out)
+        {
+            if (rank == 0)
+                cout << "Saving Restart File: Cycle " << it_num << endl;
+            output->WriteRestartOutput(it_num, time);
+        }
+
+        if (rank == 0)
+            cout << LINE << endl;
+    }
 }
 
 JOTSDriver::~JOTSDriver()
 {
     delete sim;
     delete adapter;
-    for (map<MATERIAL_PROPERTY, MaterialProperty*>::iterator it = mat_props.begin(); it != mat_props.end(); it++)
-        delete it->second;
+    for (auto& x : mat_props)
+        delete x.second;
     for (size_t i = 0; i < user_input.GetBCCount(); i++)
         delete boundary_conditions[i];
     delete[] boundary_conditions;
@@ -725,6 +679,6 @@ JOTSDriver::~JOTSDriver()
     delete fespace;
     delete oper;
     delete output;
-    delete temp_T_gf;
+    delete temp_u_gf;
 
 }

@@ -48,7 +48,6 @@ void OutputManager::RegisterCoefficient(const string output_name, Coefficient& c
 void OutputManager::RegisterSolutionVector(const string output_name, const Vector& vec)
 {
     // Create new grid function for it and add Vector reference and GF pair to map
-    VectorOutput(vec, &fespace);
     vector_output_map[output_name] = new VectorOutput(vec, &fespace);
 
     // Set PGF from vector
@@ -62,21 +61,13 @@ void OutputManager::RegisterSolutionVector(const string output_name, const Vecto
 void OutputManager::UpdateGridFunctions()
 {
     // Update all coefficient-driven GFs
-    vector<string> coeff_labels = Helper::GetKeyVector(coeff_output_map);
-    for (int i = 0; i < coeff_labels.size(); i++)
-    {
-        string key = coeff_labels[i];
-        coeff_output_map[key]->pgf->ProjectCoefficient(coeff_output_map[key]->coeff_ref);
-    }
+    for (auto& x : coeff_output_map) // x.second is the value of a given {key,value} pair
+        x.second->pgf->ProjectCoefficient(x.second->coeff_ref);
 
     // Update all vector-driven GFs
-    vector<string> vector_labels = Helper::GetKeyVector(vector_output_map);
-    for (int i = 0; i < vector_labels.size(); i++)
-    {
-        string key = vector_labels[i];
-        vector_output_map[key]->pgf->SetFromTrueDofs(vector_output_map[key]->vector_ref);
-    }
-    
+    for (auto& x : vector_output_map)
+        x.second->pgf->SetFromTrueDofs(x.second->vector_ref);
+
 }
 
 const ParGridFunction* OutputManager::GetVectorPGF(string vec_label)
@@ -105,8 +96,8 @@ OutputManager::~OutputManager()
 {
     delete visit_dc;
     delete paraview_dc;
-    for (auto const& x : coeff_output_map)
+    for (auto& x : coeff_output_map)
         delete x.second;
-    for (auto const& x : vector_output_map)
+    for (auto& x : vector_output_map)
         delete x.second;   
 }

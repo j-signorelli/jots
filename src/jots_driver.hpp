@@ -6,7 +6,6 @@
 
 #include "option_structure.hpp"
 #include "config_file.hpp"
-#include "conduction_operator.hpp"
 #include "material_property.hpp"
 #include "precice_adapter.hpp"
 #include "output_manager.hpp"
@@ -24,12 +23,9 @@ class JOTSDriver
         void PrintLinearSolverSettings();
         void PrintOutput();
 
-        //void InitializeSolver();
-
 
     protected:
         static const std::string LINE;
-        static const double TIME_TOLERANCE;
 
 	    const int rank;
         const int size;
@@ -38,6 +34,9 @@ class JOTSDriver
         int dim;
         int it_num;
         double time;
+        double precice_dt;
+        double precice_saved_time;
+        double precice_saved_it_num;
         double dt;
         double tf;
 
@@ -53,27 +52,30 @@ class JOTSDriver
 
         std::map<MATERIAL_PROPERTY, MaterialProperty*> mat_props;
 
-        mfem::ODESolver* ode_solver;
         mfem::ParMesh* pmesh;
         mfem::FiniteElementCollection* fe_coll;
         mfem::ParFiniteElementSpace* fespace;
 
-        ConductionOperator* oper;
         OutputManager* output;
-
-        mfem::Vector T;
         
-        mutable mfem::ParGridFunction* temp_T_gf;
-
-        void UpdateMatProps();
-
-        void PreprocessIteration();
+        mutable mfem::ParGridFunction* temp_u_gf;
 
     public:
         JOTSDriver(const Config& input, const int myid, const int num_procs, MPI_Comm in_comm=MPI_COMM_WORLD);
+        
+        void UpdateMatProps();
+
+        void UpdateBCs();
+
+        void PreprocessIteration();
+
+        void Iteration();
+
+        void PostprocessIteration();
+
         void Run();
         
-        OutputManager* GetOutputManager() { return output; };
+        const OutputManager* GetOutputManager() { return output; };
 
         ~JOTSDriver();
 };

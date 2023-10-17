@@ -37,6 +37,21 @@ inline HypreSmoother::Type GetPrec(string prec_label)
     return HypreSmoother::Jacobi;
 }
 
+inline ODESolver* GetODESolver(string time_scheme_label)
+{
+    switch (Time_Scheme_Map.at(user_input.GetTimeSchemeLabel()))
+    {
+        case TIME_SCHEME::EULER_IMPLICIT:
+            return new BackwardEulerSolver;
+            break;
+        case TIME_SCHEME::EULER_EXPLICIT:
+            return new ForwardEulerSolver;
+            break;
+        case TIME_SCHEME::RK4:
+            return new RK4Solver;
+    }
+}
+
 }
 
 namespace Helper

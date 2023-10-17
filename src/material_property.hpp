@@ -18,7 +18,7 @@ class MaterialProperty
         MATERIAL_MODEL GetModel() const { return model; };
         mfem::Coefficient& GetCoeffRef() const { return *coeff; }; // To be used only for assigning to linear/bilinear forms or projecting coeff, so declared const
 
-        virtual bool IsConstant() const = 0; // true if dk_dt = 0
+        virtual bool IsConstant() const = 0; // true if dk_du = 0
         virtual void UpdateCoeff(const mfem::Vector& T_ref) = 0;
 
         virtual std::string GetInitString() const = 0;
