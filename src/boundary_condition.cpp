@@ -46,16 +46,16 @@ string PreciceHeatFluxBC::GetInitString() const
     return sstm.str();
 }
 
-UniformConstantBC::UniformConstantBC(const int attr, const BOUNDARY_CONDITION in_type, const double in_value)
-: BoundaryCondition(attr, in_type),
+UniformConstantBC::UniformConstantBC(const int attr, const double in_value)
+: BoundaryCondition(attr),
   uniform_value(in_value)
 {
     // Initialize coefficient
     coeff = new ConstantCoefficient(uniform_value);
 }
         
-UniformSinusoidalBC::UniformSinusoidalBC(const int attr, BOUNDARY_CONDITION in_type, const double& in_tref, const double in_amp, const double in_angfreq, const double in_phase, const double in_vert)
-: BoundaryCondition(attr, in_type),
+UniformSinusoidalBC::UniformSinusoidalBC(const int attr, const double& in_tref, const double in_amp, const double in_angfreq, const double in_phase, const double in_vert)
+: BoundaryCondition(attr),
   time_ref(in_tref),
   amplitude(in_amp),
   ang_freq(in_angfreq),
@@ -74,8 +74,8 @@ void UniformSinusoidalBC::UpdateCoeff()
     coeff->SetTime(time_ref);
 }
 
-PreciceBC::PreciceBC(const int attr, const BOUNDARY_CONDITION in_type, ParFiniteElementSpace& f, const string in_mesh, const double in_value, const string in_read, const string in_write) 
-: BoundaryCondition(attr, in_type),
+PreciceBC::PreciceBC(const int attr, ParFiniteElementSpace& f, const string in_mesh, const double in_value, const string in_read, const string in_write) 
+: BoundaryCondition(attr),
   fespace(f),
   mesh_name(in_mesh),
   default_value(in_value),
