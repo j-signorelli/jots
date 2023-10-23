@@ -14,7 +14,7 @@ static const std::map<std::string, SIMULATION_TYPE> Simulation_Type_Map = {{"Uns
                                                                            {"Steady", SIMULATION_TYPE::STEADY}};
 
 
-enum class MATERIAL_PROPERTY
+enum class MATERIAL_PROPERTY : int
 {
   DENSITY=0,
   SPECIFIC_HEAT=1,

@@ -18,6 +18,7 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
   adapter(nullptr),
   user_input(input),
   boundary_conditions(nullptr),
+  mat_props(nullptr),
   initialized_bcs(false),
   ode_solver(nullptr),
   pmesh(nullptr),
@@ -254,7 +255,12 @@ void JOTSDriver::ProcessMaterialProperties()
 {   
     if (rank == 0)
         cout << "\n";
-    
+
+    // Instantiate material property array w/ max number of mat props
+    mat_props = new MaterialProperty*[Material_Property_Map.size()];
+    for (size_t i = 0; i < Material_Property_Map.size(); i++)
+        mat_props[i] = nullptr;
+
     // Loop over INPUT material property info map from Config
     // Get keys
     vector<string> in_mat_prop_labels = user_input.GetMaterialPropertyKeys();
@@ -269,7 +275,7 @@ void JOTSDriver::ProcessMaterialProperties()
         // Get material property type
         MATERIAL_PROPERTY mp = Material_Property_Map.at(label);
 
-        // Add material property to material property map
+        // Add material property to material property array
         vector<string> mp_info = user_input.GetMaterialPropertyInfo(label);
         vector<double> poly_coeffs;
 
@@ -570,11 +576,11 @@ void JOTSDriver::Run()
 
 void JOTSDriver::UpdateMatProps()
 {
-    for (auto& x : mat_props)
-        if (!x.second->IsConstant()) //x.second is MaterialProperty* value
+    for (size_t i = 0; i < Material_Property_Map.size(); i++)
+        if (mat_props[i] != nullptr && !mat_props[i]->IsConstant())
         {
             // Update coefficient using current solution field
-            x.second->UpdateCoeff(sim->GetConstSolutionRef());
+            mat_props[i]->UpdateCoeff(sim->GetConstSolutionRef());
         }
 }
 
@@ -597,11 +603,12 @@ void JOTSDriver::PreprocessIteration()
 {
     // Update BCs (should I not have time be a reference to the BCs but instead pass it as an argument?)
     //              ^^More general and in-line with BCs being f(x,t)
+    UpdateBCs();
 
     // Apply Dirichlet BCs to the simulation solution vector
+    
 
     // Reassemble BLFs and LFs if required
-
     sim->UpdateDataStructures();
 
 }
@@ -626,7 +633,6 @@ void JOTSDriver::PostprocessIteration()
     if (rank == 0)
     {
         printf("Step #%10i || Time: %1.6e out of %-1.6e || dt: %1.6e \n", it_num, time, tf, dt);
-            
     }
     
     // Check if blow up
@@ -667,8 +673,9 @@ JOTSDriver::~JOTSDriver()
 {
     delete sim;
     delete adapter;
-    for (auto& x : mat_props)
-        delete x.second;
+    for (size_t i = 0; i < Material_Property_Map.size(); i++)
+        delete mat_props[i];
+    delete[] mat_props;
     for (size_t i = 0; i < user_input.GetBCCount(); i++)
         delete boundary_conditions[i];
     delete[] boundary_conditions;

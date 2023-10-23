@@ -46,7 +46,7 @@ class UnsteadyHeatSimulation : public Simulation
         mfem::ODESolver* ode_solver;
         ConductionOperator* oper;
     public:
-        UnsteadyHeatSimulation(const mfem::ParGridFunction* u_0, const Config& in_config, const BoundaryCondition* const* in_bcs, mfem::Array<int>* all_bdr_attr_markers, const MaterialProperty* rho_prop, const MaterialProperty* C_prop, const MaterialProperty* k_prop, ParFiniteElementSpace &f, double& in_time, double& dt);
+        UnsteadyHeatSimulation(const mfem::ParGridFunction* u_0, const Config& in_config, const BoundaryCondition* const* in_bcs, mfem::Array<int>* all_bdr_attr_markers, const MaterialProperty* const* mat_props, ParFiniteElementSpace &f, double& in_time, double& dt);
 
         bool IsRunning();
         void PreprocessIteration();

@@ -50,7 +50,7 @@ class JOTSDriver
         Array<int>* all_bdr_attr_markers;
         bool initialized_bcs;
 
-        std::map<MATERIAL_PROPERTY, MaterialProperty*> mat_props;
+        MaterialProperty** mat_props;
 
         mfem::ParMesh* pmesh;
         mfem::FiniteElementCollection* fe_coll;
