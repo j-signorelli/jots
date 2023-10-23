@@ -22,7 +22,7 @@ UnsteadyHeatSimulation::UnsteadyHeatSimulation(const mfem::ParGridFunction* u_0,
 
     // Instantiate ConductionOperator, sending all necessary parameters
     oper = new ConductionOperator(in_config, in_bcs, all_bdr_attr_markers, mat_props[MATERIAL_PROPERTY::DENSITY], mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT], mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY], *f, time);
-    
+
     // Initialize ODESolver with operator
     ode_solver->Init(*oper);
 

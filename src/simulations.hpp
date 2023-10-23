@@ -24,7 +24,7 @@ class Simulation
         const mfem::Vector& GetConstSolutionRef() const { return u; };
         
         virtual bool IsRunning() = 0;
-        virtual void PreprocessIteration() = 0;
+        virtual void Reassemble() = 0;
         virtual void Iterate() = 0;
         
 };
@@ -40,6 +40,7 @@ class UnsteadyHeatSimulation : public Simulation
         const bool constant_neumann;
         const double tf;
 
+        // Must be non-constant to allow iteration (ode->Step)
         double& time;
         double& dt;
 
@@ -49,7 +50,7 @@ class UnsteadyHeatSimulation : public Simulation
         UnsteadyHeatSimulation(const mfem::ParGridFunction* u_0, const Config& in_config, const BoundaryCondition* const* in_bcs, mfem::Array<int>* all_bdr_attr_markers, const MaterialProperty* const* mat_props, ParFiniteElementSpace &f, double& in_time, double& dt);
 
         bool IsRunning();
-        void PreprocessIteration();
+        void Reassemble();
         void Iterate();
         ~UnsteadyHeatSimulation();
 };

@@ -11,11 +11,8 @@ class MaterialProperty
 {   
     private:
     protected:
-        MATERIAL_MODEL model;
         mfem::Coefficient* coeff;
     public:
-        MaterialProperty(MATERIAL_MODEL in_model) : model(in_model) {}
-        MATERIAL_MODEL GetModel() const { return model; };
         mfem::Coefficient& GetCoeffRef() const { return *coeff; }; // To be used only for assigning to linear/bilinear forms or projecting coeff, so declared const
 
         virtual bool IsConstant() const = 0; // true if dk_du = 0
@@ -31,10 +28,10 @@ class MaterialProperty
 class UniformProperty : public MaterialProperty
 {
     private:
-        double k;
+        const double k;
     protected:
     public:
-        UniformProperty(double in_k) : MaterialProperty(MATERIAL_MODEL::UNIFORM), k(in_k) { coeff = new mfem::ConstantCoefficient(k); };
+        UniformProperty(const double in_k) : MaterialProperty(), k(in_k) { coeff = new mfem::ConstantCoefficient(k); };
         bool IsConstant() const { return true; }
         void UpdateCoeff(const mfem::Vector& T_ref) {};
 

@@ -28,7 +28,7 @@ string PolynomialProperty::GetInitString() const
 }
 
 PolynomialProperty::PolynomialProperty(const std::vector<double> in_poly_coeffs, ParFiniteElementSpace& f) 
-: MaterialProperty(MATERIAL_MODEL::POLYNOMIAL), 
+: MaterialProperty(), 
   poly_coeffs(in_poly_coeffs),
   T_gf(&f),
   z(&f)
