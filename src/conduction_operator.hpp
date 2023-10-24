@@ -75,13 +75,13 @@ public:
    void ImplicitSolve(const double dt, const Vector &u, Vector &k);
    
    // Update mass BilinearForm M
-   void UpdateMass();
+   void ReassembleMass();
    
    // Update the diffusion BilinearForm K
-   void UpdateStiffness();
+   void ReassembleStiffness();
 
    // Update Neumann BC LinearForm b
-   void UpdateNeumannTerm(); 
+   void ReassembleNeumannTerm(); 
 
    ~ConductionOperator();
 };

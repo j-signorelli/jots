@@ -111,7 +111,7 @@ void ConductionOperator::PreprocessBCs(const Config& in_config, const BoundaryCo
    fespace.GetEssentialTrueDofs(dbc_bdr, ess_tdof_list);
 
    // Initialize Neumann linear form
-   UpdateNeumannTerm();
+   ReassembleNeumannTerm();
 }
 
 void ConductionOperator::PreprocessMass()
@@ -124,7 +124,7 @@ void ConductionOperator::PreprocessMass()
    m->AddDomainIntegrator(new MassIntegrator(rho_C));
 
    // Initialize mass matrix data structures
-   UpdateMass();
+   ReassembleMass();
 }
 
 void ConductionOperator::PreprocessStiffness(const MaterialProperty* k_prop)
@@ -137,10 +137,10 @@ void ConductionOperator::PreprocessStiffness(const MaterialProperty* k_prop)
    k->AddDomainIntegrator(new DiffusionIntegrator(k_prop->GetCoeffRef()));
    
    // Initialize stiffness data structures
-   UpdateStiffness();
+   ReassembleStiffness();
 }
 
-void ConductionOperator::UpdateMass()
+void ConductionOperator::ReassembleMass()
 {
    delete M_full;
    delete M;
@@ -166,7 +166,7 @@ void ConductionOperator::UpdateMass()
    mass_updated = true;
 }
 
-void ConductionOperator::UpdateStiffness()
+void ConductionOperator::ReassembleStiffness()
 {    
 
    delete K_full;
@@ -193,7 +193,7 @@ void ConductionOperator::UpdateStiffness()
 
 }
 
-void ConductionOperator::UpdateNeumannTerm()
+void ConductionOperator::ReassembleNeumannTerm()
 {
    b->Assemble();
    b->ParallelAssemble(b_vec);
