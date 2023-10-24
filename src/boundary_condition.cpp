@@ -54,7 +54,7 @@ UniformConstantBC::UniformConstantBC(const int attr, const double in_value)
     coeff = new ConstantCoefficient(uniform_value);
 }
         
-UniformSinusoidalBC::UniformSinusoidalBC(const int attr, const double& in_tref, const double in_amp, const double in_angfreq, const double in_phase, const double in_vert)
+UniformSinusoidalBC::UniformSinusoidalBC(const int attr, const double in_amp, const double in_angfreq, const double in_phase, const double in_vert)
 : BoundaryCondition(attr),
   time_ref(in_tref),
   amplitude(in_amp),
@@ -67,11 +67,12 @@ UniformSinusoidalBC::UniformSinusoidalBC(const int attr, const double& in_tref, 
     
     // Initialize the coefficient
     coeff = new FunctionCoefficient(TDF);
+
 }
 
-void UniformSinusoidalBC::UpdateCoeff()
+void UniformSinusoidalBC::UpdateCoeff(const double time)
 { 
-    coeff->SetTime(time_ref);
+    coeff->SetTime(time);
 }
 
 PreciceBC::PreciceBC(const int attr, ParFiniteElementSpace& f, const string in_mesh, const double in_value, const string in_read, const string in_write) 
@@ -166,7 +167,7 @@ PreciceBC::PreciceBC(const int attr, ParFiniteElementSpace& f, const string in_m
     coeff = new GridFunctionCoefficient(coeff_gf);
 }
 
-void PreciceBC::UpdateCoeff()
+void PreciceBC::UpdateCoeff(const double time)
 {   
 
     if (update_flag) // If flagged for update by adapter, update gf linked to coefficient
