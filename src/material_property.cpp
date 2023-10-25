@@ -15,7 +15,7 @@ string PolynomialProperty::GetInitString() const
     stringstream sstm;
     sstm << "Polynomial --- Value = ";
     int exp = 0;
-    for (int i = 0; i < poly_coeffs.size(); i++)
+    for (size_t i = 0; i < poly_coeffs.size(); i++)
     {   
         sstm << poly_coeffs[i];
         exp = poly_coeffs.size() - i - 1;
@@ -43,10 +43,10 @@ void PolynomialProperty::UpdateCoeff(const mfem::Vector& T_ref)
     T_gf.SetFromTrueDofs(T_ref);
     
     *k_gf = 0;
-    for (int i = 0; i < poly_coeffs.size(); i++)
+    for (size_t i = 0; i < poly_coeffs.size(); i++)
     {
         z = 1;
-        for (int j = 0; j < poly_coeffs.size() - i - 1; j++)
+        for (size_t j = 0; j < poly_coeffs.size() - i - 1; j++)
             z *= T_gf;
         k_gf->Add(poly_coeffs[i],z); // Update the GF associated with the coefficient
     }
@@ -55,7 +55,7 @@ void PolynomialProperty::UpdateCoeff(const mfem::Vector& T_ref)
 double PolynomialProperty::GetLocalValue(double temp) const
 {
     double k = 0;
-    for (int i = 0; i < poly_coeffs.size(); i++)
+    for (size_t i = 0; i < poly_coeffs.size(); i++)
         k += poly_coeffs[i]*pow(temp, poly_coeffs.size() - i - 1);
 
     return k;

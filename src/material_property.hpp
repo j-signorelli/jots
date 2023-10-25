@@ -22,7 +22,7 @@ class MaterialProperty
 
         virtual double GetLocalValue(double temp) const = 0;
 
-        ~MaterialProperty() { delete coeff; };
+        virtual ~MaterialProperty() { delete coeff; };
 };
 
 class UniformProperty : public MaterialProperty

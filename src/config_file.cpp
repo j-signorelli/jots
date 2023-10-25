@@ -23,7 +23,7 @@ void Config::SetInputStringVector(string in, vector<string>& output) // Comma de
 {
     boost::algorithm::split(output, in, boost::algorithm::is_any_of(","));
     
-    for (int i = 0; i < output.size(); i++)
+    for (size_t i = 0; i < output.size(); i++)
         boost::algorithm::trim(output[i]);// Trim whitespaces
     
 }

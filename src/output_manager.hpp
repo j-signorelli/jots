@@ -32,12 +32,12 @@ class OutputManager
         mfem::ParaViewDataCollection* paraview_dc;
 
         mfem::ParFiniteElementSpace& fespace;
+        
+        const int rank;
         mfem::ConstantCoefficient rank_coeff;
 
         std::map<std::string, CoefficientOutput*> coeff_output_map;
         std::map<std::string, VectorOutput*> vector_output_map;
-
-        const int rank;
 
         void UpdateGridFunctions();
 

@@ -39,7 +39,7 @@ inline HypreSmoother::Type GetPrec(string prec_label)
 
 inline ODESolver* GetODESolver(string time_scheme_label)
 {
-    switch (Time_Scheme_Map.at(user_input.GetTimeSchemeLabel()))
+    switch (Time_Scheme_Map.at(time_scheme_label))
     {
         case TIME_SCHEME::EULER_IMPLICIT:
             return new BackwardEulerSolver;
@@ -50,6 +50,8 @@ inline ODESolver* GetODESolver(string time_scheme_label)
         case TIME_SCHEME::RK4:
             return new RK4Solver;
     }
+
+    return nullptr;
 }
 
 }

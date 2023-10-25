@@ -5,7 +5,6 @@ add_library(jotsLib conduction_operator.cpp
 			  material_property.cpp
 			  precice_adapter.cpp
 			  output_manager.cpp
-			  simulations.cpp
 			  jots_driver.cpp)
 
 target_include_directories(jotsLib INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})

@@ -28,7 +28,7 @@ class BoundaryCondition
         virtual bool IsConstant() const = 0; // true if d/dt is 0 for this coefficient
         virtual std::string GetInitString() const = 0;
 
-        ~BoundaryCondition() {delete coeff;};
+        virtual ~BoundaryCondition() {delete coeff;};
 };
 
 class UniformConstantBC : public BoundaryCondition
@@ -87,7 +87,7 @@ class UniformSinusoidalIsothermalBC : public UniformSinusoidalBC
     private:
     protected:
     public:
-        UniformSinusoidalIsothermalBC(const int attr, const double in_amp, const double in_angfreq, const double in_phase, const double in_vert) : UniformSinusoidalBC(attr, in_tref, in_amp, in_angfreq, in_phase, in_vert) {};
+        UniformSinusoidalIsothermalBC(const int attr, const double in_amp, const double in_angfreq, const double in_phase, const double in_vert) : UniformSinusoidalBC(attr, in_amp, in_angfreq, in_phase, in_vert) {};
         bool IsEssential() const { return true; }
         std::string GetInitString() const;
 
@@ -98,7 +98,7 @@ class UniformSinusoidalHeatFluxBC : public UniformSinusoidalBC
     private:
     protected:
     public:
-        UniformSinusoidalHeatFluxBC(const int attr, const double& in_tref, const double in_amp, const double in_angfreq, const double in_phase, const double in_vert) : UniformSinusoidalBC(attr, in_tref, in_amp, in_angfreq, in_phase, in_vert) {};
+        UniformSinusoidalHeatFluxBC(const int attr, const double in_amp, const double in_angfreq, const double in_phase, const double in_vert) : UniformSinusoidalBC(attr, in_amp, in_angfreq, in_phase, in_vert) {};
         bool IsEssential() const { return false; }
         std::string GetInitString() const;
 
@@ -146,7 +146,7 @@ class PreciceBC : public BoundaryCondition
         static void GetBdrWallHeatFlux(const mfem::ParGridFunction* T_gf, const MaterialProperty* k_prop, const mfem::Array<int> in_bdr_elem_indices, double* nodal_wall_heatfluxes); // Precondition same above
         mutable mfem::ParGridFunction* temp_gf;
     public:
-        PreciceBC(const int attr, const BOUNDARY_CONDITION in_type, mfem::ParFiniteElementSpace& f, const std::string in_mesh, const double in_value, const std::string in_read, const std::string in_write);
+        PreciceBC(const int attr, mfem::ParFiniteElementSpace& f, const std::string in_mesh, const double in_value, const std::string in_read, const std::string in_write);
         bool IsConstant() const { return false; };
         void UpdateCoeff(const double time);
 
@@ -166,7 +166,7 @@ class PreciceIsothermalBC : public PreciceBC
 
     protected:
     public:
-        PreciceIsothermalBC(const int attr, mfem::ParFiniteElementSpace& f, const std::string in_mesh, const double in_value) : PreciceBC(attr, BOUNDARY_CONDITION::PRECICE_ISOTHERMAL, f, in_mesh, in_value, "Temperature", "Heat-Flux") {};
+        PreciceIsothermalBC(const int attr, mfem::ParFiniteElementSpace& f, const std::string in_mesh, const double in_value) : PreciceBC(attr, f, in_mesh, in_value, "Temperature", "Heat-Flux") {};
         void RetrieveWriteData(const mfem::Vector T, const MaterialProperty* k_prop);
         std::string GetInitString() const;
 
@@ -180,7 +180,7 @@ class PreciceHeatFluxBC : public PreciceBC
     protected:
 
     public:
-        PreciceHeatFluxBC(const int attr, mfem::ParFiniteElementSpace& f, const std::string in_mesh, const double in_value) : PreciceBC(attr, BOUNDARY_CONDITION::PRECICE_HEATFLUX, f, in_mesh, in_value, "Heat-Flux", "Temperature") {};
+        PreciceHeatFluxBC(const int attr, mfem::ParFiniteElementSpace& f, const std::string in_mesh, const double in_value) : PreciceBC(attr, f, in_mesh, in_value, "Heat-Flux", "Temperature") {};
         void RetrieveWriteData(const mfem::Vector T, const MaterialProperty* k_prop);
         std::string GetInitString() const;
 

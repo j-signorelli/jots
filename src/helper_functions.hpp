@@ -11,6 +11,8 @@ mfem::IterativeSolver* GetSolver(std::string solver_label, MPI_Comm comm_);
 
 mfem::HypreSmoother::Type GetPrec(std::string prec_label);
 
+mfem::ODESolver* GetODESolver(std::string time_scheme_label);
+
 }
 
 template<typename Key, typename Value>

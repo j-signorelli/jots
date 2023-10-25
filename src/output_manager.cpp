@@ -4,9 +4,11 @@ using namespace std;
 using namespace mfem;
 
 OutputManager::OutputManager(const int in_rank, ParFiniteElementSpace& f, const Config& user_input)
-: rank(in_rank),
-  rank_coeff(in_rank),
-  fespace(f)
+: visit_dc(nullptr),
+  paraview_dc(nullptr),
+  fespace(f),
+  rank(in_rank),
+  rank_coeff(in_rank)
 {   
     //------------------------------------------------
     // Set up VisIt outputting (restarts)

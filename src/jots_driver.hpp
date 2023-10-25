@@ -9,7 +9,8 @@
 #include "material_property.hpp"
 #include "precice_adapter.hpp"
 #include "output_manager.hpp"
-#include "simulations.hpp"
+#include "jots_iterator.hpp"
+#include "conduction_operator.hpp"
 
 class JOTSDriver
 {   
@@ -40,7 +41,8 @@ class JOTSDriver
         double dt;
         double tf;
 
-        Simulation* sim;
+        JOTSIterator* jots_iterator;
+        mfem::Vector u;
 
         PreciceAdapter* adapter;
 
@@ -57,15 +59,16 @@ class JOTSDriver
         mfem::ParFiniteElementSpace* fespace;
 
         OutputManager* output;
+
         
-        mutable mfem::ParGridFunction* temp_u_gf;
+        mutable mfem::ParGridFunction* u_0_gf;
 
     public:
         JOTSDriver(const Config& input, const int myid, const int num_procs, MPI_Comm in_comm=MPI_COMM_WORLD);
         
-        void UpdateMatProps();
+        void UpdateAndApplyMatProps();
 
-        void UpdateBCs();
+        void UpdateAndApplyBCs();
 
         void PreprocessIteration();
 
@@ -75,7 +78,7 @@ class JOTSDriver
 
         void Run();
         
-        const OutputManager* GetOutputManager() { return output; };
+        OutputManager* GetOutputManager() { return output; };
 
         ~JOTSDriver();
 };

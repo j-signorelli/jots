@@ -56,7 +56,6 @@ UniformConstantBC::UniformConstantBC(const int attr, const double in_value)
         
 UniformSinusoidalBC::UniformSinusoidalBC(const int attr, const double in_amp, const double in_angfreq, const double in_phase, const double in_vert)
 : BoundaryCondition(attr),
-  time_ref(in_tref),
   amplitude(in_amp),
   ang_freq(in_angfreq),
   phase(in_phase),
@@ -84,13 +83,12 @@ PreciceBC::PreciceBC(const int attr, ParFiniteElementSpace& f, const string in_m
   write_data_name(in_write),
   dim(f.GetMesh()->Dimension()),
   coords(nullptr),
-  vertex_ids(nullptr),
   read_data_arr(nullptr),
   write_data_arr(nullptr),
+  coeff_dof_values(),
+  coeff_gf(nullptr),
   update_flag(false),
-  bdr_elem_indices(0),
-  bdr_dof_indices(0)
-  //coeff_values(0),
+  vertex_ids(nullptr)
 
 {
     // Method from GridFunction::AccumulateAndCountBdrValues used
