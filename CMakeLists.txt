@@ -38,4 +38,4 @@ message(STATUS "Install directory: ${CMAKE_INSTALL_PREFIX}")
 
 # Install
 install(TARGETS jots DESTINATION bin)
-install(FILES "${PROJECT_SOURCE_DIR}/pw_mfem_mesh_fix.py" DESTINATION bin)
+install(FILES "${PROJECT_SOURCE_DIR}/pw_mfem_mesh_fix.py" DESTINATION bin PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE)
