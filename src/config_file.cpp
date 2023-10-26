@@ -3,8 +3,6 @@
 
 namespace bp = boost::property_tree;
 using namespace std;
-using namespace mfem;
-using namespace precice;
 
 Config::Config(const char* in_file) : input_file(in_file)
 {   
@@ -25,7 +23,7 @@ void Config::SetInputStringVector(string in, vector<string>& output) // Comma de
 {
     boost::algorithm::split(output, in, boost::algorithm::is_any_of(","));
     
-    for (int i = 0; i < output.size(); i++)
+    for (size_t i = 0; i < output.size(); i++)
         boost::algorithm::trim(output[i]);// Trim whitespaces
     
 }
@@ -33,6 +31,7 @@ void Config::SetInputStringVector(string in, vector<string>& output) // Comma de
 void Config::ReadFESetup()
 {   
     // Read FiniteElementSetup
+    sim_type_label = property_tree.get("FiniteElementSetup.Simulation_Type", "Unsteady");
     BINARY_CHOICE restart_choice = Binary_Choice_Map.at(property_tree.get("FiniteElementSetup.Use_Restart", "No"));
     use_restart = restart_choice == BINARY_CHOICE::YES ? true : false;
 
@@ -49,9 +48,22 @@ void Config::ReadFESetup()
 void Config::ReadMatProps()
 {
     // Read MaterialProperties
-    density = property_tree.get("MaterialProperties.Density", 1.0);
-    SetInputStringVector(property_tree.get("MaterialProperties.Specific_Heat_C", "Uniform, 1000"), specific_heat_info);
-    SetInputStringVector(property_tree.get("MaterialProperties.Thermal_Conductivity_k", "Uniform, 100"), conductivity_info);
+    BOOST_FOREACH(const bp::ptree::value_type &v , property_tree.get_child("MaterialProperties"))
+    {   
+        // Get the material property label
+        string label = v.first;
+
+        // Get material property info:
+        vector<string> mat_prop_info;
+        SetInputStringVector(v.second.data(), mat_prop_info);
+        
+        // Add to mat_prop_info
+        mat_prop_info_map[label] = mat_prop_info;
+        
+    }
+    //density = property_tree.get("MaterialProperties.Density", 1.0);
+    //SetInputStringVector(property_tree.get("MaterialProperties.Specific_Heat_C", "Uniform, 1000"), specific_heat_info);
+    //SetInputStringVector(property_tree.get("MaterialProperties.Thermal_Conductivity_k", "Uniform, 100"), conductivity_info);
 }
 
 void Config::ReadPrecice()
@@ -88,8 +100,8 @@ void Config::ReadBCs()
         vector<string> single_bc_info;
         SetInputStringVector(v.second.data(), single_bc_info);
         
-        // Add to bc_info
-        bc_info.push_back(make_pair(attr, single_bc_info));
+        // Add to bc_info_map
+        bc_info_map[attr] = single_bc_info;
         
     }
 }
@@ -97,16 +109,28 @@ void Config::ReadBCs()
 void Config::ReadTimeInt()
 {
     // Read TimeIntegration
-    time_scheme = Time_Scheme_Map.at(property_tree.get("TimeIntegration.Time_Scheme", "Euler_Implicit"));
-    dt = property_tree.get("TimeIntegration.Delta_Time", 0.1);
-    tf = property_tree.get("TimeIntegration.Final_Time", 10.0);
+    // If no time integration, then do nothing and set using_time_integration
+    if (property_tree.find("TimeIntegration") == property_tree.not_found())
+    {
+        using_time_integration = false;
+        time_scheme_label = "Euler_Implicit";
+        dt = 0.1;
+        tf = 10.0;
+    }
+    else
+    {
+        using_time_integration = true;
+        time_scheme_label = property_tree.get("TimeIntegration.Time_Scheme", "Euler_Implicit");
+        dt = property_tree.get("TimeIntegration.Delta_Time", 0.1);
+        tf = property_tree.get("TimeIntegration.Final_Time", 10.0);
+    }
 }
 
 void Config::ReadLinSolSettings()
 {
     // Read LinearSolverSettings
-    solver = Solver_Map.at(property_tree.get("LinearSolverSettings.Solver", "FGMRES"));
-    prec = Preconditioner_Map.at(property_tree.get("LinearSolverSettings.Preconditioner", "Chebyshev"));
+    solver_label = property_tree.get("LinearSolverSettings.Solver", "FGMRES");
+    prec_label = property_tree.get("LinearSolverSettings.Preconditioner", "Chebyshev");
     abs_tol = property_tree.get("LinearSolverSettings.Absolute_Tolerance", 1e-16);
     rel_tol = property_tree.get("LinearSolverSettings.Relative_Tolerance", 1e-10);
     max_iter = property_tree.get("LinearSolverSettings.Max_Iterations", 100);
@@ -118,95 +142,4 @@ void Config::ReadOutput()
     restart_freq = property_tree.get("Output.Restart_Freq", 10);
     vis_freq = property_tree.get("Output.Visualization_Freq", 10);
 
-}
-
-
-ODESolver* Config::GetODESolver() const
-{
-    switch (time_scheme)
-    {
-        case TIME_SCHEME::EULER_IMPLICIT:
-            return new BackwardEulerSolver;
-            break;
-        case TIME_SCHEME::EULER_EXPLICIT:
-            return new ForwardEulerSolver;
-            break;
-        case TIME_SCHEME::RK4:
-            return new RK4Solver;
-    }
-}
-
-string Config::GetTimeSchemeString() const
-{
-    switch (time_scheme)
-    {
-        case TIME_SCHEME::EULER_IMPLICIT:
-            return "Euler Implicit";
-            break;
-        case TIME_SCHEME::EULER_EXPLICIT:
-            return "Euler Explicit";
-            break;
-        case TIME_SCHEME::RK4:
-            return "RK4";
-    }
-
-}
-
-IterativeSolver* Config::GetSolver(MPI_Comm comm_) const
-{
-    switch (solver)
-    {
-        case SOLVER::CG:
-            return new CGSolver(comm_);
-            break;
-        case SOLVER::GMRES:
-            return new GMRESSolver(comm_);
-            break;
-        case SOLVER::FGMRES:
-            return new FGMRESSolver(comm_);
-            break;
-    }
-}
-
-string Config::GetSolverString() const
-{
-    switch (solver)
-    {
-        case SOLVER::CG:
-            return "Conjugate Gradient";
-            break;
-        case SOLVER::GMRES:
-            return "GMRES";
-            break;
-        case SOLVER::FGMRES:
-            return "FGMRES";
-            break;
-    }
-
-}
-// TODO: clean up these "GetStrings" such that not needing to copy + paste ideally
-HypreSmoother::Type Config::GetPrec() const
-{
-    switch (prec)
-    {
-        case PRECONDITIONER::JACOBI:
-            return HypreSmoother::Jacobi;
-            break;
-        case PRECONDITIONER::CHEBYSHEV:
-            return HypreSmoother::Chebyshev;
-            break;
-    }
-}
-
-string Config::GetPrecString() const
-{
-    switch (prec)
-    {
-        case PRECONDITIONER::JACOBI:
-            return "Jacobi";
-            break;
-        case PRECONDITIONER::CHEBYSHEV:
-            return "Chebyshev";
-            break;
-    }
 }

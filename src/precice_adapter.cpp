@@ -25,7 +25,7 @@ void PreciceAdapter::AddPreciceBCs(BoundaryCondition** in_bcs, vector<int> preci
     precice_bcs = new PreciceBC*[num_bcs];
 
     // Add BCs to list
-    for (int i = 0; i < num_bcs; i++)
+    for (size_t i = 0; i < num_bcs; i++)
     {
         precice_bcs[i] = dynamic_cast<PreciceBC*>(in_bcs[precice_bc_indices[i]]);
 
@@ -46,7 +46,7 @@ void PreciceAdapter::AddPreciceBCs(BoundaryCondition** in_bcs, vector<int> preci
 
 void PreciceAdapter::GetReadData()
 {
-    for (int i = 0; i < num_bcs; i++)
+    for (size_t i = 0; i < num_bcs; i++)
     {
         interface->readBlockScalarData(precice_bcs[i]->read_data_id, precice_bcs[i]->num_dofs, precice_bcs[i]->vertex_ids, precice_bcs[i]->read_data_arr); 
         
@@ -63,7 +63,7 @@ void PreciceAdapter::GetReadData()
 
 void PreciceAdapter::WriteData(const mfem::Vector T, const MaterialProperty* k_prop)
 {
-    for (int  i = 0; i < num_bcs; i++)
+    for (size_t i = 0; i < num_bcs; i++)
     {
         precice_bcs[i]->RetrieveWriteData(T, k_prop);
         interface->writeBlockScalarData(precice_bcs[i]->write_data_id, precice_bcs[i]->num_dofs, precice_bcs[i]->vertex_ids, precice_bcs[i]->write_data_arr);

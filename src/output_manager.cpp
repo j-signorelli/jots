@@ -3,17 +3,16 @@
 using namespace std;
 using namespace mfem;
 
-//const int OutputManager::RESTART_PRECISION = 16;
-
-OutputManager::OutputManager(const int in_rank, ParFiniteElementSpace* fespace, const Config& user_input, const Vector& in_T_ref, const MaterialProperty* C_prop, const MaterialProperty* k_prop)
-: rank(in_rank),
-  T_ref(in_T_ref),
-  C_coeff(C_prop->GetCoeffRef()),
-  k_coeff(k_prop->GetCoeffRef())
+OutputManager::OutputManager(const int in_rank, ParFiniteElementSpace& f, const Config& user_input)
+: visit_dc(nullptr),
+  paraview_dc(nullptr),
+  fespace(f),
+  rank(in_rank),
+  rank_coeff(in_rank)
 {   
     //------------------------------------------------
     // Set up VisIt outputting (restarts)
-    visit_dc = new VisItDataCollection(user_input.GetRestartPrefix(), fespace->GetParMesh());
+    visit_dc = new VisItDataCollection(user_input.GetRestartPrefix(), fespace.GetParMesh());
     visit_dc->SetLevelsOfDetail(user_input.GetFEOrder());
     visit_dc->SetFormat(DataCollection::PARALLEL_FORMAT);
     visit_dc->SetPrecision(16);
@@ -22,61 +21,61 @@ OutputManager::OutputManager(const int in_rank, ParFiniteElementSpace* fespace, 
     #endif 
     //------------------------------------------------
     // Set up ParaView outputting
-    paraview_dc = new ParaViewDataCollection("ParaView", fespace->GetParMesh());
+    paraview_dc = new ParaViewDataCollection("ParaView", fespace.GetParMesh());
     paraview_dc->UseRestartMode(user_input.UsesRestart());
     paraview_dc->SetLevelsOfDetail(user_input.GetFEOrder());
     paraview_dc->SetDataFormat(VTKFormat::BINARY);
     paraview_dc->SetHighOrderOutput(true);
 
     //------------------------------------------------
-    // Instantiate output grid functions + register:
+    // Instantiate rank output
     // Rank:
-    rank_gf = new ParGridFunction(fespace);
-    ConstantCoefficient rank_coeff(in_rank);
-    rank_gf->ProjectCoefficient(rank_coeff);
-    paraview_dc->RegisterField("Rank", rank_gf);
+    RegisterCoefficient("Rank", rank_coeff);
 
-    // Density:
-    rho_gf = new ParGridFunction(fespace);
-    ConstantCoefficient rho_coeff(user_input.GetDensity());
-    rho_gf->ProjectCoefficient(rho_coeff);
-    paraview_dc->RegisterField("Density", rho_gf);
+}
 
-    // Specific Heat:
-    C_gf = new ParGridFunction(fespace);
-    C_gf->ProjectCoefficient(C_coeff);
-    paraview_dc->RegisterField("Specific_Heat", C_gf);
+void OutputManager::RegisterCoefficient(const string output_name, Coefficient& coeff)
+{
 
-    // Thermal Conductivity:
-    k_gf = new ParGridFunction(fespace);
-    k_gf->ProjectCoefficient(k_coeff);
-    paraview_dc->RegisterField("Thermal_Conductivity", k_gf);
+    // Create new CoefficientOutput + PGF for it
+    coeff_output_map[output_name] = new CoefficientOutput(coeff, &fespace);
 
-    // Temperature
-    //------------------------------------------------
-    T_gf = new ParGridFunction(fespace);
-    T_gf->SetFromTrueDofs(T_ref);
-    paraview_dc->RegisterField("Temperature", T_gf);
-    visit_dc->RegisterField("Temperature", T_gf);
+    // Project coefficient onto it
+    coeff_output_map[output_name]->pgf->ProjectCoefficient(coeff);
+
+    // Register
+    paraview_dc->RegisterField(output_name, coeff_output_map[output_name]->pgf);
+}
+
+void OutputManager::RegisterSolutionVector(const string output_name, const Vector& vec)
+{
+    // Create new grid function for it and add Vector reference and GF pair to map
+    vector_output_map[output_name] = new VectorOutput(vec, &fespace);
+
+    // Set PGF from vector
+    vector_output_map[output_name]->pgf->SetFromTrueDofs(vec);
+
+    // Register to both ParaView + Restarts
+    paraview_dc->RegisterField(output_name, vector_output_map[output_name]->pgf);
+    visit_dc->RegisterField(output_name, vector_output_map[output_name]->pgf);
 }
 
 void OutputManager::UpdateGridFunctions()
 {
-    // Update temperature GF
-    T_gf->SetFromTrueDofs(T_ref);
+    // Update all coefficient-driven GFs
+    for (auto& x : coeff_output_map) // x.second is the value of a given {key,value} pair
+        x.second->pgf->ProjectCoefficient(x.second->coeff_ref);
 
-    // Update specific heat GF
-    C_gf->ProjectCoefficient(C_coeff);
-
-    // Update thermal conductivity GF
-    k_gf->ProjectCoefficient(k_coeff);
+    // Update all vector-driven GFs
+    for (auto& x : vector_output_map)
+        x.second->pgf->SetFromTrueDofs(x.second->vector_ref);
 
 }
 
-const ParGridFunction* OutputManager::GetT_gf()
+const ParGridFunction* OutputManager::GetVectorPGF(string vec_label)
 {
     UpdateGridFunctions();
-    return T_gf;
+    return vector_output_map[vec_label]->pgf;
 }
 
 void OutputManager::WriteVizOutput(const int it_num, const double time)
@@ -99,9 +98,8 @@ OutputManager::~OutputManager()
 {
     delete visit_dc;
     delete paraview_dc;
-    delete rho_gf;
-    delete C_gf;
-    delete rank_gf;
-    delete T_gf;
-    delete k_gf;
+    for (auto& x : coeff_output_map)
+        delete x.second;
+    for (auto& x : vector_output_map)
+        delete x.second;   
 }

@@ -7,10 +7,9 @@
 #include "boost/foreach.hpp"
 #include "boost/algorithm/string/trim.hpp"
 #include "boost/algorithm/string.hpp"
-#include "mfem/mfem.hpp"
-#include "precice/SolverInterface.hpp"
 
 #include "option_structure.hpp"
+#include "helper_functions.hpp"
 
 class Config
 {
@@ -20,14 +19,14 @@ class Config
 
         std::string input_file;            /*!< \brief Input file to parse */
 
+        std::string sim_type_label;
         std::string mesh_file;             /*!< \brief Mesh file to read in */
         int fe_order;                 /*!< \brief FE Order (solution mapping order, not necessarily same as geometric mapping order from mesh file) */
         int serial_refine;            /*!< \brief Number of times to refine mesh before parallel decomposition */
         int parallel_refine;          /*!< \brief Number of times to refine mesh after parallel decomposition  */
         
-        double density;
-        std::vector<std::string> specific_heat_info;
-        std::vector<std::string> conductivity_info;
+        // Material properties:
+        std::map<std::string, std::vector<std::string>> mat_prop_info_map; // Map of material properties, key is mat prop label and value is string vector for that mat prop
 
         bool use_restart;             /*!< \brief Boolean indicating if restart file should be loaded up as initial condition */
         std::string restart_prefix;          /*!< \brief Restart file to load + use; only read if use_restart is true */
@@ -38,15 +37,17 @@ class Config
         std::string precice_participant_name;
         std::string precice_config_file;
 
-        size_t bc_count;        
-        std::vector<std::pair<int, std::vector<std::string>>> bc_info; // Array of pairs where first value is attribute, second is string vector for that BC
-        TIME_SCHEME time_scheme;      /*!< \brief Time integration scheme to use */
+        size_t bc_count;     
+        std::map<int, std::vector<std::string>> bc_info_map; // Map where key is attribute, value is string vector for that BC
+        
+        bool using_time_integration;
+        std::string time_scheme_label;      /*!< \brief Time integration scheme to use */
         double t0;                    /*!< \brief Starting time */
         double tf;                    /*!< \brief Final time to run to */
         double dt;                    /*!< \brief Delta time, timestep */
 
-        SOLVER solver;                /*!< \brief Linear system solver type */
-        PRECONDITIONER prec;          /*!< \brief Preconditioner to use */
+        std::string solver_label;                /*!< \brief Linear system solver type */
+        std::string prec_label;          /*!< \brief Preconditioner to use */
         double abs_tol;               /*!< \brief Solver absolute tolerance */
         double rel_tol;               /*!< \brief Solver relative tolerance */
         int max_iter;                 /*!< \brief Maximum solver iterations */
@@ -72,6 +73,10 @@ class Config
 
         void SetInputFile(std::string in_file) { input_file = in_file; };
 
+        std::string GetSimTypeLabel() const { return sim_type_label; };
+
+        void SetSimTypeLabel(std::string in_type_label) { sim_type_label = in_type_label; };
+
         std::string GetMeshFile() const { return mesh_file; };
 
         void SetMeshFile(std::string in_file) { mesh_file = in_file; };
@@ -88,17 +93,11 @@ class Config
 
         void SetParallelRefine(int in_ref) { parallel_refine = in_ref; };
 
-        double GetDensity() const { return density; };
-        
-        void SetDensity(double in_rho) { density = in_rho; };
+        std::vector<std::string> GetMaterialPropertyKeys() const { return Helper::GetKeyVector(mat_prop_info_map); };
 
-        std::vector<std::string> GetSpecificHeatInfo() const { return specific_heat_info; };
+        std::vector<std::string> GetMaterialPropertyInfo(std::string mat_prop_label) const { return mat_prop_info_map.at(mat_prop_label); };
 
-        void SetSpecificHeatInfo(std::vector<std::string> in_info) { specific_heat_info = in_info; };
-
-        std::vector<std::string> GetCondInfo() const { return conductivity_info; };
-        
-        void SetCondInfo(std::vector<std::string> in_info) { conductivity_info = in_info; };
+        void SetMaterialPropertyInfo(std::string mat_prop_label, std::vector<std::string> info) { mat_prop_info_map[mat_prop_label] = info; };
 
         bool UsesRestart() const { return use_restart; };
 
@@ -116,9 +115,7 @@ class Config
 
         void SetInitialTemp(double in_temp) { initial_temp = in_temp; };
 
-        int GetBCCount() const {return bc_info.size(); };
-
-        void ResizeBCs(int in_bc_count) { bc_info.resize(in_bc_count); };
+        int GetBCCount() const {return bc_info_map.size(); };
 
         bool UsingPrecice() const { return with_precice; };
 
@@ -132,15 +129,21 @@ class Config
     
         void SetPreciceConfigFile(std::string in_file) { precice_config_file = in_file; };
 
-        std::pair<int, std::vector<std::string>> GetBCInfo(int i) const { return bc_info[i]; };
+        std::vector<int> GetBCKeys() const { return Helper::GetKeyVector(bc_info_map); };
 
-        void SetBCInfo(int i, std::pair<int, std::vector<std::string>> in_bc) { bc_info[i] = in_bc; };
+        std::vector<std::string> GetBCInfo(int attr) const { return bc_info_map.at(attr); };
 
-        mfem::ODESolver* GetODESolver() const; // Returns ODESolver that must be deleted by caller!
+        void SetBCInfo(int attr, std::vector<std::string> in_bc) { bc_info_map[attr] = in_bc; };
+
+        void DeleteBCInfo(int attr) { bc_info_map.erase(attr); };
         
-        void SetODESolver(TIME_SCHEME in_scheme) { time_scheme = in_scheme; };
+        bool UsingTimeIntegration() const { return using_time_integration; };
 
-        std::string GetTimeSchemeString() const;
+        void SetTimeIntegration(bool in_using) { using_time_integration = in_using; };
+
+        void SetTimeSchemeLabel(std::string in_scheme) { time_scheme_label = in_scheme; };
+
+        std::string GetTimeSchemeLabel() const { return time_scheme_label; };
 
         double GetFinalTime() const { return tf; };
 
@@ -150,17 +153,13 @@ class Config
 
         void Setdt(double in_dt) { dt = in_dt; };
 
-        mfem::IterativeSolver* GetSolver(MPI_Comm comm_) const; // Returns IterativeSolver that must be deleted by caller!
+        std::string GetSolverLabel() const { return solver_label; };
 
-        void SetSolver(SOLVER in_solver) { solver = in_solver; };
+        void SetSolverLabel(std::string in_solver) { solver_label = in_solver; };
 
-        std::string GetSolverString() const;
+        std::string GetPrecLabel() const { return prec_label; };
 
-        mfem::HypreSmoother::Type GetPrec() const;
-
-        void SetPrec(PRECONDITIONER in_prec) { prec = in_prec; };
-
-        std::string GetPrecString()  const;
+        void SetPrecLabel(std::string in_prec) { prec_label = in_prec; };
 
         int GetMaxIter() const { return max_iter; };
 

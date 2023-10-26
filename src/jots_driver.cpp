@@ -5,23 +5,26 @@ using namespace mfem;
 using namespace precice;
 
 const string JOTSDriver::LINE = "-------------------------------------------------------------------";
-const double JOTSDriver::TIME_TOLERANCE = 1e-14;
 
-JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs, MPI_Comm comm)
+JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs, MPI_Comm in_comm)
 : rank(myid),
   size(num_procs),
+  comm(in_comm),
+  it_num(0),
+  time(0.0),
+  dt(0.0),
+  tf(0.0),
+  jots_iterator(nullptr),
   adapter(nullptr),
   user_input(input),
   boundary_conditions(nullptr),
+  all_bdr_attr_markers(nullptr),
   initialized_bcs(false),
-  k_prop(nullptr),
-  C_prop(nullptr),
-  ode_solver(nullptr),
+  mat_props(nullptr),
   pmesh(nullptr),
   fe_coll(nullptr),
   fespace(nullptr),
-  oper(nullptr),
-  temp_T_gf(nullptr)
+  u_0_gf(nullptr)
 {   
     if (rank == 0)
     {
@@ -31,7 +34,7 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
               _  ____ _______ _____ 
              | |/ __ \__   __/ ____|
              | | |  | | | | | (___  
-         _   | | |  | | | |  \___ \ 
+         _   | | |  | | | |  \___ \
         | |__| | |__| | | |  ____) |
          \____/ \____/  |_| |_____/ 
                                     
@@ -44,6 +47,73 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
     if (rank == 0)
       cout << "Configuration file: " << user_input.GetInputFile() << endl;
     //----------------------------------------------------------------------
+    // Process FiniteElementSetup
+    ProcessFiniteElementSetup();
+    //----------------------------------------------------------------------
+    // Process MaterialProperties in config file
+    ProcessMaterialProperties();
+    //----------------------------------------------------------------------
+    // Process TimeIntegration (if using (required for unsteady))
+    if (user_input.UsingTimeIntegration())
+        ProcessTimeIntegration();
+    //----------------------------------------------------------------------
+    // Process preCICE (if using)
+    if (user_input.UsingPrecice())
+        ProcessPrecice();
+    //----------------------------------------------------------------------
+    // Process BoundaryConditions
+    ProcessBoundaryConditions();
+    //----------------------------------------------------------------------
+    // Print LinearSolverSettings
+    PrintLinearSolverSettings();
+    //----------------------------------------------------------------------
+    // Print Output settings
+    PrintOutput();
+    //---------------------------------------------------------------------
+    // Create JOTSIterator object/s
+    if (rank == 0)
+    {
+        cout << LINE << endl;
+        cout << "Initializing iterator... ";
+    }
+    switch (Simulation_Type_Map.at(user_input.GetSimTypeLabel()))
+    {
+        case SIMULATION_TYPE::UNSTEADY:
+            jots_iterator = new ConductionOperator(user_input,
+                                             boundary_conditions,
+                                             all_bdr_attr_markers,
+                                             mat_props[MATERIAL_PROPERTY::DENSITY],
+                                             mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT],
+                                             mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY],
+                                             *fespace,
+                                             time,
+                                             dt,
+                                             tf);
+            break;
+        case SIMULATION_TYPE::STEADY:
+            break;
+    }
+    //----------------------------------------------------------------------
+    if (rank == 0)
+        cout << "Done!" << endl;
+    //----------------------------------------------------------------------
+
+    // Initialize material properties w/ solution field (only pertinent for non-uniform non-constant ones)
+    if (rank == 0)
+        cout << "Initializing material properties field...";
+
+    UpdateAndApplyMatProps();
+
+    if (rank == 0)
+        cout << " Done!" << endl;
+}
+
+void JOTSDriver::ProcessFiniteElementSetup()
+{
+    // Print appropriate solver type + get required material properties, add them to map
+    if (rank == 0)
+        cout << "Simulation Type: ";
+
     // If not restart, refine mesh and initialize; else load VisItDataCollection
     if (!user_input.UsesRestart())
     {
@@ -95,15 +165,13 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
         
         //----------------------------------------------------------------------
         // Create solution GF
-        temp_T_gf = new ParGridFunction(fespace);
+        u_0_gf = new ParGridFunction(fespace);
         
         //----------------------------------------------------------------------
         // Print initial condition info + set T_gf
         ConstantCoefficient coeff_IC(user_input.GetInitialTemp());
-        temp_T_gf->ProjectCoefficient(coeff_IC);
+        u_0_gf->ProjectCoefficient(coeff_IC);
         
-        it_num = 0;
-        time = 0.0;
 
         if (rank == 0)
             cout << "Initial temperature field: " << user_input.GetInitialTemp() << endl;
@@ -130,16 +198,15 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
 
         //----------------------------------------------------------------------
         // Get the temperature grid function
-        temp_T_gf = temp_visit_dc.GetParField("Temperature");
+        u_0_gf = temp_visit_dc.GetParField("Temperature");
 
         // Take ownership of fe_coll and fespace (See MakeOwner docs)
-        fe_coll = temp_T_gf->OwnFEC();
-        fespace = temp_T_gf->ParFESpace();
-        temp_T_gf->MakeOwner(NULL);
+        fe_coll = u_0_gf->OwnFEC();
+        fespace = u_0_gf->ParFESpace();
+        u_0_gf->MakeOwner(NULL);
 
         // Now take ownership of mesh and temperature field
         // NOTE: If any further fields are added to restarts, they MUST be taken and deallocated here!!!!!
-        // temp_T_gf deallocated below
         // pmesh deallocated in destructor
         
         temp_visit_dc.SetOwnData(false);
@@ -176,104 +243,120 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
     HYPRE_BigInt fe_size = fespace->GlobalTrueVSize();
     if (rank == 0)
         cout << "Number of temperature nodes: " << fe_size << endl;
+
     //----------------------------------------------------------------------
-    // Print material properties
+    // Instantiate OutputManager
+    output = new OutputManager(rank, *fespace, user_input);
+
+    //----------------------------------------------------------------------
+    // Set solution vector from IC
+    u_0_gf->GetTrueDofs(u);
+
+    // Add solution vector to OutputManager
+    output->RegisterSolutionVector("Temperature", u);
+
+}
+
+void JOTSDriver::ProcessMaterialProperties()
+{   
     if (rank == 0)
-    {   
         cout << "\n";
-        cout << "Density: " << user_input.GetDensity() << endl;
+
+    // Instantiate material property array w/ max number of mat props
+    mat_props = new MaterialProperty*[Material_Property_Map.size()];
+    for (size_t i = 0; i < Material_Property_Map.size(); i++)
+        mat_props[i] = nullptr;
+
+    // Loop over INPUT material property info map from Config
+    // Get keys
+    vector<string> in_mat_prop_labels = user_input.GetMaterialPropertyKeys();
+
+    for (size_t i = 0; i < in_mat_prop_labels.size(); i++)
+    {   
+        // Print label
+        string label = in_mat_prop_labels[i];
+        if (rank == 0)
+            cout << label << ": ";
+        
+        // Get material property type
+        MATERIAL_PROPERTY mp = Material_Property_Map.at(label);
+
+        // Add material property to material property array
+        vector<string> mp_info = user_input.GetMaterialPropertyInfo(label);
+        vector<double> poly_coeffs;
+
+        switch (Material_Model_Map.at(mp_info[0]))
+        {
+            case MATERIAL_MODEL::UNIFORM: // Uniform
+                mat_props[mp] = new UniformProperty(stod(mp_info[1].c_str()));
+                break;
+            case MATERIAL_MODEL::POLYNOMIAL: // Polynomial
+
+                for (size_t i = 1; i < mp_info.size(); i++)
+                    poly_coeffs.push_back(stod(mp_info[i].c_str()));
+
+                mat_props[mp] = new PolynomialProperty(poly_coeffs, *fespace);
+                break;
+            default:
+                MFEM_ABORT("Unknown/Invalid material model specified");
+                return;
+        }
+
+        // Print remaining portion of label
+        if (rank == 0)
+            cout << mat_props[mp]->GetInitString() << endl;
+
+        // Register material property output
+        output->RegisterCoefficient(label, mat_props[mp]->GetCoeffRef());
     }
-    //----------------------------------------------------------------------
-    // Create MaterialProperty object for specific heat
-    vector<string> specific_heat_info = user_input.GetSpecificHeatInfo();
-    vector<double> poly_coeffs_C;
-    switch (Material_Model_Map.at(specific_heat_info[0]))
-    {
-        case MATERIAL_MODEL::UNIFORM: // Uniform
-            C_prop = new UniformProperty(stod(specific_heat_info[1].c_str()));
-            break;
-        case MATERIAL_MODEL::POLYNOMIAL: // Polynomial
 
-            for (int i = 1; i < specific_heat_info.size(); i++)
-                poly_coeffs_C.push_back(stod(specific_heat_info[i].c_str()));
+}
 
-            C_prop = new PolynomialProperty(poly_coeffs_C, *fespace);
-            break;
-        default:
-            MFEM_ABORT("Unknown/Invalid specific heat model specified");
-            return;
-    }
-    //----------------------------------------------------------------------
-    // Print specific heat model info
-    if (rank == 0)
-        cout << "Specific Heat Model: " << C_prop->GetInitString() << endl;
-    //----------------------------------------------------------------------
-    // Create MaterialProperty object for conductivity
-    vector<string> cond_info = user_input.GetCondInfo();
-    vector<double> poly_coeffs_k;
-    switch (Material_Model_Map.at(cond_info[0]))
-    {
-        case MATERIAL_MODEL::UNIFORM: // Uniform conductivity
-            k_prop = new UniformProperty(stod(cond_info[1].c_str()));
-            break;
-        case MATERIAL_MODEL::POLYNOMIAL: // Polynomial model for conductivity
-
-            for (int i = 1; i < cond_info.size(); i++)
-                poly_coeffs_k.push_back(stod(cond_info[i].c_str()));
-
-            k_prop = new PolynomialProperty(poly_coeffs_k, *fespace);
-            break;
-        default:
-            MFEM_ABORT("Unknown/Invalid thermal conductivity model specified");
-            return;
-    }
-    //----------------------------------------------------------------------
-    // Print conductivity model info
-    if (rank == 0)
-        cout << "Thermal Conductivity Model: " << k_prop->GetInitString() << endl;
-    //----------------------------------------------------------------------
-    // Set ODE time integrator
-    ode_solver = user_input.GetODESolver();
+void JOTSDriver::ProcessTimeIntegration()
+{   
     //----------------------------------------------------------------------
     // Print time integration information
     if (rank == 0)
     {
         cout << "\n";
-        cout << "Time Scheme: " << user_input.GetTimeSchemeString() << endl;
+        cout << "Time Scheme: " << user_input.GetTimeSchemeLabel() << endl;
         cout << "Time Step: " << user_input.Getdt() << endl;
         cout << "Max Time: " << user_input.GetFinalTime() << endl;
     
     }
     //----------------------------------------------------------------------
-    // Set time stuff
+    // Set dt and tf
     dt = user_input.Getdt();
     tf = user_input.GetFinalTime();
-    //----------------------------------------------------------------------
+}
+
+void JOTSDriver::ProcessPrecice()
+{
     // Print any precice info + instantiate adapter object if needed
-    if (user_input.UsingPrecice())
+    if (rank == 0)
     {
-        if (rank == 0)
-        {
-            cout << "\n";
-            cout << "Using preCICE!" << endl;
-            cout << "preCICE Participant Name: " << user_input.GetPreciceParticipantName() << endl;
-            cout << "preCICE Config File: " << user_input.GetPreciceConfigFile() << endl;
-        }
-
-        adapter = new PreciceAdapter(user_input.GetPreciceParticipantName(), user_input.GetPreciceConfigFile(), rank, size, comm);
-
-        if (adapter->GetDimension() != dim)
-        {
-            MFEM_ABORT("preCICE dimensions and mesh file dimensions are not the same!");
-            return;
-        }
+        cout << "\n";
+        cout << "Using preCICE!" << endl;
+        cout << "preCICE Participant Name: " << user_input.GetPreciceParticipantName() << endl;
+        cout << "preCICE Config File: " << user_input.GetPreciceConfigFile() << endl;
     }
-    //----------------------------------------------------------------------
+
+    adapter = new PreciceAdapter(user_input.GetPreciceParticipantName(), user_input.GetPreciceConfigFile(), rank, size, comm);
+
+    if (adapter->GetDimension() != dim)
+    {
+        MFEM_ABORT("preCICE dimensions and mesh file dimensions are not the same!");
+        return;
+    }
+}
+
+void JOTSDriver::ProcessBoundaryConditions()
+{
     // Verify input config BCs appropriately match input mesh BCs
     if (rank == 0)
         cout << "\n";
 
-    // Confirm user input matches mesh bdr_attributes...
+    // Confirm user input matches mesh bdr_attributes size...
     // Check count
     if (pmesh->bdr_attributes.Size() != user_input.GetBCCount())
     {
@@ -283,22 +366,18 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
     }
     
     // Check one-to-oneness
-    // Also create an array of indices that match mesh bdr attributes to input bdr attributes
-    // ^ in event that user inputs bdr attributes in different order than mesh
-    vector<int> bdr_index;
-    for (size_t i = 0; i < user_input.GetBCCount(); i++)
+    vector<int> bc_keys = user_input.GetBCKeys();
+    for (int i = 0; i < pmesh->bdr_attributes.Size(); i++)
     {
         int attr = pmesh->bdr_attributes[i];
         bool one_to_one = false;
 
-        for (size_t j = 0; j < user_input.GetBCCount(); j++)
-        {   
-            pair<int, vector<string>> bc = user_input.GetBCInfo(j);
-            if (attr == bc.first)
+        for (size_t j = 0; j < bc_keys.size(); j++)
+        {
+            if (attr == bc_keys[j])
             {
                 one_to_one = true;
-                bdr_index.push_back(j);
-                j = user_input.GetBCCount();
+                j = bc_keys.size();
             }
         }
         if (!one_to_one)
@@ -317,52 +396,53 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
     vector<int> precice_bc_indices;
     boundary_conditions = new BoundaryCondition*[user_input.GetBCCount()];
     for (int i = 0; i < user_input.GetBCCount(); i++)
-    {
-        pair<int, vector<string>> bc = user_input.GetBCInfo(bdr_index[i]);
+    {   
+        int attr = pmesh->bdr_attributes[i];
+        vector<string> bc_info = user_input.GetBCInfo(attr);
         double value;
         string mesh_name;
         double amp;
         double afreq;
         double phase;
         double shift;
-        switch (Boundary_Condition_Map.at(bc.second[0]))
+        switch (Boundary_Condition_Map.at(bc_info[0]))
         {
             case BOUNDARY_CONDITION::ISOTHERMAL:
-                value = stod(bc.second[1].c_str());
-                boundary_conditions[i] =  new UniformConstantIsothermalBC(bc.first, value);
+                value = stod(bc_info[1].c_str());
+                boundary_conditions[i] =  new UniformConstantIsothermalBC(attr, value);
                 break;
             case BOUNDARY_CONDITION::HEATFLUX:
-                value = stod(bc.second[1].c_str());
-                boundary_conditions[i] =  new UniformConstantHeatFluxBC(bc.first, value);
+                value = stod(bc_info[1].c_str());
+                boundary_conditions[i] =  new UniformConstantHeatFluxBC(attr, value);
                 break;
             case BOUNDARY_CONDITION::PRECICE_ISOTHERMAL:
-                mesh_name = bc.second[1];
-                value = stod(bc.second[2].c_str());
-                boundary_conditions[i] =  new PreciceIsothermalBC(bc.first, *fespace, mesh_name, value);
+                mesh_name = bc_info[1];
+                value = stod(bc_info[2].c_str());
+                boundary_conditions[i] =  new PreciceIsothermalBC(attr, *fespace, mesh_name, value);
                 precice_bc_indices.push_back(i);
                 break;
             case BOUNDARY_CONDITION::PRECICE_HEATFLUX:
-                mesh_name = bc.second[1];
-                value = stod(bc.second[2].c_str());
-                boundary_conditions[i] =  new PreciceHeatFluxBC(bc.first, *fespace, mesh_name, value);
+                mesh_name = bc_info[1];
+                value = stod(bc_info[2].c_str());
+                boundary_conditions[i] =  new PreciceHeatFluxBC(attr, *fespace, mesh_name, value);
                 precice_bc_indices.push_back(i);
                 break;
             case BOUNDARY_CONDITION::SINUSOIDAL_ISOTHERMAL:
-                amp = stod(bc.second[1].c_str());
-                afreq = stod(bc.second[2].c_str());
-                phase = stod(bc.second[3].c_str());
-                shift = stod(bc.second[4].c_str());
-                boundary_conditions[i] = new UniformSinusoidalIsothermalBC(bc.first, time, amp, afreq, phase, shift);
+                amp = stod(bc_info[1].c_str());
+                afreq = stod(bc_info[2].c_str());
+                phase = stod(bc_info[3].c_str());
+                shift = stod(bc_info[4].c_str());
+                boundary_conditions[i] = new UniformSinusoidalIsothermalBC(attr, amp, afreq, phase, shift);
                 break;
             case BOUNDARY_CONDITION::SINUSOIDAL_HEATFLUX:
-                amp = stod(bc.second[1].c_str());
-                afreq = stod(bc.second[2].c_str());
-                phase = stod(bc.second[3].c_str());
-                shift = stod(bc.second[4].c_str());
-                boundary_conditions[i] = new UniformSinusoidalHeatFluxBC(bc.first, time, amp, afreq, phase, shift);
+                amp = stod(bc_info[1].c_str());
+                afreq = stod(bc_info[2].c_str());
+                phase = stod(bc_info[3].c_str());
+                shift = stod(bc_info[4].c_str());
+                boundary_conditions[i] = new UniformSinusoidalHeatFluxBC(attr, amp, afreq, phase, shift);
                 break;
             default:
-                MFEM_ABORT("Invalid/Unknown boundary condition specified: '" + bc.second[0] + "'");
+                MFEM_ABORT("Invalid/Unknown boundary condition specified: '" + bc_info[0] + "'");
                 return;
         }
     }
@@ -373,16 +453,16 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
     //----------------------------------------------------------------------
     // Prepare BC attr arrays for applying coefficients
     all_bdr_attr_markers = new Array<int>[user_input.GetBCCount()];
-    for (size_t i = 0; i < user_input.GetBCCount(); i++)
+    for (int i = 0; i < user_input.GetBCCount(); i++)
     {
         Array<int> bdr_attr(user_input.GetBCCount());
         bdr_attr = 0;
         bdr_attr[i] = 1;
         all_bdr_attr_markers[i] = bdr_attr;
-   }
+    }
     //----------------------------------------------------------------------
     // Print BCs
-    for (size_t i = 0; i < user_input.GetBCCount(); i++)
+    for (int i = 0; i < user_input.GetBCCount(); i++)
     {   
         BoundaryCondition* bc = boundary_conditions[i];
 
@@ -391,18 +471,24 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
             cout << "Boundary Attribute " << bc->GetBdrAttr() << ": " << bc->GetInitString() << endl;
         }
     }
-    //----------------------------------------------------------------------
+}
+
+void JOTSDriver::PrintLinearSolverSettings()
+{
     // Print linear solver settings
     if (rank == 0)
     {
         cout << "\n";
-        cout << "Linear Solver: " << user_input.GetSolverString() << endl;
-        cout << "Preconditioner: " << user_input.GetPrecString() << endl;
+        cout << "Linear Solver: " << user_input.GetSolverLabel() << endl;
+        cout << "Preconditioner: " << user_input.GetPrecLabel() << endl;
         cout << "Max Iterations: " << user_input.GetMaxIter() << endl;
         cout << "Absolute Tolerance: " << user_input.GetAbsTol() << endl;
         cout << "Relative Tolerance: " << user_input.GetRelTol() << endl;
     }
-    //----------------------------------------------------------------------
+}
+
+void JOTSDriver::PrintOutput()
+{
     // Print output settings
     if (rank == 0)
     {
@@ -410,56 +496,14 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
         cout << "Restart Frequency: " << user_input.GetRestartFreq() << endl;
         cout << "Visualization Frequency: " << user_input.GetVisFreq() << endl;
     }
-    //---------------------------------------------------------------------
-    // Create main solution vector from IC
-    temp_T_gf->GetTrueDofs(T);
-    //----------------------------------------------------------------------
-    // Instantiate ConductionOperator, sending all necessary parameters
-    if (rank == 0)
-    {
-        cout << LINE << endl;
-        cout << "Initializing operator... ";
-    }
-    oper = new ConductionOperator(user_input, boundary_conditions, all_bdr_attr_markers, C_prop, k_prop, *fespace, time);
-    if (rank == 0)
-        cout << "Done!" << endl;
-    //----------------------------------------------------------------------
-    // Instantiate OutputManager
-    output = new OutputManager(rank, fespace, user_input, T, C_prop, k_prop);
 }
 
 void JOTSDriver::Run()
 {   
-    // Initialize material properties (only pertinent for non-uniform non-constant ones)
-    if (rank == 0)
-        cout << "Initializing material properties field...";
 
-    UpdateMatProps();
-
-    if (rank == 0)
-        cout << " Done!" << endl;
-    
-
-    // Initialize the ODE Solver
-    if (rank == 0)
-        cout << "Initializing solver...";
-
-    ode_solver->Init(*oper);
-
-    if (rank == 0)
-        cout << " Done!" << endl;
-
-
-
-    double precice_dt = 0;
-    // Implicit coupling:
-    double precice_saved_time = 0;
-    double precice_saved_it_num = 0;
-
-    // Output IC as ParaView
-    if (it_num == 0)
+    // Output IC to ParaView if time-integrating simulation
+    if (it_num == 0 && user_input.UsingTimeIntegration())
         output->WriteVizOutput(it_num, time);
-
 
     // If using precice: initialize + get/send initial data if needed
     // Make actual precice interface calls directly here for readability/clarity
@@ -468,61 +512,47 @@ void JOTSDriver::Run()
         precice_dt = adapter->Interface()->initialize();
         if (adapter->Interface()->isActionRequired(PreciceAdapter::cowid))
         {
-            adapter->WriteData(T, k_prop);
+            adapter->WriteData(u, mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY]);
             adapter->Interface()->markActionFulfilled(PreciceAdapter::cowid);
         }
         adapter->Interface()->initializeData();
     }
     
-    bool viz_out = false;
-    bool res_out = false;
-
-    while ( (!user_input.UsingPrecice() && time < tf) 
-        || (user_input.UsingPrecice() && adapter->Interface()->isCouplingOngoing()))//Main Solver Loop - use short-circuiting
+    while ((!user_input.UsingPrecice() && jots_iterator->IsNotComplete()) 
+    || (user_input.UsingPrecice() && adapter->Interface()->isCouplingOngoing())) // use short-circuiting
     {
-
+        // Handle preCICE calls
         if (user_input.UsingPrecice())
         {
+            // Implicit coupling: save state
             if (adapter->Interface()->isActionRequired(PreciceAdapter::cowic))
             {
                 precice_saved_time = time;
                 precice_saved_it_num = it_num;
-                adapter->SaveOldState(T);
+                adapter->SaveOldState(u);
                 adapter->Interface()->markActionFulfilled(PreciceAdapter::cowic);
             }
+
+            // Get read data
             if (adapter->Interface()->isReadDataAvailable())
                 adapter->GetReadData();
-        }
 
-
-        // Update BCs and update BLFs + LFs in operator, if required
-        PreprocessIteration();
-
-
-        // Update timestep if needed
-        if (user_input.UsingPrecice())
-        {
+            // Update timestep if needed
             if (precice_dt < dt)
                 dt = precice_dt;
         }
 
-        // Step in time - time automatically updated
-        // NOTE: Do NOT use ANY ODE-Solvers that update dt
-        ode_solver->Step(T, time, dt);        
-        it_num++; // increment it_num
+        // Update and Apply BCs
+        UpdateAndApplyBCs();
 
-        // Leave solver if time now greater than tf -- solution is done
-        if (time > tf && abs(time-tf) > TIME_TOLERANCE)
-            continue;
-        
-        // Update material properties with new temperature
-        UpdateMatProps();
+        // Iterate
+        Iteration();
 
         // Write any preCICE data, reload state if needed
         if (user_input.UsingPrecice())
         {
             if (adapter->Interface()->isWriteDataRequired(dt))
-                adapter->WriteData(T, k_prop);
+                adapter->WriteData(u, mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY]);
 
             // Advance preCICE
             adapter->Interface()->advance(dt);
@@ -533,54 +563,14 @@ void JOTSDriver::Run()
             {
                 time = precice_saved_time;
                 it_num = precice_saved_it_num;
-                adapter->ReloadOldState(T);
-                UpdateMatProps(); // Update material props w/ reloaded field
+                adapter->ReloadOldState(u);
+                UpdateAndApplyMatProps(); // Update material props w/ reloaded field
                 adapter->Interface()->markActionFulfilled(PreciceAdapter::coric);
                 continue; // skip printing of timestep info AND outputting
             }
         }
    
-
-        // Print current timestep information:
-        if (rank == 0)
-        {
-            printf("Step #%10i || Time: %1.6e out of %-1.6e || dt: %1.6e \n", it_num, time, tf, dt);
-                
-        }
-        
-        // Check if blow up
-        if (T.Max() > 1e10)
-        {
-            MFEM_ABORT("JOTS has blown up");
-            return;
-        }
-
-        // Output
-        viz_out = user_input.GetVisFreq() != 0 && it_num % user_input.GetVisFreq() == 0;
-        res_out = user_input.GetRestartFreq() != 0 && it_num % user_input.GetRestartFreq() == 0;
-        if (viz_out || res_out)
-        {
-            if (rank == 0)
-                cout << LINE << endl;
-                
-            if (viz_out)
-            {
-                if (rank == 0)
-                    cout << "Saving Paraview Data: Cycle " << it_num << endl;
-                output->WriteVizOutput(it_num, time);
-            }
-
-            if (res_out)
-            {
-                if (rank == 0)
-                    cout << "Saving Restart File: Cycle " << it_num << endl;
-                output->WriteRestartOutput(it_num, time);
-            }
-
-            if (rank == 0)
-                cout << LINE << endl;
-        }
-
+        PostprocessIteration();
     }
     
     // Finalize preCICE if used
@@ -590,42 +580,42 @@ void JOTSDriver::Run()
 
 }
 
-void JOTSDriver::UpdateMatProps()
+void JOTSDriver::UpdateAndApplyMatProps()
 {
-    if (!k_prop->IsConstant())
-        k_prop->UpdateCoeff(T); // Update k coefficient
-
-    if (!C_prop->IsConstant())
-        C_prop->UpdateCoeff(T); // Update C coefficient
+    for (size_t i = 0; i < Material_Property_Map.size(); i++)
+    {
+        MATERIAL_PROPERTY mp = MATERIAL_PROPERTY(i);
+        if (mat_props[mp] != nullptr && !mat_props[mp]->IsConstant())
+        {
+            // Update coefficient using current solution field, ie: k=k(T)
+            mat_props[mp]->UpdateCoeff(u);
+            
+            // Update any BLFs affected by changed coefficient (Apply)
+            jots_iterator->ProcessMatPropUpdate(mp);
+        }
+    }
 }
 
-void JOTSDriver::PreprocessIteration()
+void JOTSDriver::UpdateAndApplyBCs()
 {
-    // If specific heat not constant, it may have changed -> Update mass BLF
-    if (!C_prop->IsConstant())
-        oper->UpdateMass();
-
-    // If conductivity not constant, it may have changed -> Update stiffness BLF
-    if (!k_prop->IsConstant())
-        oper->UpdateStiffness();
-
     // Update time-dependent/non-constant boundary condition coefficients
-    temp_T_gf->SetFromTrueDofs(T);
+    // Get GF from current solution
+    u_0_gf->SetFromTrueDofs(u);
 
     bool n_changed = false;
     bool d_changed = false;
-    for (size_t i = 0; i < user_input.GetBCCount(); i++)
+    for (int i = 0; i < user_input.GetBCCount(); i++)
     {   
         // Update coefficients (could be preCICE calls, could be SetTime calls, etc.)
         if (!boundary_conditions[i]->IsConstant() || !initialized_bcs) // If not constant in time or not yet initialized for first iteration
         {
-            boundary_conditions[i]->UpdateCoeff();
+            boundary_conditions[i]->UpdateCoeff(time);
 
             if (boundary_conditions[i]->IsEssential())
             {
                 // Project correct values on boundary for essential BCs
                 d_changed = true;
-                temp_T_gf->ProjectBdrCoefficient(boundary_conditions[i]->GetCoeffRef(), all_bdr_attr_markers[i]);
+                u_0_gf->ProjectBdrCoefficient(boundary_conditions[i]->GetCoeffRef(), all_bdr_attr_markers[i]);
             }
             else
             {
@@ -639,8 +629,8 @@ void JOTSDriver::PreprocessIteration()
 
     if (d_changed)
     {
-        // Apply changed Dirichlet BCs to T
-        temp_T_gf->GetTrueDofs(T);
+        // Apply changed Dirichlet BCs to u
+        u_0_gf->GetTrueDofs(u);
         // Here is where can set tmp_du_dt to be used if HO wanted
         // For higher-order, need T from n-1 timestep in addition to n timestep? is this worth doing?
         // Need to save previous timestep temperature in restarts
@@ -648,24 +638,79 @@ void JOTSDriver::PreprocessIteration()
 
     // If any non-constant Neumann terms, update Neumann linear form
     if (n_changed)
-        oper->UpdateNeumannTerm();
+        jots_iterator->UpdateNeumann();
+}
 
+
+void JOTSDriver::Iteration()
+{
+    // Step simulation
+    // NOTE: Do NOT use ANY ODE-Solvers that update dt
+    jots_iterator->Iterate(u);
+    it_num++; // increment it_num - universal metric
+    
+    // Update material properties with new solution field - important to do before preCICE writes
+    UpdateAndApplyMatProps();
+}
+
+void JOTSDriver::PostprocessIteration()
+{   
+
+    // Print current timestep information:
+    if (rank == 0)
+    {
+        printf("Step #%10i || Time: %1.6e out of %-1.6e || dt: %1.6e \n", it_num, time, tf, dt);
+    }
+    
+    // Check if blow up
+    if (u.Max() > 1e10)
+    {
+        MFEM_ABORT("JOTS has blown up");
+        return;
+    }
+
+    // Write any output files if required
+    bool viz_out = user_input.GetVisFreq() != 0 && it_num % user_input.GetVisFreq() == 0;
+    bool res_out = user_input.GetRestartFreq() != 0 && it_num % user_input.GetRestartFreq() == 0;
+    if (viz_out || res_out)
+    {
+        if (rank == 0)
+            cout << LINE << endl;
+            
+        if (viz_out)
+        {
+            if (rank == 0)
+                cout << "Saving Paraview Data: Cycle " << it_num << endl;
+            output->WriteVizOutput(it_num, time);
+        }
+
+        if (res_out)
+        {
+            if (rank == 0)
+                cout << "Saving Restart File: Cycle " << it_num << endl;
+            output->WriteRestartOutput(it_num, time);
+        }
+
+        if (rank == 0)
+            cout << LINE << endl;
+    }
 }
 
 JOTSDriver::~JOTSDriver()
 {
+    delete jots_iterator;
     delete adapter;
-    delete k_prop;
-    delete C_prop;
-    for (size_t i = 0; i < user_input.GetBCCount(); i++)
+    for (size_t i = 0; i < Material_Property_Map.size(); i++)
+        delete mat_props[MATERIAL_PROPERTY(i)];
+    delete[] mat_props;
+    for (int i = 0; i < user_input.GetBCCount(); i++)
         delete boundary_conditions[i];
     delete[] boundary_conditions;
     delete[] all_bdr_attr_markers;
-    delete ode_solver;
     delete pmesh;
     delete fe_coll;
-    delete oper;
+    delete fespace;
     delete output;
-    delete temp_T_gf;
+    delete u_0_gf;
 
 }

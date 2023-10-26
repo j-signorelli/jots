@@ -44,9 +44,7 @@ int main(int argc, char *argv[])
     // Get the error per rank 
     // Not using ComputeL2Error because requires both GFs to be pointing to same Mesh in memory
     // ^(Not trivial)
-    double error = driver_r->GetOutputManager()->GetT_gf()->DistanceTo(*driver_0->GetOutputManager()->GetT_gf());
-
-    bool success = true;
+    double error = driver_r->GetOutputManager()->GetVectorPGF("Temperature")->DistanceTo(*driver_0->GetOutputManager()->GetVectorPGF("Temperature"));
 
     // Print the error per rank
     for (int i = 0; i < num_procs; i++)
@@ -57,14 +55,14 @@ int main(int argc, char *argv[])
             if (isnan(error))
             {   
                 cout << "NaN detected -- Failed!" << endl;
-                success = false;
+                MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
             }
             cout << "Error: " << error;
 
             if (error > EPSILON)
             {
                 cout << " > " << EPSILON << endl << "Failed!" << endl;
-                success = false;
+                MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
             }
             else
                 cout << " <= " << EPSILON << endl << "Success!" << endl;
@@ -78,9 +76,5 @@ int main(int argc, char *argv[])
     delete driver_0;
     delete driver_r;
     
-    // Return appropriately if failed or not
-    if (!success)
-        return 1;
-
     return 0;
 }
