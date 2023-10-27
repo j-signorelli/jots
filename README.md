@@ -1,4 +1,4 @@
-# JOTS v1.1: MFEM-Based Thermal Solver w/ preCICE Coupling
+# JOTS v1.2: MFEM-Based Thermal Solver w/ preCICE Coupling
 JOTS is a simple thermal conduction solver designed for either standalone heat transfer numerical simulations or conjugate heat transfer analyses coupled using preCICE.
 
 ## Contents
@@ -18,7 +18,7 @@ JOTS is a simple thermal conduction solver designed for either standalone heat t
 ### MFEM
 MFEM is the heart and soul of JOTS. JOTS was developed using MFEM v4.5.2. Detailed build instructions for MFEM can be found here: https://mfem.org/building/.
 
-Note that you *must* build MFEM with `MFEM_USE_MPI=YES`. If you want compressed restart files as opposed to ASCII, build MFEM with `MFEM_USE_ZLIB=YES`.
+Note that you *must* build MFEM with `MFEM_USE_MPI=YES`. If you want compressed VisIt/Restart files as opposed to ASCII, build MFEM with `MFEM_USE_ZLIB=YES`.
 
 ### Boost
 Boost headers are used to parse input files. JOTS was developed using v1.82.0.
@@ -33,8 +33,9 @@ After building + installing the above dependencies, you may need to add the inst
         export CXX=$(which mpicxx) # This should have been completed already when building MFEM
         mkdir build
         cd build
-        cmake ..
+        cmake -DCMAKE_INSTALL_PREFIX=_INSTALL_DIR_ ..
         make -j
+        make install
 
 And that's it! Alternatively, you can add in arguments to install directories if you do not have `CMAKE_PREFIX_PATH` set with them, like:
 
@@ -42,12 +43,19 @@ And that's it! Alternatively, you can add in arguments to install directories if
 
 After successfully making the executable, to use the JOTS executable globally, add to bashrc:
 
-        export PATH=/path/to/jots/build:$PATH
+        export PATH=/path/to/jots/install/bin/:$PATH
+
+Note that the pw_mfem_mesh_fix.py script is also copied and pasted in the bin folder of the install directory.
+
+To enable regression testing using ctest, include `-DENABLE_TESTING=ON` in the `cmake` command.
 
 ## Running Simulations
 
-JOTS using a .ini file as an input file. All boundary conditions and settings for this input file can be found in teh *config_template.ini* file. The *tests/* folder also showcasing all different configurations of JOTS.
+JOTS using a .ini file as an input file. All boundary conditions and settings for this input file can be found in thh *unsteady_config_template.ini* file. The *tests/* folder also showcasing all different configurations of JOTS.
 
 To run JOTS with 10 procs:
 
         mpirun -np 10 jots -i config_file.ini
+
+
+Note that steady-state thermal simulations have not yet been implemented.

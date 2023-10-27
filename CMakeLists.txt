@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 # Define our project
-project(jots VERSION 1.1 LANGUAGES CXX)
+project(jots VERSION 1.2 LANGUAGES CXX)
 
 # Create interface library for compiler flag requirements (requiring C++11)
 add_library(compiler_flag_requirements INTERFACE)
