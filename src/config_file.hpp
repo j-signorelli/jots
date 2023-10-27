@@ -42,8 +42,7 @@ class Config
         
         bool using_time_integration;
         std::string time_scheme_label;      /*!< \brief Time integration scheme to use */
-        double t0;                    /*!< \brief Starting time */
-        double tf;                    /*!< \brief Final time to run to */
+        int max_timesteps;             /*!< \brief Delta time, timestep */
         double dt;                    /*!< \brief Delta time, timestep */
 
         std::string solver_label;                /*!< \brief Linear system solver type */
@@ -145,9 +144,9 @@ class Config
 
         std::string GetTimeSchemeLabel() const { return time_scheme_label; };
 
-        double GetFinalTime() const { return tf; };
+        int GetMaxTimesteps() const { return max_timesteps; };
 
-        void SetFinalTime(double in_tf) { tf = in_tf; };
+        void SetMaxTimesteps(int in_max_timesteps) {  max_timesteps = in_max_timesteps; };
 
         double Getdt() const { return dt; };
 

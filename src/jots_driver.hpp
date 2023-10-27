@@ -39,7 +39,7 @@ class JOTSDriver
         double precice_saved_time;
         double precice_saved_it_num;
         double dt;
-        double tf;
+        int max_timesteps;
 
         JOTSIterator* jots_iterator;
         mfem::Vector u;

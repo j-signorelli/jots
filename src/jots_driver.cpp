@@ -13,7 +13,7 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
   it_num(0),
   time(0.0),
   dt(0.0),
-  tf(0.0),
+  max_timesteps(0),
   jots_iterator(nullptr),
   adapter(nullptr),
   user_input(input),
@@ -87,8 +87,7 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
                                              mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY],
                                              *fespace,
                                              time,
-                                             dt,
-                                             tf);
+                                             dt);
             break;
         case SIMULATION_TYPE::STEADY:
             break;
@@ -321,13 +320,13 @@ void JOTSDriver::ProcessTimeIntegration()
         cout << "\n";
         cout << "Time Scheme: " << user_input.GetTimeSchemeLabel() << endl;
         cout << "Time Step: " << user_input.Getdt() << endl;
-        cout << "Max Time: " << user_input.GetFinalTime() << endl;
+        cout << "Max Timesteps: " << user_input.GetMaxTimesteps() << endl;
     
     }
     //----------------------------------------------------------------------
-    // Set dt and tf
+    // Set dt and max timesteps
     dt = user_input.Getdt();
-    tf = user_input.GetFinalTime();
+    max_timesteps = user_input.GetMaxTimesteps();
 }
 
 void JOTSDriver::ProcessPrecice()
@@ -518,7 +517,7 @@ void JOTSDriver::Run()
         adapter->Interface()->initializeData();
     }
     
-    while ((!user_input.UsingPrecice() && jots_iterator->IsNotComplete()) 
+    while ((!user_input.UsingPrecice() && it_num < max_timesteps) 
     || (user_input.UsingPrecice() && adapter->Interface()->isCouplingOngoing())) // use short-circuiting
     {
         // Handle preCICE calls
@@ -659,7 +658,7 @@ void JOTSDriver::PostprocessIteration()
     // Print current timestep information:
     if (rank == 0)
     {
-        printf("Step #%10i || Time: %1.6e out of %-1.6e || dt: %1.6e \n", it_num, time, tf, dt);
+        printf("Step #%10i || Time: %1.6e out of %-1.6e || dt: %1.6e \n", it_num, time, dt*max_timesteps, dt);
     }
     
     // Check if blow up

@@ -115,14 +115,14 @@ void Config::ReadTimeInt()
         using_time_integration = false;
         time_scheme_label = "Euler_Implicit";
         dt = 0.1;
-        tf = 10.0;
+        max_timesteps = 100;
     }
     else
     {
         using_time_integration = true;
         time_scheme_label = property_tree.get("TimeIntegration.Time_Scheme", "Euler_Implicit");
         dt = property_tree.get("TimeIntegration.Delta_Time", 0.1);
-        tf = property_tree.get("TimeIntegration.Final_Time", 10.0);
+        max_timesteps = property_tree.get("TimeIntegration.Max_Timesteps", 100);
     }
 }
 

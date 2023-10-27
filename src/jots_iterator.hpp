@@ -10,7 +10,6 @@ class JOTSIterator
     protected:
         static constexpr double TIME_TOLERANCE = 1e-14;
     public:
-        virtual bool IsNotComplete() const = 0;
         virtual void Iterate(mfem::Vector& u) = 0;
         virtual void ProcessMatPropUpdate(MATERIAL_PROPERTY mp) = 0;
         virtual void UpdateNeumann() = 0;
