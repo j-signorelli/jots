@@ -80,7 +80,7 @@ int Analytical_Reg_Test(string input_file, std::function<double(const Vector &, 
 
     // Define exact solution coefficient
     FunctionCoefficient u_exact(Analytical);
-    u_exact.SetTime(input.GetFinalTime());
+    u_exact.SetTime(input.GetMaxTimesteps()*input.Getdt());
 
     // Get the finite-element approximation solution
     double error = driver->GetOutputManager()->GetVectorPGF("Temperature")->ComputeL2Error(u_exact);

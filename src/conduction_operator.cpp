@@ -12,9 +12,8 @@ using namespace std;
  *
  *  Class ConductionOperator represents the right-hand side of the above ODE.
  */
-ConductionOperator::ConductionOperator(const Config& in_config, const BoundaryCondition* const* in_bcs, Array<int>* all_bdr_attr_markers, const MaterialProperty* rho_prop, const MaterialProperty* C_prop, const MaterialProperty* k_prop, ParFiniteElementSpace &f, double& t_ref, double& dt_ref, const double& tf_ref)
+ConductionOperator::ConductionOperator(const Config& in_config, const BoundaryCondition* const* in_bcs, Array<int>* all_bdr_attr_markers, const MaterialProperty* rho_prop, const MaterialProperty* C_prop, const MaterialProperty* k_prop, ParFiniteElementSpace &f, double& t_ref, double& dt_ref)
 :  TimeDependentOperator(f.GetTrueVSize(), t_ref),
-   tf(tf_ref),
    time(t_ref),
    dt(dt_ref), 
    rho_C(rho_prop->GetLocalValue(0), C_prop->GetCoeffRef()),
@@ -281,11 +280,6 @@ void ConductionOperator::ImplicitSolve(const double dt,
 
    // Solve for du_dt
    impl_solver->Mult(rhs, du_dt);
-}
-
-bool ConductionOperator::IsNotComplete() const
-{
-   return !(time > tf || abs(time-tf) < TIME_TOLERANCE);
 }
 
 void ConductionOperator::Iterate(Vector& u)
