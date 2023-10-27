@@ -15,8 +15,6 @@ int main(int argc, char *argv[])
 
    // Parse input file
    const char *input_file = "../config_template.ini";
-   //int precision = 8;
-   //cout.precision(precision);
 
    OptionsParser args(argc, argv);
    args.AddOption(&input_file, "-i", "--input",
@@ -34,8 +32,11 @@ int main(int argc, char *argv[])
       args.PrintOptions(cout);
    }
 
+   // Parse the input file
+   Config input(input_file);
+
    // Create new JOTSDriver
-   JOTSDriver* driver = new JOTSDriver(input_file, myid, num_procs);
+   JOTSDriver* driver = new JOTSDriver(input, myid, num_procs);
 
    // Run driver
    driver->Run();

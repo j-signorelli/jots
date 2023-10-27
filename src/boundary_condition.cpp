@@ -46,17 +46,16 @@ string PreciceHeatFluxBC::GetInitString() const
     return sstm.str();
 }
 
-UniformConstantBC::UniformConstantBC(const int attr, const BOUNDARY_CONDITION in_type, const double in_value)
-: BoundaryCondition(attr, in_type),
+UniformConstantBC::UniformConstantBC(const int attr, const double in_value)
+: BoundaryCondition(attr),
   uniform_value(in_value)
 {
     // Initialize coefficient
     coeff = new ConstantCoefficient(uniform_value);
 }
         
-UniformSinusoidalBC::UniformSinusoidalBC(const int attr, BOUNDARY_CONDITION in_type, const double& in_tref, const double in_amp, const double in_angfreq, const double in_phase, const double in_vert)
-: BoundaryCondition(attr, in_type),
-  time_ref(in_tref),
+UniformSinusoidalBC::UniformSinusoidalBC(const int attr, const double in_amp, const double in_angfreq, const double in_phase, const double in_vert)
+: BoundaryCondition(attr),
   amplitude(in_amp),
   ang_freq(in_angfreq),
   phase(in_phase),
@@ -67,15 +66,16 @@ UniformSinusoidalBC::UniformSinusoidalBC(const int attr, BOUNDARY_CONDITION in_t
     
     // Initialize the coefficient
     coeff = new FunctionCoefficient(TDF);
+
 }
 
-void UniformSinusoidalBC::UpdateCoeff()
+void UniformSinusoidalBC::UpdateCoeff(const double time)
 { 
-    coeff->SetTime(time_ref);
+    coeff->SetTime(time);
 }
 
-PreciceBC::PreciceBC(const int attr, const BOUNDARY_CONDITION in_type, ParFiniteElementSpace& f, const string in_mesh, const double in_value, const string in_read, const string in_write) 
-: BoundaryCondition(attr, in_type),
+PreciceBC::PreciceBC(const int attr, ParFiniteElementSpace& f, const string in_mesh, const double in_value, const string in_read, const string in_write) 
+: BoundaryCondition(attr),
   fespace(f),
   mesh_name(in_mesh),
   default_value(in_value),
@@ -83,13 +83,12 @@ PreciceBC::PreciceBC(const int attr, const BOUNDARY_CONDITION in_type, ParFinite
   write_data_name(in_write),
   dim(f.GetMesh()->Dimension()),
   coords(nullptr),
-  vertex_ids(nullptr),
   read_data_arr(nullptr),
   write_data_arr(nullptr),
+  coeff_dof_values(),
+  coeff_gf(nullptr),
   update_flag(false),
-  bdr_elem_indices(0),
-  bdr_dof_indices(0)
-  //coeff_values(0),
+  vertex_ids(nullptr)
 
 {
     // Method from GridFunction::AccumulateAndCountBdrValues used
@@ -166,7 +165,7 @@ PreciceBC::PreciceBC(const int attr, const BOUNDARY_CONDITION in_type, ParFinite
     coeff = new GridFunctionCoefficient(coeff_gf);
 }
 
-void PreciceBC::UpdateCoeff()
+void PreciceBC::UpdateCoeff(const double time)
 {   
 
     if (update_flag) // If flagged for update by adapter, update gf linked to coefficient

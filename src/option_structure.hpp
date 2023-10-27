@@ -4,6 +4,27 @@
 
 // This idea for arranging settings below was taken from SU2 v6.0:
 
+
+enum class SIMULATION_TYPE
+{
+  UNSTEADY=0,
+  STEADY=1
+};
+static const std::map<std::string, SIMULATION_TYPE> Simulation_Type_Map = {{"Unsteady", SIMULATION_TYPE::UNSTEADY},
+                                                                           {"Steady", SIMULATION_TYPE::STEADY}};
+
+
+enum MATERIAL_PROPERTY : int
+{
+  DENSITY=0,
+  SPECIFIC_HEAT=1,
+  THERMAL_CONDUCTIVITY=2
+};
+
+static const std::map<std::string, MATERIAL_PROPERTY> Material_Property_Map = {{"Density_rho", MATERIAL_PROPERTY::DENSITY},
+                                                                               {"Specific_Heat_C", MATERIAL_PROPERTY::SPECIFIC_HEAT},
+                                                                               {"Thermal_Conductivity_k", MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY}};
+
 enum class TIME_SCHEME
 {
 

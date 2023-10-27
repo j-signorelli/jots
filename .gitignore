@@ -1,4 +1,7 @@
 build/
-tests/*/ParaView/
-.vscode/settings.json
-tests/*/restart_*
+examples/*/ParaView/
+examples/*/*/ParaView/
+examples/*/*/precice-*
+examples/*/*/preCICE-output/
+.vscode/
+examples/*/restart_*

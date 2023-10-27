@@ -6,58 +6,79 @@
 
 #include "option_structure.hpp"
 #include "config_file.hpp"
-#include "conduction_operator.hpp"
 #include "material_property.hpp"
 #include "precice_adapter.hpp"
 #include "output_manager.hpp"
+#include "jots_iterator.hpp"
+#include "conduction_operator.hpp"
 
 class JOTSDriver
-{
+{   
+    private:
+
+        void ProcessFiniteElementSetup();
+        void ProcessMaterialProperties();
+        void ProcessTimeIntegration();
+        void ProcessPrecice();
+        void ProcessBoundaryConditions();
+        void PrintLinearSolverSettings();
+        void PrintOutput();
+
+
     protected:
         static const std::string LINE;
-        static const double TIME_TOLERANCE;
 
 	    const int rank;
         const int size;
+        MPI_Comm comm;
 
         int dim;
         int it_num;
         double time;
+        double precice_dt;
+        double precice_saved_time;
+        double precice_saved_it_num;
         double dt;
-        double tf;
+        int max_timesteps;
+
+        JOTSIterator* jots_iterator;
+        mfem::Vector u;
 
         PreciceAdapter* adapter;
 
-        Config* user_input;
+        const Config& user_input;
+
         BoundaryCondition** boundary_conditions;
         Array<int>* all_bdr_attr_markers;
         bool initialized_bcs;
-        
-        MaterialProperty* k_prop;
-        MaterialProperty* C_prop;
 
-        mfem::ODESolver* ode_solver;
+        MaterialProperty** mat_props;
+
         mfem::ParMesh* pmesh;
         mfem::FiniteElementCollection* fe_coll;
         mfem::ParFiniteElementSpace* fespace;
 
-        ConductionOperator* oper;
         OutputManager* output;
 
-        mfem::Vector T;
         
-        mutable mfem::ParGridFunction* temp_T_gf;
+        mutable mfem::ParGridFunction* u_0_gf;
 
-        void UpdateMatProps();
+    public:
+        JOTSDriver(const Config& input, const int myid, const int num_procs, MPI_Comm in_comm=MPI_COMM_WORLD);
+        
+        void UpdateAndApplyMatProps();
+
+        void UpdateAndApplyBCs();
 
         void PreprocessIteration();
 
-    public:
-        JOTSDriver(const char* input_file, const int myid, const int num_procs);
-        void Run();
+        void Iteration();
 
+        void PostprocessIteration();
+
+        void Run();
+        
+        OutputManager* GetOutputManager() { return output; };
 
         ~JOTSDriver();
-
-    private:
 };

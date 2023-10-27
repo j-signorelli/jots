@@ -12,26 +12,29 @@ using namespace std;
  *
  *  Class ConductionOperator represents the right-hand side of the above ODE.
  */
-ConductionOperator::ConductionOperator(const Config* in_config, const BoundaryCondition* const* in_bcs, Array<int>* all_bdr_attr_markers, const MaterialProperty* C_prop, const MaterialProperty* k_prop, ParFiniteElementSpace &f, double t_0)
-   :  TimeDependentOperator(f.GetTrueVSize(), t_0),
-      rho_C(in_config->GetDensity(), C_prop->GetCoeffRef()),
-      fespace(f),
-      impl_solver(NULL),
-      expl_solver(NULL),
-      m(NULL), 
-      k(NULL),
-      b(NULL),
-      M_full(NULL),
-      K_full(NULL),
-      b_vec(height),
-      M(NULL),
-      K(NULL),
-      A(NULL),
-      M_e(NULL),
-      K_e(NULL),
-      A_e(NULL),
-      rhs(height),
-      mass_updated(false)
+ConductionOperator::ConductionOperator(const Config& in_config, const BoundaryCondition* const* in_bcs, Array<int>* all_bdr_attr_markers, const MaterialProperty* rho_prop, const MaterialProperty* C_prop, const MaterialProperty* k_prop, ParFiniteElementSpace &f, double& t_ref, double& dt_ref)
+:  TimeDependentOperator(f.GetTrueVSize(), t_ref),
+   time(t_ref),
+   dt(dt_ref), 
+   rho_C(rho_prop->GetLocalValue(0), C_prop->GetCoeffRef()),
+   fespace(f),
+   ode_solver(nullptr),
+   expl_solver(nullptr),
+   impl_solver(nullptr),
+   m(nullptr), 
+   k(nullptr),
+   b(nullptr),
+   M_full(nullptr),
+   K_full(nullptr),
+   b_vec(height),
+   M(nullptr),
+   K(nullptr),
+   A(nullptr),
+   M_e(nullptr),
+   K_e(nullptr),
+   A_e(nullptr),
+   rhs(height),
+   mass_updated(false)
 {
 
    PreprocessSolver(in_config);
@@ -42,18 +45,24 @@ ConductionOperator::ConductionOperator(const Config* in_config, const BoundaryCo
 
    PreprocessStiffness(k_prop);
 
+   //----------------------------------------------------------------
+   // Instantiate ODESolver
+   ode_solver = Factory::GetODESolver(in_config.GetTimeSchemeLabel());
+   
+   // Initialize ODESolver with THIS operator
+   ode_solver->Init(*this);
 }
 
-void ConductionOperator::PreprocessSolver(const Config* in_config)
+void ConductionOperator::PreprocessSolver(const Config& in_config)
 {  
-   double abs_tol = in_config->GetAbsTol();
-   double rel_tol = in_config->GetRelTol();
-   int max_iter = in_config->GetMaxIter();
+   double abs_tol = in_config.GetAbsTol();
+   double rel_tol = in_config.GetRelTol();
+   int max_iter = in_config.GetMaxIter();
 
    //----------------------------------------------------------------
    // Prepare explicit solver
    
-   expl_solver = in_config->GetSolver(fespace.GetComm());
+   expl_solver = Factory::GetSolver(in_config.GetSolverLabel(), fespace.GetComm());
 
    // Set up the solver for Mult
    expl_solver->iterative_mode = false; // If true, would use second argument of Mult() as initial guess; here it is set to false
@@ -63,12 +72,12 @@ void ConductionOperator::PreprocessSolver(const Config* in_config)
    expl_solver->SetMaxIter(max_iter); // Sets maximum number of iterations
    expl_solver->SetPrintLevel(0); // Print all information about detected issues
 
-   expl_prec.SetType(in_config->GetPrec()); // Set type of preconditioning (relaxation type) 
+   expl_prec.SetType(Factory::GetPrec(in_config.GetPrecLabel())); // Set type of preconditioning (relaxation type) 
    expl_solver->SetPreconditioner(expl_prec); // Set preconditioner to matrix inversion solver
 
    //----------------------------------------------------------------
    // Prepare implicit solver
-   impl_solver = in_config->GetSolver(fespace.GetComm());
+   impl_solver = Factory::GetSolver(in_config.GetSolverLabel(), fespace.GetComm());
    
    // Set up solver for ImplicitSolve
    impl_solver->iterative_mode = false;
@@ -76,24 +85,24 @@ void ConductionOperator::PreprocessSolver(const Config* in_config)
    impl_solver->SetAbsTol(abs_tol);
    impl_solver->SetMaxIter(max_iter);
    impl_solver->SetPrintLevel(0);
-   impl_prec.SetType(in_config->GetPrec());
+   impl_prec.SetType(Factory::GetPrec(in_config.GetPrecLabel()));
    impl_solver->SetPreconditioner(impl_prec);
-   
+
 
 }
 
-void ConductionOperator::PreprocessBCs(const Config* in_config, const BoundaryCondition* const* in_bcs, Array<int>* all_bdr_attr_markers)
+void ConductionOperator::PreprocessBCs(const Config& in_config, const BoundaryCondition* const* in_bcs, Array<int>* all_bdr_attr_markers)
 {
 
    // Set the list of Dirichlet (essential) DOFs
-   Array<int> dbc_bdr(in_config->GetBCCount());
+   Array<int> dbc_bdr(in_config.GetBCCount());
    dbc_bdr = 0; // Start w/ all attributes set to non-essential = 0
 
 
    // Create linear form for Neumann BCs
    b = new ParLinearForm(&fespace);
 
-   for (size_t i = 0; i < in_config->GetBCCount(); i++)
+   for (int i = 0; i < in_config.GetBCCount(); i++)
    {
       // Add Neumann BCs to linear form b
       if (!in_bcs[i]->IsEssential())
@@ -111,7 +120,7 @@ void ConductionOperator::PreprocessBCs(const Config* in_config, const BoundaryCo
    fespace.GetEssentialTrueDofs(dbc_bdr, ess_tdof_list);
 
    // Initialize Neumann linear form
-   UpdateNeumannTerm();
+   UpdateNeumann();
 }
 
 void ConductionOperator::PreprocessMass()
@@ -124,7 +133,7 @@ void ConductionOperator::PreprocessMass()
    m->AddDomainIntegrator(new MassIntegrator(rho_C));
 
    // Initialize mass matrix data structures
-   UpdateMass();
+   ReassembleMass();
 }
 
 void ConductionOperator::PreprocessStiffness(const MaterialProperty* k_prop)
@@ -137,18 +146,18 @@ void ConductionOperator::PreprocessStiffness(const MaterialProperty* k_prop)
    k->AddDomainIntegrator(new DiffusionIntegrator(k_prop->GetCoeffRef()));
    
    // Initialize stiffness data structures
-   UpdateStiffness();
+   ReassembleStiffness();
 }
 
-void ConductionOperator::UpdateMass()
+void ConductionOperator::ReassembleMass()
 {
    delete M_full;
    delete M;
    delete M_e;
 
-   M_full = NULL;
-   M = NULL;
-   M_e = NULL;
+   M_full = nullptr;
+   M = nullptr;
+   M_e = nullptr;
 
    m->Update(); // delete old data (M and M_e) if anything changed
 
@@ -166,16 +175,16 @@ void ConductionOperator::UpdateMass()
    mass_updated = true;
 }
 
-void ConductionOperator::UpdateStiffness()
+void ConductionOperator::ReassembleStiffness()
 {    
 
    delete K_full;
    delete K;
    delete K_e;
 
-   K_full = NULL;
-   K = NULL;
-   K_e = NULL;
+   K_full = nullptr;
+   K = nullptr;
+   K_e = nullptr;
 
 
    k->Update(); // delete old data (M and M_e) if conductivity changed
@@ -193,7 +202,7 @@ void ConductionOperator::UpdateStiffness()
 
 }
 
-void ConductionOperator::UpdateNeumannTerm()
+void ConductionOperator::UpdateNeumann()
 {
    b->Assemble();
    b->ParallelAssemble(b_vec);
@@ -273,10 +282,29 @@ void ConductionOperator::ImplicitSolve(const double dt,
    impl_solver->Mult(rhs, du_dt);
 }
 
+void ConductionOperator::Iterate(Vector& u)
+{
+   // Step in time
+   ode_solver->Step(u, time, dt);
+}
+
+void ConductionOperator::ProcessMatPropUpdate(MATERIAL_PROPERTY mp)
+{
+   switch (mp)
+   {
+      case MATERIAL_PROPERTY::DENSITY:
+      case MATERIAL_PROPERTY::SPECIFIC_HEAT:
+         ReassembleMass();
+         break;
+      case MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY:
+         ReassembleStiffness();
+         break;
+   }
+}
 
 ConductionOperator::~ConductionOperator()
 {
-   
+   delete ode_solver;
    delete expl_solver;
    delete impl_solver;
 

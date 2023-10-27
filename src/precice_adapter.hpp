@@ -28,7 +28,7 @@ class PreciceAdapter
         static const std::string cowic;
         static const std::string coric;
 
-        PreciceAdapter(const std::string in_part_name, const std::string in_config, const int r, const int s);
+        PreciceAdapter(const std::string in_part_name, const std::string in_config, const int r, const int s, MPI_Comm comm=MPI_COMM_WORLD);
 
         void AddPreciceBCs(BoundaryCondition** in_bcs, std::vector<int> precice_bc_indices);
         
