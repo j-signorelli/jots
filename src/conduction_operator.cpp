@@ -202,12 +202,6 @@ void ConductionOperator::ReassembleStiffness()
 
 }
 
-void ConductionOperator::UpdateNeumann()
-{
-   b->Assemble();
-   b->ParallelAssemble(b_vec);
-}
-
 void ConductionOperator::CalculateRHS(const Vector &u) const
 {   
 
@@ -300,6 +294,12 @@ void ConductionOperator::ProcessMatPropUpdate(MATERIAL_PROPERTY mp)
          ReassembleStiffness();
          break;
    }
+}
+
+void ConductionOperator::UpdateNeumann()
+{
+   b->Assemble();
+   b->ParallelAssemble(b_vec);
 }
 
 ConductionOperator::~ConductionOperator()
