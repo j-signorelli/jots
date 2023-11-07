@@ -8,7 +8,6 @@ class JOTSIterator
 {
     private:
     protected:
-        static constexpr double TIME_TOLERANCE = 1e-14;
     public:
         virtual void Iterate(mfem::Vector& u) = 0;
         virtual void ProcessMatPropUpdate(MATERIAL_PROPERTY mp) = 0;
