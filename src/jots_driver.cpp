@@ -55,7 +55,17 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
     //----------------------------------------------------------------------
     // Process TimeIntegration (if using (required for unsteady))
     if (user_input.UsingTimeIntegration())
+    {
         ProcessTimeIntegration();
+    }
+    else // otherwise set cycle to -2, max timesteps to -1
+    {
+        it_num = -2;
+        max_timesteps = -1;
+        // Ensures output appropriate for time-independent runs, as MFEM requires cycle = -1
+        // Time-independent runs only complete inner iterations w/ a single outer iteration
+        // As opposed to time-dependent runs having outer-iterations being a timestep
+    }
     //----------------------------------------------------------------------
     // Process preCICE (if using)
     if (user_input.UsingPrecice())
@@ -67,8 +77,9 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
     // Print LinearSolverSettings
     PrintLinearSolverSettings();
     //----------------------------------------------------------------------
-    // Print Output settings
-    PrintOutput();
+    // Print Output settings (if unsteady)
+    if (user_input.UsingTimeIntegration())
+        PrintOutput();
     //---------------------------------------------------------------------
     // Create JOTSIterator object/s
     if (rank == 0)
@@ -90,6 +101,7 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
                                              dt);
             break;
         case SIMULATION_TYPE::STEADY:
+            jots_iterator = new SteadyConductionOperator()
             break;
     }
     //----------------------------------------------------------------------
