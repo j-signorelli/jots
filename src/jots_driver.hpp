@@ -22,6 +22,7 @@ class JOTSDriver
         void ProcessPrecice();
         void ProcessBoundaryConditions();
         void PrintLinearSolverSettings();
+        void PrintNewtonSolverSettings();
         void PrintOutput();
 
 

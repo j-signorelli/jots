@@ -77,6 +77,11 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
     // Print LinearSolverSettings
     PrintLinearSolverSettings();
     //----------------------------------------------------------------------
+    // Print NewtonSolverSettings (if using)
+    if (user_input.UsingNewton())
+        PrintNewtonSolverSettings();
+    
+    //----------------------------------------------------------------------
     // Print Output settings (if unsteady)
     if (user_input.UsingTimeIntegration())
         PrintOutput();
@@ -495,6 +500,19 @@ void JOTSDriver::PrintLinearSolverSettings()
         cout << "Max Iterations: " << user_input.GetMaxIter() << endl;
         cout << "Absolute Tolerance: " << user_input.GetAbsTol() << endl;
         cout << "Relative Tolerance: " << user_input.GetRelTol() << endl;
+    }
+}
+
+void JOTSDriver::PrintNewtonSolverSettings()
+{
+    // Print Newton solver settings
+    if (rank == 0)
+    {
+        cout << "\n";
+        cout << "Newton Solver" << endl;
+        cout << "Max Iterations: " << user_input.GetNewtonMaxIter() << endl;
+        cout << "Absolute Tolerance: " << user_input.GetNewtonAbsTol() << endl;
+        cout << "Relative Tolerance: " << user_input.GetNewtonRelTol() << endl;
     }
 }
 

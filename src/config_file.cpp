@@ -16,6 +16,7 @@ Config::Config(const char* in_file) : input_file(in_file)
     ReadBCs();
     ReadTimeInt();
     ReadLinSolSettings();
+    ReadNewtonSettings();
     ReadOutput();
 }
 
@@ -134,6 +135,26 @@ void Config::ReadLinSolSettings()
     abs_tol = property_tree.get("LinearSolverSettings.Absolute_Tolerance", 1e-16);
     rel_tol = property_tree.get("LinearSolverSettings.Relative_Tolerance", 1e-10);
     max_iter = property_tree.get("LinearSolverSettings.Max_Iterations", 100);
+}
+
+void Config::ReadNewtonSettings()
+{
+    // Read NewtonSolverSettings
+    // If none, then do nothing and set using_newton
+    if (property_tree.find("NewtonSolverSettings") == property_tree.not_found())
+    {
+        using_newton = false;
+        newton_max_iter = 100;
+        newton_abs_tol = 1e-16;
+        newton_rel_tol = 1e-10;
+    }
+    else
+    {   
+        using_newton = true;
+        newton_max_iter = property_tree.get("LinearSolverSettings.Max_Iterations", 100);
+        newton_abs_tol = property_tree.get("LinearSolverSettings.Absolute_Tolerance", 1e-16);
+        newton_rel_tol = property_tree.get("LinearSolverSettings.Relative_Tolerance", 1e-10);
+    }
 }
 
 void Config::ReadOutput()

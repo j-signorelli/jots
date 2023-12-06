@@ -51,6 +51,11 @@ class Config
         double rel_tol;               /*!< \brief Solver relative tolerance */
         int max_iter;                 /*!< \brief Maximum solver iterations */
 
+        bool using_newton;
+        double newton_abs_tol;               /*!< \brief Solver absolute tolerance */
+        double newton_rel_tol;               /*!< \brief Solver relative tolerance */
+        int newton_max_iter;                 /*!< \brief Maximum solver iterations */
+
         int restart_freq;             /*!< \brief Frequency to output restart files (iterations per output) */
         int vis_freq;                 /*!< \brief Frequency to output Paraview files (iterations per output) */
 
@@ -63,6 +68,7 @@ class Config
         void ReadBCs();
         void ReadTimeInt();
         void ReadLinSolSettings();
+        void ReadNewtonSettings();
         void ReadOutput();
 
     public:
@@ -171,6 +177,22 @@ class Config
         double GetRelTol() const { return rel_tol; };
 
         void SetRelTol(double in_tol) { rel_tol = in_tol; };
+
+        bool UsingNewton() const { return using_newton; };
+
+        void SetNewton(bool in_using) { using_newton = in_using; };
+
+        int GetNewtonMaxIter() const { return newton_max_iter; };
+
+        void SetNewtonMaxIter(int in_iter) { newton_max_iter = in_iter; };
+
+        double GetNewtonAbsTol() const { return newton_abs_tol; };
+
+        void SetNewtonAbsTol(double in_tol) { newton_abs_tol = in_tol; };
+
+        double GetNewtonRelTol() const { return newton_rel_tol; };
+
+        void SetNewtonRelTol(double in_tol) { newton_rel_tol = in_tol; };
 
         int GetRestartFreq() const { return restart_freq; };
 
