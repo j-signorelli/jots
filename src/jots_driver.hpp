@@ -11,6 +11,7 @@
 #include "output_manager.hpp"
 #include "jots_iterator.hpp"
 #include "conduction_operator.hpp"
+#include "steady_conduction_operator.hpp"
 
 class JOTSDriver
 {   

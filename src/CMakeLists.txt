@@ -2,6 +2,7 @@
 add_library(jotsLib 
                 jots_iterator.cpp
                 conduction_operator.cpp
+                steady_conduction_operator.cpp
                 config_file.cpp
                 boundary_condition.cpp
                 material_property.cpp

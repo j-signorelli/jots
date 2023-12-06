@@ -106,7 +106,11 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
                                              dt);
             break;
         case SIMULATION_TYPE::STEADY:
-            //jots_iterator = new SteadyConductionOperator()
+            jots_iterator = new SteadyConductionOperator(user_input, 
+                                                    boundary_conditions,
+                                                    all_bdr_attr_markers,
+                                                    *mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY],
+                                                    *fespace);
             break;
     }
     //----------------------------------------------------------------------
