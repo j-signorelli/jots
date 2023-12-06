@@ -101,7 +101,7 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
                                              dt);
             break;
         case SIMULATION_TYPE::STEADY:
-            jots_iterator = new SteadyConductionOperator()
+            //jots_iterator = new SteadyConductionOperator()
             break;
     }
     //----------------------------------------------------------------------
@@ -123,7 +123,7 @@ void JOTSDriver::ProcessFiniteElementSetup()
 {
     // Print appropriate solver type + get required material properties, add them to map
     if (rank == 0)
-        cout << "Simulation Type: ";
+        cout << "Simulation Type: " << user_input.GetSimTypeLabel() << endl;
 
     // If not restart, refine mesh and initialize; else load VisItDataCollection
     if (!user_input.UsesRestart())
@@ -171,7 +171,7 @@ void JOTSDriver::ProcessFiniteElementSetup()
         //----------------------------------------------------------------------
         // Define parallel FE space on parallel mesh
         fe_coll = new H1_FECollection(user_input.GetFEOrder(), dim);
-
+        
         fespace = new ParFiniteElementSpace(pmesh, fe_coll);
         
         //----------------------------------------------------------------------
