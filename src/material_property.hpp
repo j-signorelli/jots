@@ -20,8 +20,8 @@ class MaterialProperty
         mfem::Coefficient& GetDCoeffRef() const { return *dcoeffdu; };
         virtual bool IsConstant() const = 0; // true if dcoeffdu = 0
         virtual void UpdateCoeff(const mfem::Vector& u_ref) = 0;
-        virtual void UpdateCoeff(const mfem::Vector& u_ref_e, const mfem::Array<int>* dofs) = 0; // Both vectors same size; if none, then assume global
-        virtual void UpdateDCoeff(const mfem::Vector& u_ref_e, const mfem::Array<int>* dofs) = 0;
+        virtual void UpdateCoeff(const mfem::Vector& u_ref_e, const mfem::Array<int>& dofs) = 0; // Both vectors same size; if none, then assume global
+        virtual void UpdateDCoeff(const mfem::Vector& u_ref_e, const mfem::Array<int>& dofs) = 0;
         
         virtual std::string GetInitString() const = 0;
         virtual double GetLocalValue(double u_local) const = 0;
@@ -37,8 +37,8 @@ class UniformProperty : public MaterialProperty
         UniformProperty(const double& in_mp);
         bool IsConstant() const { return true; }
         void UpdateCoeff(const mfem::Vector& u_ref) {};
-        void UpdateCoeff(const mfem::Vector& u_ref_e, const mfem::Array<int>* dofs) {};
-        void UpdateDCoeff(const mfem::Vector& u_ref_e, const mfem::Array<int>* dofs) {};
+        void UpdateCoeff(const mfem::Vector& u_ref_e, const mfem::Array<int>& dofs) {};
+        void UpdateDCoeff(const mfem::Vector& u_ref_e, const mfem::Array<int>& dofs) {};
         std::string GetInitString() const;
         
         double GetLocalValue(double u_local) const { return mp_val; };
@@ -58,8 +58,8 @@ class PolynomialProperty : public MaterialProperty
         PolynomialProperty(const std::vector<double>& in_poly_coeffs, mfem::ParFiniteElementSpace& f);
         bool IsConstant() const { return false; };
         void UpdateCoeff(const mfem::Vector& u_ref);
-        void UpdateCoeff(const mfem::Vector& u_ref_e, const mfem::Array<int>* dofs);
-        void UpdateDCoeff(const mfem::Vector& u_ref_e, const mfem::Array<int>* dofs);
+        void UpdateCoeff(const mfem::Vector& u_ref_e, const mfem::Array<int>& dofs);
+        void UpdateDCoeff(const mfem::Vector& u_ref_e, const mfem::Array<int>& dofs);
 
         std::string GetInitString() const;
         double GetLocalValue(double u_local) const;

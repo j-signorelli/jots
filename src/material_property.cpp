@@ -45,9 +45,9 @@ void PolynomialProperty::UpdateCoeff(const mfem::Vector& u_ref)
     }
 }
 
-void PolynomialProperty::UpdateCoeff(const mfem::Vector& u_ref_e, const Array<int>* dofs)
+void PolynomialProperty::UpdateCoeff(const mfem::Vector& u_ref_e, const Array<int>& dofs)
 {   
-    mp_gf.SetSubVector(*dofs, 0.0);
+    mp_gf.SetSubVector(dofs, 0.0);
 
     Vector z_e(u_ref_e.Size());
 
@@ -56,13 +56,13 @@ void PolynomialProperty::UpdateCoeff(const mfem::Vector& u_ref_e, const Array<in
         z_e = 1;
         for (size_t j = 0; j < poly_coeffs.size() - i - 1; j++)
             z_e *= u_ref_e;
-        mp_gf.AddElementVector(*dofs, poly_coeffs[i], z_e); // Update the GF associated with the coefficient
+        mp_gf.AddElementVector(dofs, poly_coeffs[i], z_e); // Update the GF associated with the coefficient
     }
 }
 
-void PolynomialProperty::UpdateDCoeff(const mfem::Vector& u_ref_e, const Array<int>* dofs)
+void PolynomialProperty::UpdateDCoeff(const mfem::Vector& u_ref_e, const Array<int>& dofs)
 {   
-    dmpdu_gf.SetSubVector(*dofs, 0.0);
+    dmpdu_gf.SetSubVector(dofs, 0.0);
 
     Vector z_e(u_ref_e.Size());
 
@@ -71,7 +71,7 @@ void PolynomialProperty::UpdateDCoeff(const mfem::Vector& u_ref_e, const Array<i
         z_e = poly_coeffs[i];
         for (size_t j = 0; j < poly_coeffs.size() - i - 2; j++)
             z_e *= u_ref_e;
-        dmpdu_gf.AddElementVector(*dofs, poly_coeffs[i], z_e); // Update the GF associated with the coefficient
+        dmpdu_gf.AddElementVector(dofs, poly_coeffs[i], z_e); // Update the GF associated with the coefficient
     }
 }
 
