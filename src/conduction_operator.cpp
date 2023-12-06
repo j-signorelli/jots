@@ -14,19 +14,17 @@ using namespace std;
  */
 ConductionOperator::ConductionOperator(const Config& in_config, const BoundaryCondition* const* in_bcs, Array<int>* all_bdr_attr_markers, const MaterialProperty* rho_prop, const MaterialProperty* C_prop, const MaterialProperty* k_prop, ParFiniteElementSpace &f, double& t_ref, double& dt_ref)
 :  TimeDependentOperator(f.GetTrueVSize(), t_ref),
+   JOTSIterator(f, in_bcs, all_bdr_attr_markers, in_config.GetBCCount()),
    time(t_ref),
    dt(dt_ref), 
    rho_C(rho_prop->GetLocalValue(0), C_prop->GetCoeffRef()),
-   fespace(f),
    ode_solver(nullptr),
    expl_solver(nullptr),
    impl_solver(nullptr),
    m(nullptr), 
    k(nullptr),
-   b(nullptr),
    M_full(nullptr),
    K_full(nullptr),
-   b_vec(height),
    M(nullptr),
    K(nullptr),
    A(nullptr),
@@ -38,8 +36,6 @@ ConductionOperator::ConductionOperator(const Config& in_config, const BoundaryCo
 {
 
    PreprocessSolver(in_config);
-
-   PreprocessBCs(in_config, in_bcs, all_bdr_attr_markers);
    
    PreprocessMass();
 
@@ -89,38 +85,6 @@ void ConductionOperator::PreprocessSolver(const Config& in_config)
    impl_solver->SetPreconditioner(impl_prec);
 
 
-}
-
-void ConductionOperator::PreprocessBCs(const Config& in_config, const BoundaryCondition* const* in_bcs, Array<int>* all_bdr_attr_markers)
-{
-
-   // Set the list of Dirichlet (essential) DOFs
-   Array<int> dbc_bdr(in_config.GetBCCount());
-   dbc_bdr = 0; // Start w/ all attributes set to non-essential = 0
-
-
-   // Create linear form for Neumann BCs
-   b = new ParLinearForm(&fespace);
-
-   for (int i = 0; i < in_config.GetBCCount(); i++)
-   {
-      // Add Neumann BCs to linear form b
-      if (!in_bcs[i]->IsEssential())
-      {
-         b->AddBoundaryIntegrator(new BoundaryLFIntegrator(in_bcs[i]->GetCoeffRef()), all_bdr_attr_markers[i]);// Add boundary integrator to boundary
-      }
-      else
-      {
-         // Update DBC list if essential
-         dbc_bdr[i] = 1;
-      }
-   }
-
-   // Get the essential true dofs, given the Dirichlet boundaries. Store in ess_tdof_list
-   fespace.GetEssentialTrueDofs(dbc_bdr, ess_tdof_list);
-
-   // Initialize Neumann linear form
-   UpdateNeumann();
 }
 
 void ConductionOperator::PreprocessMass()
@@ -211,7 +175,7 @@ void ConductionOperator::CalculateRHS(const Vector &u) const
    rhs.Neg(); // z = -z
 
    // Add Neumann vector term
-   rhs.Add(1, b_vec);
+   rhs.Add(1, b_vec_full);
 
    // Now have RHS without "eliminated" essential DOFs
    // ^this must be done depending on LHS
@@ -296,12 +260,6 @@ void ConductionOperator::ProcessMatPropUpdate(MATERIAL_PROPERTY mp)
    }
 }
 
-void ConductionOperator::UpdateNeumann()
-{
-   b->Assemble();
-   b->ParallelAssemble(b_vec);
-}
-
 ConductionOperator::~ConductionOperator()
 {
    delete ode_solver;
@@ -310,7 +268,6 @@ ConductionOperator::~ConductionOperator()
 
    delete m;
    delete k;
-   delete b;
 
    delete M_full;
    delete K_full;
