@@ -689,8 +689,8 @@ void JOTSDriver::Iteration()
 void JOTSDriver::PostprocessIteration()
 {   
 
-    // Print current timestep information:
-    if (rank == 0)
+    // Print current timestep information if using TimeIntegration:
+    if (rank == 0 && user_input.UsingTimeIntegration())
     {
         printf("Step #%10i || Time: %1.6e out of %-1.6e || dt: %1.6e \n", it_num, time, dt*max_timesteps, dt);
     }
@@ -703,29 +703,50 @@ void JOTSDriver::PostprocessIteration()
     }
 
     // Write any output files if required
-    bool viz_out = user_input.GetVisFreq() != 0 && it_num % user_input.GetVisFreq() == 0;
-    bool res_out = user_input.GetRestartFreq() != 0 && it_num % user_input.GetRestartFreq() == 0;
-    if (viz_out || res_out)
+    // If unsteady simulation, then output at input frequencies
+    // If steady, then output
+    if (!user_input.UsingTimeIntegration())
     {
         if (rank == 0)
+        {
             cout << LINE << endl;
-            
-        if (viz_out)
-        {
-            if (rank == 0)
-                cout << "Saving Paraview Data: Cycle " << it_num << endl;
-            output->WriteVizOutput(it_num, time);
+            cout << "Saving Paraview Data..." << endl;
         }
-
-        if (res_out)
-        {
-            if (rank == 0)
-                cout << "Saving Restart File: Cycle " << it_num << endl;
-            output->WriteRestartOutput(it_num, time);
-        }
+        output->WriteVizOutput(it_num, time);
 
         if (rank == 0)
+        {
+            cout << "Saving Restart File..." << endl;
             cout << LINE << endl;
+        }
+        output->WriteRestartOutput(it_num, time);
+    }
+    else
+    {
+        bool viz_out = user_input.GetVisFreq() != 0 && it_num % user_input.GetVisFreq() == 0;
+        bool res_out = user_input.GetRestartFreq() != 0 && it_num % user_input.GetRestartFreq() == 0;
+        if (viz_out || res_out)
+        {
+            if (rank == 0)
+                cout << LINE << endl;
+                
+            if (viz_out)
+            {
+                if (rank == 0)
+                    cout << "Saving Paraview Data: Cycle " << it_num << endl;
+                output->WriteVizOutput(it_num, time);
+            }
+
+            if (res_out)
+            {
+                if (rank == 0)
+                    cout << "Saving Restart File: Cycle " << it_num << endl;
+                output->WriteRestartOutput(it_num, time);
+            }
+
+            if (rank == 0)
+                cout << LINE << endl;
+        }
     }
 }
 
