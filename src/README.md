@@ -188,9 +188,9 @@ where generally this is a nonlinear problem as $\bold{K}=\bold{K}(\vec{u})$.
 
 To solve using Newton-Raphson iterations in MFEM using $H^1$-continuous finite elements, a new `NonlinearFormIntegrator` must be created with member functions `NonlinearFormIntegrator::AssembleElementVector` and `NonlinearFormIntegrator::AssembleElementGrad` implemented. The specific outputs of those functions are shown below:
 
-`AssembleElementVector` = $\displaystyle\int_\Omega (k(u) u_i \nabla\phi_i) \cdot \nabla\phi_j d\vec{x}$
+`AssembleElementVector` = $\mathbf{F}(u_j)=\mathbf{K}(u)u_j=\mathbf{K}_{ij} u_j=\displaystyle\int_\Omega \nabla\phi_i\cdot (k(u)u_j\nabla\phi_j) d\vec{x}$
 
-`AssembleElementGrad` = $\dfrac{\partial}{\partial u_i}\left(\displaystyle\int_\Omega (k(u) u_i \nabla\phi_i) \cdot \nabla\phi_j d\vec{x}\right) = \displaystyle\int_\Omega (k'(u) u_k \nabla\phi_k   \phi_i) \cdot \nabla\phi_j d\vec{x} + \displaystyle\int_\Omega (k(u) \nabla\phi_i) \cdot \nabla\phi_j d\vec{x}$
+`AssembleElementGrad` = $\dfrac{\partial \mathbf{F}(u_k)}{\partial u_j}= \dfrac{\partial}{\partial u_j}\left(\mathbf{K}_{ik}u_k\right) =\dfrac{\partial}{\partial u_j}\left(\displaystyle\int_\Omega \nabla\phi_i\cdot (k(u)u_k\nabla\phi_k) d\vec{x}\right) = \displaystyle\int_\Omega \nabla\phi_i \cdot (k'(u) u_k \nabla\phi_k \phi_j ) d\vec{x} + \displaystyle\int_\Omega \nabla\phi_i \cdot (k(u) \nabla\phi_j) d\vec{x}$
 
 
 # Notes:
