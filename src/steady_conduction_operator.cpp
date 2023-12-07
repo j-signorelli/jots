@@ -58,7 +58,9 @@ SteadyConductionOperator::SteadyConductionOperator(const Config& in_config, cons
 {
     // Add nonlinear diffusion
     k.AddDomainIntegrator(new NonlinearJOTSDiffusionIntegrator(k_prop, &f_));
+    k.SetEssentialTrueDofs(ess_tdof_list);
 
+    
     double abs_tol = in_config.GetAbsTol();
     double rel_tol = in_config.GetRelTol();
     int max_iter = in_config.GetMaxIter();
@@ -71,6 +73,7 @@ SteadyConductionOperator::SteadyConductionOperator(const Config& in_config, cons
     // Set NewtonSolver
     newton.SetOperator(k);
     newton.SetSolver(*lin_solver);
+    newton.SetPrintLevel(1);
     newton.SetAbsTol(in_config.GetNewtonAbsTol());
     newton.SetRelTol(in_config.GetNewtonRelTol());
     newton.SetMaxIter(in_config.GetNewtonMaxIter());
