@@ -52,15 +52,10 @@ void NonlinearJOTSDiffusionIntegrator::AssembleElementGrad(const FiniteElement &
 }
 
 SteadyConductionOperator::SteadyConductionOperator(const Config& in_config, const BoundaryCondition* const* in_bcs, mfem::Array<int>* all_bdr_attr_markers, MaterialProperty& k_prop, ParFiniteElementSpace& f_)
-: JOTSIterator(f_, in_bcs, all_bdr_attr_markers, in_config.GetBCCount()), 
+: JOTSIterator(f_, in_bcs, all_bdr_attr_markers, in_config.GetBCCount()),
   k(&f_),
   lin_solver(nullptr)
 {
-    // Add nonlinear diffusion
-    k.AddDomainIntegrator(new NonlinearJOTSDiffusionIntegrator(k_prop, &f_));
-    k.SetEssentialTrueDofs(ess_tdof_list);
-
-    
     double abs_tol = in_config.GetAbsTol();
     double rel_tol = in_config.GetRelTol();
     int max_iter = in_config.GetMaxIter();
@@ -69,6 +64,14 @@ SteadyConductionOperator::SteadyConductionOperator(const Config& in_config, cons
     lin_solver = Factory::GetSolver(in_config.GetSolverLabel(), fespace.GetComm());
     lin_prec.SetType(Factory::GetPrec(in_config.GetPrecLabel()));
     lin_solver->SetPreconditioner(lin_prec);
+    lin_solver->SetAbsTol(in_config.GetAbsTol());
+    lin_solver->SetRelTol(in_config.GetRelTol());
+    lin_solver->SetMaxIter(in_config.GetMaxIter());
+
+    // Add nonlinear diffusion
+    k.AddDomainIntegrator(new NonlinearJOTSDiffusionIntegrator(k_prop, &f_));
+
+    k.SetEssentialTrueDofs(ess_tdof_list);
 
     // Set NewtonSolver
     newton.SetOperator(k);
