@@ -54,7 +54,8 @@ void NonlinearJOTSDiffusionIntegrator::AssembleElementGrad(const FiniteElement &
 SteadyConductionOperator::SteadyConductionOperator(const Config& in_config, const BoundaryCondition* const* in_bcs, mfem::Array<int>* all_bdr_attr_markers, MaterialProperty& k_prop, ParFiniteElementSpace& f_)
 : JOTSIterator(f_, in_bcs, all_bdr_attr_markers, in_config.GetBCCount()),
   k(&f_),
-  lin_solver(nullptr)
+  lin_solver(nullptr),
+  newton(f_.GetComm())
 {
     double abs_tol = in_config.GetAbsTol();
     double rel_tol = in_config.GetRelTol();
@@ -70,7 +71,6 @@ SteadyConductionOperator::SteadyConductionOperator(const Config& in_config, cons
 
     // Add nonlinear diffusion
     k.AddDomainIntegrator(new NonlinearJOTSDiffusionIntegrator(k_prop, &f_));
-
     k.SetEssentialTrueDofs(ess_tdof_list);
 
     // Set NewtonSolver
