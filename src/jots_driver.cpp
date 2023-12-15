@@ -704,8 +704,8 @@ void JOTSDriver::PostprocessIteration()
 
     // Write any output files if required
     // If unsteady simulation, then output at input frequencies
-    // If steady, then output
-    if (!user_input.UsingTimeIntegration())
+    // If steady, then output ONLY IF viz_freq and restart_freq != 0
+    if (!user_input.UsingTimeIntegration() && user_input.GetVisFreq() != 0 && user_input.GetRestartFreq() != 0)
     {
         if (rank == 0)
         {
