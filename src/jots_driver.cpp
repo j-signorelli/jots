@@ -705,21 +705,26 @@ void JOTSDriver::PostprocessIteration()
     // Write any output files if required
     // If unsteady simulation, then output at input frequencies
     // If steady, then output ONLY IF viz_freq and restart_freq != 0
-    if (!user_input.UsingTimeIntegration() && user_input.GetVisFreq() != 0 && user_input.GetRestartFreq() != 0)
+    if (!user_input.UsingTimeIntegration())
     {
-        if (rank == 0)
+        if (user_input.GetVisFreq() != 0)
         {
-            cout << LINE << endl;
-            cout << "Saving Paraview Data..." << endl;
+            if (rank == 0)
+            {
+                cout << LINE << endl;
+                cout << "Saving Paraview Data..." << endl;
+            }
+            output->WriteVizOutput(it_num, time);
         }
-        output->WriteVizOutput(it_num, time);
-
-        if (rank == 0)
+        if (user_input.GetRestartFreq() != 0)
         {
-            cout << "Saving Restart File..." << endl;
-            cout << LINE << endl;
+            if (rank == 0)
+            {
+                cout << "Saving Restart File..." << endl;
+                cout << LINE << endl;
+            }
+            output->WriteRestartOutput(it_num, time);
         }
-        output->WriteRestartOutput(it_num, time);
     }
     else
     {
