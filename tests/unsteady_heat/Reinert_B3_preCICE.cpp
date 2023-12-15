@@ -1,4 +1,4 @@
-#include "test_helper.hpp"
+#include "../test_helper.hpp"
 
 int main(int argc, char **argv)
 {
@@ -53,7 +53,11 @@ int main(int argc, char **argv)
         // Create lambda function for constant send of 7.5e5 HF
         function<double(const Vector&, double)> Constant_HF = [=](const Vector&x, double t) -> double { return -7.5e5; };
         
-        exit = preCICE_Dummy_Analytical_Test("Reinert_B3_preCICE_config.xml", "Temperature", "Heat-Flux", vertices, Constant_HF, Reinert_B3_Analytical, 100, subRank, subSize, subComm);
+        // Get config file
+        stringstream configFile;
+        configFile << SOURCE_DIR << "/tests/unsteady_heat/Reinert_B3_preCICE_config.xml";
+
+        exit = preCICE_Dummy_Analytical_Test(configFile.str(), "Temperature", "Heat-Flux", vertices, Constant_HF, Reinert_B3_Analytical, 100, subRank, subSize, subComm);
         if (exit == 1)
             MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
