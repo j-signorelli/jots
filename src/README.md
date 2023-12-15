@@ -117,13 +117,13 @@ $$\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}=\left[\bold{M}(\vec{u}_{n+1})+\Delta t
 
 Given the nonlinearities, JOTS presently only has one way to deal with them by considering the mass and stiffness matrices' Taylor expansion taken about the previous timestep:
 
-$$\bold{M}^{-1}(\vec{u}_{n+1})=\bold{M}^{-1}(\vec{u}_{n}) + \left.\dfrac{\partial \bold{M}^{-1}}{\partial \vec{u}}\right|_n\left[ \vec{u}_{n+1} - \vec{u}_{n}\right] + \dfrac{1}{2}\left.\dfrac{\partial^2 \bold{M}^{-1}}{\partial \vec{u}^2}\right|_n\left[ \vec{u}_{n+1} - \vec{u}_{n}\right]^2 + \dotsb$$
+$$\bold{M}(\vec{u}_{n+1})=\bold{M}(\vec{u}_{n}) + \left.\dfrac{\partial \bold{M}}{\partial \vec{u}}\right|_n\left[ \vec{u}_{n+1} - \vec{u}_{n}\right] + \dfrac{1}{2}\left.\dfrac{\partial^2 \bold{M}}{\partial \vec{u}^2}\right|_n\left[ \vec{u}_{n+1} - \vec{u}_{n}\right]^2 + \dotsb$$
 
 $$\bold{K}(\vec{u}_{n+1})=\bold{K}(\vec{u}_{n}) + \left.\dfrac{\partial \bold{K}}{\partial \vec{u}}\right|_n\left[ \vec{u}_{n+1} - \vec{u}_{n}\right] + \dfrac{1}{2}\left.\dfrac{\partial^2 \bold{K}}{\partial \vec{u}^2}\right|_n\left[ \vec{u}_{n+1} - \vec{u}_{n}\right]^2 + \dotsb$$
 
 It is currently presumed that:
 
-$$\bold{M}^{-1}(\vec{u}_{n+1})=\bold{M}^{-1}(\vec{u}_{n})$$
+$$\bold{M}(\vec{u}_{n+1})=\bold{M}(\vec{u}_{n})$$
 
 and
 
@@ -185,6 +185,22 @@ And for this inner product to be identically zero for any test function, we get:
 $$\bold{K}\vec{u} = \vec{N}$$
 
 where generally this is a nonlinear problem as $\bold{K}=\bold{K}(\vec{u})$.
+
+To solve using Newton-Raphson iterations in MFEM using $H^1$-continuous finite elements, a new `NonlinearFormIntegrator` must be created with member functions `NonlinearFormIntegrator::AssembleElementVector` and `NonlinearFormIntegrator::AssembleElementGrad` implemented. The specific outputs of those functions are shown below:
+
+`AssembleElementVector` = $\mathbf{F}(u_j)=\mathbf{K}(u)u_j=\mathbf{K}_{ij} u_j=\displaystyle\int_{\Omega_e} \nabla\phi_i\cdot (k(u)u_j\nabla\phi_j) d\vec{x}$
+
+`AssembleElementGrad` = $\dfrac{\partial \mathbf{F}(u_k)}{\partial u_j}= \dfrac{\partial}{\partial u_j}\left(\mathbf{K}_{ik}u_k\right) = \dfrac{\partial \mathbf{K}_{ik}}{\partial u_j}u_k + \mathbf{K}_{ik}\delta_{kj}= \displaystyle\int_{\Omega_e} \nabla\phi_i \cdot (k'(u) u_k \nabla\phi_k \phi_j ) d\vec{x} + \displaystyle\int_{\Omega_e} \nabla\phi_i \cdot (k(u) \nabla\phi_j) d\vec{x}$
+
+These are used in Newton-Raphson iterations as
+
+$$\mathbf{F}(\vec{u}^{k+1}) \approx \mathbf{F}(\vec{u}^k) + \dfrac{\partial \mathbf{F}(\vec{u}^k)}{\partial \vec{u}}(\vec{u}^{k+1} - \vec{u}^k)$$
+
+$$\rightarrow\vec{u}^{k+1} = \vec{u}^k - \left[\dfrac{\partial \mathbf{F}(\vec{u}^k)}{\partial \vec{u}}\right]^{-1}(\mathbf{F}(\vec{u}^k) - N_i)$$
+
+
+If NewtonSolverSettings is not specified in the config file, JOTS presumes a linear $\mathbf{K}$ term.
+
 
 # Notes:
 

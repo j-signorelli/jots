@@ -12,30 +12,6 @@ using namespace precice::constants;
 
 const int N_REINERT = 1000; // Inclusive end of summation over terms of analytical solution infinite series to include
 
-Config GetConfig(string in_file)
-{
-    // Parse the config file from the test directory
-    stringstream input_file;
-    input_file << SOURCE_DIR << "/tests/" << in_file;
-
-    Config input(input_file.str().c_str());
-
-    // Update the mesh file location generalized to any build dir
-    stringstream mesh_file;
-    mesh_file << SOURCE_DIR << "/examples/meshes/" << input.GetMeshFile();
-    input.SetMeshFile(mesh_file.str().c_str());
-
-    // If using preCICE, update the config file location as well
-    if (input.UsingPrecice())
-    {
-        stringstream config_file;
-        config_file << SOURCE_DIR << "/tests/" << input.GetPreciceConfigFile();
-        input.SetPreciceConfigFile(config_file.str().c_str());
-    }
-
-    return input;
-}
-
 // No checking or anything, just run a given input file in tests directory to completion
 // It is presumed that MPI is initialized prior to this function call for generality
 int RunTestConfig(string input_file, int rank, int size, MPI_Comm comm=MPI_COMM_WORLD)
@@ -44,7 +20,7 @@ int RunTestConfig(string input_file, int rank, int size, MPI_Comm comm=MPI_COMM_
     Hypre::Init();
 
     // Parse the config file
-    Config input = GetConfig(input_file);
+    Config input(input_file);
     
     // Create new JOTSDriver
     JOTSDriver* driver = new JOTSDriver(input, rank, size, comm);
@@ -59,10 +35,8 @@ int RunTestConfig(string input_file, int rank, int size, MPI_Comm comm=MPI_COMM_
 }
 
 // Run to end with comparison against analytical solution at end
-int Analytical_Reg_Test(string input_file, std::function<double(const Vector &, double)> Analytical)
+int Analytical_Reg_Test(string input_file, std::function<double(const Vector &, double)> Analytical, const double EPSILON=1e-5)
 {
-    const double EPSILON = 1e-5;
-
     // Initialize MPI and HYPRE.
     Mpi::Init();
     int num_procs = Mpi::WorldSize();
@@ -70,7 +44,7 @@ int Analytical_Reg_Test(string input_file, std::function<double(const Vector &, 
     Hypre::Init();
 
     // Parse the config file
-    Config input = GetConfig(input_file);
+    Config input(input_file);
 
     // Create new JOTSDriver
     JOTSDriver* driver = new JOTSDriver(input, myid, num_procs);
@@ -122,13 +96,9 @@ int preCICE_Dummy_Analytical_Test(string in_configFile, string dataReadName, str
     const string solverName = "Dummy";
     const string meshName = "Dummy-Mesh";
 
-    // Get config file
-    stringstream configFile;
-    configFile << SOURCE_DIR << "/tests/" << in_configFile;
+    cout << "DUMMY (" << rank << "): Running solver dummy with preCICE config file \"" << in_configFile << "\"and participant name.\"" << solverName << "\".\n";
 
-    cout << "DUMMY (" << rank << "): Running solver dummy with preCICE config file \"" << configFile.str() << "\"and participant name.\"" << solverName << "\".\n";
-
-    SolverInterface interface(solverName, configFile.str(), rank, size, &comm);
+    SolverInterface interface(solverName, in_configFile, rank, size, &comm);
 
     int meshID = interface.getMeshID(meshName);
     int dimensions = interface.getDimensions();
@@ -316,5 +286,17 @@ double Reinert_B3_Analytical(const Vector& x, double time)
     double c = D*pow(T1,2.0) - T1 - theta;
 
     return (-b+pow(pow(b,2.0)-4*a*c,0.5))/(2*a);
+
+}
+
+double Danish_Model1_Analytical(const Vector& x, double time)
+{
+    // Ignore time. Doesn't matter for steady.
+    // Values already nondimensionalized in Config
+
+    double beta = 50;
+    double theta = 0;
+
+    return (-1 + pow((1+2*beta*x[0]+pow(beta,2.0)*x[0]), 0.5))/beta;
 
 }

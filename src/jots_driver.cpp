@@ -55,7 +55,17 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
     //----------------------------------------------------------------------
     // Process TimeIntegration (if using (required for unsteady))
     if (user_input.UsingTimeIntegration())
+    {
         ProcessTimeIntegration();
+    }
+    else // otherwise set cycle to -2, max timesteps to -1
+    {
+        it_num = -2;
+        max_timesteps = -1;
+        // Ensures output appropriate for time-independent runs, as MFEM requires cycle = -1
+        // Time-independent runs only complete inner iterations w/ a single outer iteration
+        // As opposed to time-dependent runs having outer-iterations being a timestep
+    }
     //----------------------------------------------------------------------
     // Process preCICE (if using)
     if (user_input.UsingPrecice())
@@ -67,8 +77,14 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
     // Print LinearSolverSettings
     PrintLinearSolverSettings();
     //----------------------------------------------------------------------
-    // Print Output settings
-    PrintOutput();
+    // Print NewtonSolverSettings (if using)
+    if (user_input.UsingNewton())
+        PrintNewtonSolverSettings();
+    
+    //----------------------------------------------------------------------
+    // Print Output settings (if unsteady)
+    if (user_input.UsingTimeIntegration())
+        PrintOutput();
     //---------------------------------------------------------------------
     // Create JOTSIterator object/s
     if (rank == 0)
@@ -90,6 +106,11 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
                                              dt);
             break;
         case SIMULATION_TYPE::STEADY:
+            jots_iterator = new SteadyConductionOperator(user_input, 
+                                                    boundary_conditions,
+                                                    all_bdr_attr_markers,
+                                                    *mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY],
+                                                    *fespace);
             break;
     }
     //----------------------------------------------------------------------
@@ -111,7 +132,7 @@ void JOTSDriver::ProcessFiniteElementSetup()
 {
     // Print appropriate solver type + get required material properties, add them to map
     if (rank == 0)
-        cout << "Simulation Type: ";
+        cout << "Simulation Type: " << user_input.GetSimTypeLabel() << endl;
 
     // If not restart, refine mesh and initialize; else load VisItDataCollection
     if (!user_input.UsesRestart())
@@ -159,7 +180,7 @@ void JOTSDriver::ProcessFiniteElementSetup()
         //----------------------------------------------------------------------
         // Define parallel FE space on parallel mesh
         fe_coll = new H1_FECollection(user_input.GetFEOrder(), dim);
-
+        
         fespace = new ParFiniteElementSpace(pmesh, fe_coll);
         
         //----------------------------------------------------------------------
@@ -486,6 +507,19 @@ void JOTSDriver::PrintLinearSolverSettings()
     }
 }
 
+void JOTSDriver::PrintNewtonSolverSettings()
+{
+    // Print Newton solver settings
+    if (rank == 0)
+    {
+        cout << "\n";
+        cout << "Newton Solver" << endl;
+        cout << "Max Iterations: " << user_input.GetNewtonMaxIter() << endl;
+        cout << "Absolute Tolerance: " << user_input.GetNewtonAbsTol() << endl;
+        cout << "Relative Tolerance: " << user_input.GetNewtonRelTol() << endl;
+    }
+}
+
 void JOTSDriver::PrintOutput()
 {
     // Print output settings
@@ -655,8 +689,8 @@ void JOTSDriver::Iteration()
 void JOTSDriver::PostprocessIteration()
 {   
 
-    // Print current timestep information:
-    if (rank == 0)
+    // Print current timestep information if using TimeIntegration:
+    if (rank == 0 && user_input.UsingTimeIntegration())
     {
         printf("Step #%10i || Time: %1.6e out of %-1.6e || dt: %1.6e \n", it_num, time, dt*max_timesteps, dt);
     }
@@ -669,29 +703,55 @@ void JOTSDriver::PostprocessIteration()
     }
 
     // Write any output files if required
-    bool viz_out = user_input.GetVisFreq() != 0 && it_num % user_input.GetVisFreq() == 0;
-    bool res_out = user_input.GetRestartFreq() != 0 && it_num % user_input.GetRestartFreq() == 0;
-    if (viz_out || res_out)
+    // If unsteady simulation, then output at input frequencies
+    // If steady, then output ONLY IF viz_freq and restart_freq != 0
+    if (!user_input.UsingTimeIntegration())
     {
-        if (rank == 0)
-            cout << LINE << endl;
-            
-        if (viz_out)
+        if (user_input.GetVisFreq() != 0)
         {
             if (rank == 0)
-                cout << "Saving Paraview Data: Cycle " << it_num << endl;
+            {
+                cout << LINE << endl;
+                cout << "Saving Paraview Data..." << endl;
+            }
             output->WriteVizOutput(it_num, time);
         }
-
-        if (res_out)
+        if (user_input.GetRestartFreq() != 0)
         {
             if (rank == 0)
-                cout << "Saving Restart File: Cycle " << it_num << endl;
+            {
+                cout << "Saving Restart File..." << endl;
+                cout << LINE << endl;
+            }
             output->WriteRestartOutput(it_num, time);
         }
+    }
+    else
+    {
+        bool viz_out = user_input.GetVisFreq() != 0 && it_num % user_input.GetVisFreq() == 0;
+        bool res_out = user_input.GetRestartFreq() != 0 && it_num % user_input.GetRestartFreq() == 0;
+        if (viz_out || res_out)
+        {
+            if (rank == 0)
+                cout << LINE << endl;
+                
+            if (viz_out)
+            {
+                if (rank == 0)
+                    cout << "Saving Paraview Data: Cycle " << it_num << endl;
+                output->WriteVizOutput(it_num, time);
+            }
 
-        if (rank == 0)
-            cout << LINE << endl;
+            if (res_out)
+            {
+                if (rank == 0)
+                    cout << "Saving Restart File: Cycle " << it_num << endl;
+                output->WriteRestartOutput(it_num, time);
+            }
+
+            if (rank == 0)
+                cout << LINE << endl;
+        }
     }
 }
 

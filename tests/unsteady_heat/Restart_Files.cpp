@@ -1,6 +1,6 @@
 #include "jots_driver.hpp"
 
-#include "test_helper.hpp"
+#include "../test_helper.hpp"
 
 using namespace std;
 using namespace mfem;
@@ -20,7 +20,7 @@ int main(int argc, char *argv[])
     string input_file_0 = "Restart_Files.ini";
 
     // Parse the config file
-    Config input_0 = GetConfig(input_file_0);
+    Config input_0(input_file_0);
 
     // Create new JOTSDriver
     JOTSDriver* driver_0 = new JOTSDriver(input_0, myid, num_procs);
@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
     // Note that restart file should be outputted in whatever current WD is
 
     // Get new Config and update to make it a restarted version of previous
-    Config input_r = GetConfig(input_file_0);
+    Config input_r(input_file_0);
     input_r.SetRestart(true);
     input_r.SetRestartCycle(input_0.GetRestartFreq());
     
