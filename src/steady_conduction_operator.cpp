@@ -57,10 +57,6 @@ SteadyConductionOperator::SteadyConductionOperator(const Config& in_config, cons
   lin_solver(nullptr),
   newton(f_.GetComm())
 {
-    double abs_tol = in_config.GetAbsTol();
-    double rel_tol = in_config.GetRelTol();
-    int max_iter = in_config.GetMaxIter();
-
     // Set linear solver + preconditioner
     lin_solver = Factory::GetSolver(in_config.GetSolverLabel(), fespace.GetComm());
     lin_prec.SetType(Factory::GetPrec(in_config.GetPrecLabel()));
