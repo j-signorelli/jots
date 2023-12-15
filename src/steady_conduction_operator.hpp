@@ -44,7 +44,6 @@ class SteadyConductionOperator : public JOTSIterator
 
         // No updates mid run -- steady just completes inner iterations in Iterate and closes
         void ProcessMatPropUpdate(MATERIAL_PROPERTY mp) {};
-        void UpdateNeumann() {};
 
         ~SteadyConductionOperator() { delete lin_solver; };
 };
