@@ -74,6 +74,8 @@ class Config
     public:
         Config(const char* in_file);
 
+        Config(const std::string in_file) : Config(in_file.c_str()) {};
+
         std::string GetInputFile() const { return input_file; };
 
         void SetInputFile(std::string in_file) { input_file = in_file; };
