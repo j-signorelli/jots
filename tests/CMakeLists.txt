@@ -19,4 +19,4 @@ function(add_parallel_reg_tests tests tests_category)
 endfunction()
 
 add_subdirectory(unsteady_heat)
-#add_subdirectory(steady_heat)
+add_subdirectory(steady_heat)

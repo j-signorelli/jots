@@ -35,10 +35,8 @@ int RunTestConfig(string input_file, int rank, int size, MPI_Comm comm=MPI_COMM_
 }
 
 // Run to end with comparison against analytical solution at end
-int Analytical_Reg_Test(string input_file, std::function<double(const Vector &, double)> Analytical)
+int Analytical_Reg_Test(string input_file, std::function<double(const Vector &, double)> Analytical, const double EPSILON=1e-5)
 {
-    const double EPSILON = 1e-5;
-
     // Initialize MPI and HYPRE.
     Mpi::Init();
     int num_procs = Mpi::WorldSize();
@@ -288,5 +286,17 @@ double Reinert_B3_Analytical(const Vector& x, double time)
     double c = D*pow(T1,2.0) - T1 - theta;
 
     return (-b+pow(pow(b,2.0)-4*a*c,0.5))/(2*a);
+
+}
+
+double Danish_Model1_Analytical(const Vector& x, double time)
+{
+    // Ignore time. Doesn't matter for steady.
+    // Values already nondimensionalized in Config
+
+    double beta = 50;
+    double theta = 0;
+
+    return (-1 + pow((1+2*beta*x[0]+pow(beta,2.0)*x[0]), 0.5))/beta;
 
 }
