@@ -73,10 +73,6 @@ or
 
 $$M_{ij}\dfrac{du_j}{dt} = -K_{ij}u_j + N_i$$
 
-Finally, we can rewrite this as:
-
-$$\dfrac{du_i}{dt} = M_{ik}^{-1} \left( -K_{kj}u_j + N_k\right)=-M_{ik}^{-1}K_{kj}u_j + M_{ik}^{-1}N_k$$
-
 Note that generally $\bold{M}=\bold{M}(\vec{u})$,  $\bold{K}=\bold{K}(\vec{u})$, and $\vec{N}=\vec{N}(t)$
 
 ## Time-Integration
@@ -115,22 +111,7 @@ Thus:
 
 $$\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}=\left[\bold{M}(\vec{u}_{n+1})+\Delta t \bold{K}(\vec{u}_{n+1})\right]^{-1}\left[\bold{K}(\vec{u}_{n+1})\vec{u}_{n}+\vec{N}(t_{n+1})\right]$$
 
-Given the nonlinearities, JOTS presently only has one way to deal with them by considering the mass and stiffness matrices' Taylor expansion taken about the previous timestep:
-
-$$\bold{M}(\vec{u}_{n+1})=\bold{M}(\vec{u}_{n}) + \left.\dfrac{\partial \bold{M}}{\partial \vec{u}}\right|_n\left[ \vec{u}_{n+1} - \vec{u}_{n}\right] + \dfrac{1}{2}\left.\dfrac{\partial^2 \bold{M}}{\partial \vec{u}^2}\right|_n\left[ \vec{u}_{n+1} - \vec{u}_{n}\right]^2 + \dotsb$$
-
-$$\bold{K}(\vec{u}_{n+1})=\bold{K}(\vec{u}_{n}) + \left.\dfrac{\partial \bold{K}}{\partial \vec{u}}\right|_n\left[ \vec{u}_{n+1} - \vec{u}_{n}\right] + \dfrac{1}{2}\left.\dfrac{\partial^2 \bold{K}}{\partial \vec{u}^2}\right|_n\left[ \vec{u}_{n+1} - \vec{u}_{n}\right]^2 + \dotsb$$
-
-It is currently presumed that:
-
-$$\bold{M}(\vec{u}_{n+1})=\bold{M}(\vec{u}_{n})$$
-
-and
-
-$$\bold{K}(\vec{u}_{n+1})=\bold{K}(\vec{u}_{n}).$$
-
-
-There are plans to implement nonlinear iterative solvers for these terms and this section will be expanded accordingly.
+JOTS uses Newton iterations to deal with the nonlinearities. More details are provided on this below.
 
 ## Approximations for Non-Constant Dirichlet + Neumann BCs
 
@@ -186,20 +167,28 @@ $$\bold{K}\vec{u} = \vec{N}$$
 
 where generally this is a nonlinear problem as $\bold{K}=\bold{K}(\vec{u})$.
 
-To solve using Newton-Raphson iterations in MFEM using $H^1$-continuous finite elements, a new `NonlinearFormIntegrator` must be created with member functions `NonlinearFormIntegrator::AssembleElementVector` and `NonlinearFormIntegrator::AssembleElementGrad` implemented. The specific outputs of those functions are shown below:
+# JOTS Nonlinear Form Integrators
 
-`AssembleElementVector` = $\mathbf{F}(u_j)=\mathbf{K}(u)u_j=\mathbf{K}_{ij} u_j=\displaystyle\int_{\Omega_e} \nabla\phi_i\cdot (k(u)u_j\nabla\phi_j) d\vec{x}$
-
-`AssembleElementGrad` = $\dfrac{\partial \mathbf{F}(u_k)}{\partial u_j}= \dfrac{\partial}{\partial u_j}\left(\mathbf{K}_{ik}u_k\right) = \dfrac{\partial \mathbf{K}_{ik}}{\partial u_j}u_k + \mathbf{K}_{ik}\delta_{kj}= \displaystyle\int_{\Omega_e} \nabla\phi_i \cdot (k'(u) u_k \nabla\phi_k \phi_j ) d\vec{x} + \displaystyle\int_{\Omega_e} \nabla\phi_i \cdot (k(u) \nabla\phi_j) d\vec{x}$
-
-These are used in Newton-Raphson iterations as
+To solve using Newton-Raphson iterations in MFEM using $H^1$-continuous finite elements, new `NonlinearFormIntegrator`'s must be created with member functions `NonlinearFormIntegrator::AssembleElementVector` and `NonlinearFormIntegrator::AssembleElementGrad` implemented. The specific outputs of those functions are shown below for a given LHS nonlinear operator $\mathbf{F}=\mathbf{F}(\vec{u})$. Note that each operator can be combined into a single LHS operator (as is done for unsteady implicit time-integration). These are used in Newton-Raphson iterations as
 
 $$\mathbf{F}(\vec{u}^{k+1}) \approx \mathbf{F}(\vec{u}^k) + \dfrac{\partial \mathbf{F}(\vec{u}^k)}{\partial \vec{u}}(\vec{u}^{k+1} - \vec{u}^k)$$
 
 $$\rightarrow\vec{u}^{k+1} = \vec{u}^k - \left[\dfrac{\partial \mathbf{F}(\vec{u}^k)}{\partial \vec{u}}\right]^{-1}(\mathbf{F}(\vec{u}^k) - N_i)$$
 
+If NewtonSolverSettings is not specified in the config file, JOTS presumes a linear $\mathbf{F}$ term.
 
-If NewtonSolverSettings is not specified in the config file, JOTS presumes a linear $\mathbf{K}$ term.
+
+## Nonlinear Diffusion, $\mathbf{K}$
+
+`AssembleElementVector` = $\mathbf{F}(u_j)=\mathbf{K}(u)u_j=\mathbf{K}_{ij} u_j=\displaystyle\int_{\Omega_e} \nabla\phi_i (k(u)u_j\nabla\phi_j) d\vec{x}$
+
+`AssembleElementGrad` = $\dfrac{\partial \mathbf{F}(u_k)}{\partial u_j}= \dfrac{\partial}{\partial u_j}\left(\mathbf{K}_{ik}u_k\right) = \dfrac{\partial \mathbf{K}_{ik}}{\partial u_j}u_k + \mathbf{K}_{ik}\delta_{kj}= \displaystyle\int_{\Omega_e} \nabla\phi_i \cdot (k'(u) u_k \nabla\phi_k \phi_j ) d\vec{x} + \displaystyle\int_{\Omega_e} \nabla\phi_i(k(u) \nabla\phi_j) d\vec{x}$
+
+## Nonlinear Mass, $\mathbf{M}$
+
+`AssembleElementVector` = $\mathbf{F}(u_j)=\mathbf{M}(u)u_j=\mathbf{M}_{ij} u_j=\displaystyle\int_{\Omega_e} \rho C_p(u)\phi_iu_j\phi_j d\vec{x}$
+
+`AssembleElementGrad` = $\dfrac{\partial \mathbf{F}(u_k)}{\partial u_j}= \dfrac{\partial}{\partial u_j}\left(\mathbf{M}_{ik}u_k\right) = \dfrac{\partial \mathbf{M}_{ik}}{\partial u_j}u_k + \mathbf{M}_{ik}\delta_{kj}= \displaystyle\int_{\Omega_e} \rho C_p'(u)\phi_iu_k \phi_k\phi_j d\vec{x} + \displaystyle\int_{\Omega_e} \rho C_p(u)\phi_i\phi_j d\vec{x}$
 
 
 # Notes:
