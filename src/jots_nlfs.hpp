@@ -24,3 +24,29 @@ class NonlinearJOTSDiffusionIntegrator : public NonlinearFormIntegrator
         void AssembleElementVector(const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun, Vector &elvect);
         void AssembleElementGrad(const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun, DenseMatrix &elmat);
 };
+
+
+class NonlinearJOTSMassIntegrator : public NonlinearFormIntegrator
+{
+    private:
+        MaterialProperty& rho;
+        MaterialProperty& C;
+        ParFiniteElementSpace& fespace;
+        ParGridFunction u_gf;
+        GridFunctionCoefficient u_coeff;
+        ProductCoefficient rho_C;
+        ProductCoefficient rho_dCdu;
+        ProductCoefficient rho_dCdu_times_u;
+
+        MassIntegrator mass;
+        MassIntegrator mass_d;
+
+        Array<int> dofs;
+
+    protected:
+    public:
+        NonlinearJOTSMassIntegrator(MaterialProperty& rho_, MaterialProperty& C_, ParFiniteElementSpace* fespace_);
+        void AssembleElementVector(const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun, Vector &elvect);
+        void AssembleElementGrad(const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun, DenseMatrix &elmat);
+    
+};

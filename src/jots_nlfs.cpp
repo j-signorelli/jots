@@ -48,3 +48,19 @@ void NonlinearJOTSDiffusionIntegrator::AssembleElementGrad(const FiniteElement &
 
 
 }
+
+
+NonlinearJOTSMassIntegrator::NonlinearJOTSMassIntegrator(MaterialProperty& rho_, MaterialProperty& C_, ParFiniteElementSpace* fespace_)
+: rho(rho_),
+  C(C_),
+  fespace(*fespace_),
+  u_gf(fespace_),
+  u_coeff(&u_gf),
+  rho_C(rho.GetLocalValue(0), C.GetCoeffRef()),
+  rho_dCdu(rho.GetLocalValue(0), C.GetDCoeffRef()),
+  rho_dCdu_times_u(rho_dCdu, u_coeff),
+  mass(rho_C),
+  mass_d(rho_dCdu_times_u)
+{
+
+}

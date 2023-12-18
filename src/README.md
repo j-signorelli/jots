@@ -175,21 +175,39 @@ $$\mathbf{F}(\vec{u}^{k+1}) \approx \mathbf{F}(\vec{u}^k) + \dfrac{\partial \mat
 
 $$\rightarrow\vec{u}^{k+1} = \vec{u}^k - \left[\dfrac{\partial \mathbf{F}(\vec{u}^k)}{\partial \vec{u}}\right]^{-1}(\mathbf{F}(\vec{u}^k) - N_i)$$
 
-If NewtonSolverSettings is not specified in the config file, JOTS presumes a linear $\mathbf{F}$ term.
+If NewtonSolverSettings is not specified in the config file, JOTS presumes a linear $\mathbf{F}$ term. For clarity of notation, the gradient $\dfrac{\partial \phi_i}{\partial x_j}$ is now written as $[\nabla \phi]_{ij}$. This was implicitly presumed in the above derivations (that the inner products of matrices are taken), not explicitly included for simplicity. Note that subscript $h$ is not used as an index, but as the finite element approximate solution.
 
 
 ## Nonlinear Diffusion, $\mathbf{K}$
 
-`AssembleElementVector` = $\mathbf{F}(u_j)=\mathbf{K}(u)u_j=\mathbf{K}_{ij} u_j=\displaystyle\int_{\Omega_e} \nabla\phi_i (k(u)u_j\nabla\phi_j) d\vec{x}$
+### `AssembleElementVector`
 
-`AssembleElementGrad` = $\dfrac{\partial \mathbf{F}(u_k)}{\partial u_j}= \dfrac{\partial}{\partial u_j}\left(\mathbf{K}_{ik}u_k\right) = \dfrac{\partial \mathbf{K}_{ik}}{\partial u_j}u_k + \mathbf{K}_{ik}\delta_{kj}= \displaystyle\int_{\Omega_e} \nabla\phi_i \cdot (k'(u) u_k \nabla\phi_k \phi_j ) d\vec{x} + \displaystyle\int_{\Omega_e} \nabla\phi_i(k(u) \nabla\phi_j) d\vec{x}$
+$\mathbf{F}(u_k)=\mathbf{K}_{ik} u_k=\displaystyle\int_{\Omega_e} k(u_h)[\nabla\phi]_{il}[\nabla\phi]_{lk} u_kd\vec{x}$
+
+For this, `DiffusionIntegrator` is simply used with the coefficient $\lambda=k(u_h)$ set as its `Coefficient`. The action of the operator on $u_k$ is then computed with `DiffusionIntegrator::AssembleElementVector`
+
+
+### `AssembleElementGrad`
+
+$\dfrac{\partial \mathbf{F}(u_k)}{\partial u_j}= \dfrac{\partial}{\partial u_j}\left(\mathbf{K}_{ik}u_k\right) = \dfrac{\partial \mathbf{K}_{ik}}{\partial u_j}u_k + \mathbf{K}_{ik}\delta_{kj}= \displaystyle\int_{\Omega_e} k'(u_h)[\nabla\phi]_{il}[\nabla\phi]_{lk}u_k \phi_j d\vec{x} + \displaystyle\int_{\Omega_e} k(u_h)[\nabla\phi]_{il} [\nabla\phi]_{lj} d\vec{x}$
+
+For the second term, the same `DiffusionIntegrator` from before is used and `DiffusionIntegrator::AssembleElementMatrix` is called. The first term is a quite a bit trickier.
 
 ## Nonlinear Mass, $\mathbf{M}$
 
-`AssembleElementVector` = $\mathbf{F}(u_j)=\mathbf{M}(u)u_j=\mathbf{M}_{ij} u_j=\displaystyle\int_{\Omega_e} \rho C_p(u)\phi_iu_j\phi_j d\vec{x}$
+### `AssembleElementVector`
 
-`AssembleElementGrad` = $\dfrac{\partial \mathbf{F}(u_k)}{\partial u_j}= \dfrac{\partial}{\partial u_j}\left(\mathbf{M}_{ik}u_k\right) = \dfrac{\partial \mathbf{M}_{ik}}{\partial u_j}u_k + \mathbf{M}_{ik}\delta_{kj}= \displaystyle\int_{\Omega_e} \rho C'(u)\phi_iu_k \phi_k\phi_j d\vec{x} + \displaystyle\int_{\Omega_e} \rho C(u)\phi_i\phi_j d\vec{x}$
+$\mathbf{F}(u_k)=\mathbf{M}_{ik} u_k=\displaystyle\int_{\Omega_e} \rho C(u_h)\phi_i\phi_ku_k d\vec{x}$
 
+For this, `MassIntegrator` is simply used with $\lambda=\rho C(u_h)$ set its `Coefficient`. The action of it on $u_k$ is computed with `MassIntegrator::AssembleElementVector`. Alternatively, the $u_k\phi_k$ could be lumped together and a `DomainLFIntegrator` used with $\lambda=\rho C(u_h)u_h$ set as its `Coefficient`; then `DomainLFIntegrator::AssembleRHSElementVect` used.
+
+
+### `AssembleElementGrad`
+
+$\dfrac{\partial \mathbf{F}(u_k)}{\partial u_j}= \dfrac{\partial}{\partial u_j}\left(\mathbf{M}_{ik}u_k\right) = \dfrac{\partial \mathbf{M}_{ik}}{\partial u_j}u_k + \mathbf{M}_{ik}\delta_{kj}= \displaystyle\int_{\Omega_e} \rho C'(u_h)\phi_i\phi_ku_k\phi_j d\vec{x} + \displaystyle\int_{\Omega_e} \rho C(u_h)\phi_i\phi_j d\vec{x} = \displaystyle\int_{\Omega_e} \rho C'(u_h)u_h\phi_i\phi_j d\vec{x} + \displaystyle\int_{\Omega_e} \rho C(u_h)\phi_i\phi_j d\vec{x}$
+
+
+TODO: Decide on how to handle above things. Note that we want to optimize speed and memory, so having a bunch of ProductCoefficients may be dumb. It wouldn't be super hard to update existing code to handle these special cases.
 
 # Notes:
 
