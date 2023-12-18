@@ -305,7 +305,8 @@ void JOTSDriver::ProcessMaterialProperties()
         vector<string> mp_info = user_input.GetMaterialPropertyInfo(label);
         vector<double> poly_coeffs;
 
-        switch (Material_Model_Map.at(mp_info[0]))
+        MATERIAL_MODEL mm = Material_Model_Map.at(mp_info[0]);
+        switch (mm)
         {
             case MATERIAL_MODEL::UNIFORM: // Uniform
                 mat_props[mp] = new UniformProperty(stod(mp_info[1].c_str()));
@@ -320,6 +321,15 @@ void JOTSDriver::ProcessMaterialProperties()
             default:
                 MFEM_ABORT("Unknown/Invalid material model specified");
                 return;
+        }
+
+        // Ensure that if this is density, it is UNIFORM
+        // JOTS does not currently allow for non-UNIFORM density
+        // Would be straightforward to implement but requires updates
+        if (mp == MATERIAL_PROPERTY::DENSITY && mm != MATERIAL_MODEL::UNIFORM)
+        {
+            MFEM_ABORT("JOTS does not currently allow for non-uniform density!");
+            return;
         }
 
         // Print remaining portion of label
