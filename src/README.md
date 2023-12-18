@@ -188,7 +188,7 @@ If NewtonSolverSettings is not specified in the config file, JOTS presumes a lin
 
 `AssembleElementVector` = $\mathbf{F}(u_j)=\mathbf{M}(u)u_j=\mathbf{M}_{ij} u_j=\displaystyle\int_{\Omega_e} \rho C_p(u)\phi_iu_j\phi_j d\vec{x}$
 
-`AssembleElementGrad` = $\dfrac{\partial \mathbf{F}(u_k)}{\partial u_j}= \dfrac{\partial}{\partial u_j}\left(\mathbf{M}_{ik}u_k\right) = \dfrac{\partial \mathbf{M}_{ik}}{\partial u_j}u_k + \mathbf{M}_{ik}\delta_{kj}= \displaystyle\int_{\Omega_e} \rho C_p'(u)\phi_iu_k \phi_k\phi_j d\vec{x} + \displaystyle\int_{\Omega_e} \rho C_p(u)\phi_i\phi_j d\vec{x}$
+`AssembleElementGrad` = $\dfrac{\partial \mathbf{F}(u_k)}{\partial u_j}= \dfrac{\partial}{\partial u_j}\left(\mathbf{M}_{ik}u_k\right) = \dfrac{\partial \mathbf{M}_{ik}}{\partial u_j}u_k + \mathbf{M}_{ik}\delta_{kj}= \displaystyle\int_{\Omega_e} \rho C'(u)\phi_iu_k \phi_k\phi_j d\vec{x} + \displaystyle\int_{\Omega_e} \rho C(u)\phi_i\phi_j d\vec{x}$
 
 
 # Notes:
