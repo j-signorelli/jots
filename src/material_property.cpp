@@ -68,7 +68,7 @@ void PolynomialProperty::UpdateDCoeff(const mfem::Vector& u_ref_e, const Array<i
 
     for (size_t i = 0; i < poly_coeffs.size() - 1; i++)
     {
-        z_e = poly_coeffs[i];
+        z_e = poly_coeffs.size() - 1 - i;
         for (size_t j = 0; j < poly_coeffs.size() - i - 2; j++)
             z_e *= u_ref_e;
         dmpdu_gf.AddElementVector(dofs, poly_coeffs[i], z_e); // Update the GF associated with the coefficient
