@@ -9,11 +9,11 @@ class NonlinearJOTSDiffusionIntegrator : public NonlinearFormIntegrator
         MaterialProperty& k;
         ParFiniteElementSpace& fespace;
         ParGridFunction u_gf;
-        GridFunctionCoefficient u_coeff;
-        ProductCoefficient dkdu_times_u;
+        GradientGridFunctionCoefficient grad_u_coeff;
+        ScalarVectorProductCoefficient dkdu_times_grad_u;
 
-        DiffusionIntegrator diff;
-        DiffusionIntegrator diff_d;
+        MixedScalarWeakDivergenceIntegrator term1;
+        DiffusionIntegrator term2;
 
 
         Array<int> dofs;
@@ -25,7 +25,7 @@ class NonlinearJOTSDiffusionIntegrator : public NonlinearFormIntegrator
         void AssembleElementGrad(const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun, DenseMatrix &elmat);
 };
 
-
+/*
 class NonlinearJOTSMassIntegrator : public NonlinearFormIntegrator
 {
     private:
@@ -50,3 +50,4 @@ class NonlinearJOTSMassIntegrator : public NonlinearFormIntegrator
         void AssembleElementGrad(const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun, DenseMatrix &elmat);
     
 };
+*/

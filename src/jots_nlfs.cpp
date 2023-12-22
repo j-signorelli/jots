@@ -5,10 +5,10 @@ NonlinearJOTSDiffusionIntegrator::NonlinearJOTSDiffusionIntegrator(MaterialPrope
 : k(k_),
   fespace(*fespace_),
   u_gf(fespace_),
-  u_coeff(&u_gf),
-  dkdu_times_u(k.GetDCoeffRef(), u_coeff),
-  diff(k.GetCoeffRef()),
-  diff_d(dkdu_times_u)
+  grad_u_coeff(&u_gf),
+  dkdu_times_grad_u(k.GetDCoeffRef(), grad_u_coeff),
+  term1(dkdu_times_grad_u),
+  term2(k.GetCoeffRef())
 {
 
 }
@@ -21,7 +21,7 @@ void NonlinearJOTSDiffusionIntegrator::AssembleElementVector(const FiniteElement
 
     // Very simply can just use DiffusionIntegrator::AssembleElementVector,
     // as the coefficient is re-evaluated every call
-    diff.AssembleElementVector(el, Tr, elfun, elvect);
+    term2.AssembleElementVector(el, Tr, elfun, elvect);
 
 }
 
@@ -32,24 +32,24 @@ void NonlinearJOTSDiffusionIntegrator::AssembleElementGrad(const FiniteElement &
     k.UpdateCoeff(elfun, dofs);
     k.UpdateDCoeff(elfun, dofs);
     
-    // Update u GridFunction associated with dkdu * u
+    // Update u GridFunction associated with dkdu * grad u
     u_gf.SetSubVector(dofs, elfun);
 
     // Sum of usual diffusion term plus nonlinear term
     // Very simply can just use DiffusionIntegrator::AssembleElementMatrix,
     // as the coefficient is re-evaluated every call
-    diff.AssembleElementMatrix(el, Tr, elmat);
+    term2.AssembleElementMatrix(el, Tr, elmat);
 
-    // Can use DiffusionIntegrator but with lambda = k'(u)u
     DenseMatrix elmat_d;
-    diff_d.AssembleElementMatrix(el, Tr, elmat_d);
+    term1.AssembleElementMatrix(el, Tr, elmat_d);
 
+    elmat_d.Neg();
     elmat += elmat_d;
 
 
 }
 
-
+/*
 NonlinearJOTSMassIntegrator::NonlinearJOTSMassIntegrator(MaterialProperty& rho_, MaterialProperty& C_, ParFiniteElementSpace* fespace_)
 : rho(rho_),
   C(C_),
@@ -64,3 +64,4 @@ NonlinearJOTSMassIntegrator::NonlinearJOTSMassIntegrator(MaterialProperty& rho_,
 {
 
 }
+*/
