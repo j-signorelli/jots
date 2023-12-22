@@ -4,9 +4,8 @@
 
 Start with the unsteady thermal conduction equation, applying the following assumptions:
 
-1. Density $\rho$ is constant in space and time
-2. We assume isotropic thermal conductivity $k$ and specific heat $C$ but allow for them to vary as a function of temperature: $k=k(u)$ and $C=C(u)$
-3. No heat generation
+1. We assume isotropic density $\rho$, thermal conductivity $k$, and specific heat $C$ but allow for them to vary as a function of temperature: $\rho=\rho(u)$, $k=k(u)$, and $C=C(u)$
+2. No heat generation
 
 This yields:
 
@@ -44,12 +43,12 @@ $$v(\vec{x},t) \approx v_h(\vec{x},t)=\sum^{N_{\mathcal{V}_h}}_j v_j(t)\phi_j(\v
  Plugging the above in:
 
 
-$$\int_\Omega \rho C(u_h) \left(\sum_j \dfrac{d u_j(t)}{d t} \phi_j\right) \left(\sum_i v_i(t)\phi_i\right) d\vec{x} + \int_\Omega \left( k(u_h)\sum_j u_j(t)\nabla \phi_j\right)\cdot \left(\sum_i v_i(t)\nabla \phi_i\right) d\vec{x} = \int_{\partial \Omega} g\left(\sum_i v_i(t) \phi_i \right)d\vec{x}$$
+$$\int_\Omega \rho(u_h) C(u_h) \left(\sum_j \dfrac{d u_j(t)}{d t} \phi_j\right) \left(\sum_i v_i(t)\phi_i\right) d\vec{x} + \int_\Omega \left( k(u_h)\sum_j u_j(t)\nabla \phi_j\right)\cdot \left(\sum_i v_i(t)\nabla \phi_i\right) d\vec{x} = \int_{\partial \Omega} g\left(\sum_i v_i(t) \phi_i \right)d\vec{x}$$
 
 
 Take out the summations and any non-integrated terms from the integrals:
 
-$$\sum_j \sum_i v_i \left( \int_\Omega \rho C(u_h) \phi_i \phi_j d\vec{x}\right)\dfrac{d u_j}{d t} + \sum_i \sum_j v_i\left( \int_\Omega (\nabla \phi_i) \cdot (k(u_h) \nabla \phi_j) d\vec{x}\right)u_j = \sum_i v_i\left( \int_{\partial \Omega} g\phi_i d\vec{x}\right)$$
+$$\sum_j \sum_i v_i \left( \int_\Omega \rho(u_h) C(u_h) \phi_i \phi_j d\vec{x}\right)\dfrac{d u_j}{d t} + \sum_i \sum_j v_i\left( \int_\Omega (\nabla \phi_i) \cdot (k(u_h) \nabla \phi_j) d\vec{x}\right)u_j = \sum_i v_i\left( \int_{\partial \Omega} g\phi_i d\vec{x}\right)$$
 
 Now we may define:
 
@@ -197,16 +196,16 @@ For the first term, a `MixedScalarWeakDivergenceIntegrator::AssembleElementMatri
 
 ### `AssembleElementVector`
 
-$\mathbf{F}(u_k)=\mathbf{M}_{ik} u_k=\displaystyle\int_{\Omega_e} \rho C(u_h)\phi_i\phi_ku_k d\vec{x}$
+$\mathbf{F}(u_k)=\mathbf{M}_{ik} u_k=\displaystyle\int_{\Omega_e} \rho(u_h) C(u_h)\phi_i\phi_ku_k d\vec{x}$
 
-For this, `MassIntegrator` is simply used with $\lambda=\rho C(u_h)$ set its `Coefficient`. The action of it on $u_k$ is computed with `MassIntegrator::AssembleElementVector`. Alternatively, the $u_k\phi_k$ could be lumped together and a `DomainLFIntegrator` used with $\lambda=\rho C(u_h)u_h$ set as its `Coefficient`; then `DomainLFIntegrator::AssembleRHSElementVect` used.
+For this, `MassIntegrator` is simply used with $\lambda=\rho(u_h) C(u_h)$ set its `Coefficient`. The action of it on $u_k$ is computed with `MassIntegrator::AssembleElementVector`. Alternatively, the $u_k\phi_k$ could be lumped together and a `DomainLFIntegrator` used with $\lambda=\rho(u_h) C(u_h)u_h$ set as its `Coefficient`; then `DomainLFIntegrator::AssembleRHSElementVect` used.
 
 
 ### `AssembleElementGrad`
 
-$\dfrac{\partial \mathbf{F}(u_k)}{\partial u_j}= \dfrac{\partial}{\partial u_j}\left(\mathbf{M}_{ik}u_k\right) = \dfrac{\partial \mathbf{M}_{ik}}{\partial u_j}u_k + \mathbf{M}_{ik}\delta_{kj}= \displaystyle\int_{\Omega_e} \rho C'(u_h)\phi_i\phi_ku_k\phi_j d\vec{x} + \displaystyle\int_{\Omega_e} \rho C(u_h)\phi_i\phi_j d\vec{x}$
+$\dfrac{\partial \mathbf{F}(u_k)}{\partial u_j}= \dfrac{\partial}{\partial u_j}\left(\mathbf{M}_{ik}u_k\right) = \dfrac{\partial \mathbf{M}_{ik}}{\partial u_j}u_k + \mathbf{M}_{ik}\delta_{kj}= \displaystyle\int_{\Omega_e} \rho'(u_h) C(u_h)\phi_i\phi_ku_k\phi_j d\vec{x}+\displaystyle\int_{\Omega_e} \rho(u_h) C'(u_h)\phi_i\phi_ku_k\phi_j d\vec{x} + \displaystyle\int_{\Omega_e} \rho(u_h) C(u_h)\phi_i\phi_j d\vec{x}$
 
-For the first term, `MassIntegrator::AssembleElementMatrix` is used with two `ProductCoefficient`'s used to yield a single $\lambda=\rho C(u_h)u_h$. For the second term, the same `MassIntegrator` from before is used and `MassIntegrator::AssembleElementMatrix` is called.
+For the first two terms, `MassIntegrator::AssembleElementMatrix` is used with two `ProductCoefficient`'s used to yield a single $\lambda$. For the third term, the same `MassIntegrator` from before is used and `MassIntegrator::AssembleElementMatrix` is called.
 
 # Notes:
 
