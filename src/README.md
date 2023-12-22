@@ -203,9 +203,9 @@ For this, `MassIntegrator` is simply used with $\lambda=\rho(u_h) C(u_h)$ set it
 
 ### `AssembleElementGrad`
 
-$\dfrac{\partial \mathbf{F}(u_k)}{\partial u_j}= \dfrac{\partial}{\partial u_j}\left(\mathbf{M}_{ik}u_k\right) = \dfrac{\partial \mathbf{M}_{ik}}{\partial u_j}u_k + \mathbf{M}_{ik}\delta_{kj}= \displaystyle\int_{\Omega_e} \rho'(u_h) C(u_h)\phi_i\phi_ku_k\phi_j d\vec{x}+\displaystyle\int_{\Omega_e} \rho(u_h) C'(u_h)\phi_i\phi_ku_k\phi_j d\vec{x} + \displaystyle\int_{\Omega_e} \rho(u_h) C(u_h)\phi_i\phi_j d\vec{x}$
+$\dfrac{\partial \mathbf{F}(u_k)}{\partial u_j}= \dfrac{\partial}{\partial u_j}\left(\mathbf{M}_{ik}u_k\right) = \dfrac{\partial \mathbf{M}_{ik}}{\partial u_j}u_k + \mathbf{M}_{ik}\delta_{kj}= \displaystyle\int_{\Omega_e} [\rho'(u_h) C(u_h) + \rho(u_h) C'(u_h)]\phi_i\phi_ku_k\phi_j d\vec{x} + \displaystyle\int_{\Omega_e} \rho(u_h) C(u_h)\phi_i\phi_j d\vec{x}$
 
-For the first two terms, `MassIntegrator::AssembleElementMatrix` is used with two `ProductCoefficient`'s used to yield a single $\lambda$. For the third term, the same `MassIntegrator` from before is used and `MassIntegrator::AssembleElementMatrix` is called.
+For the first term, `MassIntegrator::AssembleElementMatrix` is used with two `ProductCoefficient`'s for the individual material property terms, a `SumCoefficient`, and a `ProductCoeffient` for multiplying by $u_h$ to yield a single $\lambda$. For the second term, the same `MassIntegrator` from before is used and `MassIntegrator::AssembleElementMatrix` is called.
 
 # Notes:
 
