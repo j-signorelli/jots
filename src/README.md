@@ -191,7 +191,7 @@ For this, `DiffusionIntegrator` is simply used with the coefficient $\lambda=k(u
 
 $\dfrac{\partial \mathbf{F}(u_k)}{\partial u_j}= \dfrac{\partial}{\partial u_j}\left(\mathbf{K}_{ik}u_k\right) = \dfrac{\partial \mathbf{K}_{ik}}{\partial u_j}u_k + \mathbf{K}_{ik}\delta_{kj}= \displaystyle\int_{\Omega_e} k'(u_h)[\nabla\phi]_{il}[\nabla\phi]_{lk}u_k \phi_j d\vec{x} + \displaystyle\int_{\Omega_e} k(u_h)[\nabla\phi]_{il} [\nabla\phi]_{lj} d\vec{x}$
 
-For the second term, the same `DiffusionIntegrator` from before is used and `DiffusionIntegrator::AssembleElementMatrix` is called. The first term is a quite a bit trickier.
+For the first term, a `MixedScalarWeakDivergenceIntegrator::AssembleElementMatrix` with a `ScalarVectorProductCoefficient` is used, multiplying the $k'(u_h)$ coefficient with the gradient of the solution represented as a `GradientGridFunctionCoefficient`. For the second term, the same `DiffusionIntegrator` from before is used and `DiffusionIntegrator::AssembleElementMatrix` is called.
 
 ## Nonlinear Mass, $\mathbf{M}$
 
@@ -204,10 +204,9 @@ For this, `MassIntegrator` is simply used with $\lambda=\rho C(u_h)$ set its `Co
 
 ### `AssembleElementGrad`
 
-$\dfrac{\partial \mathbf{F}(u_k)}{\partial u_j}= \dfrac{\partial}{\partial u_j}\left(\mathbf{M}_{ik}u_k\right) = \dfrac{\partial \mathbf{M}_{ik}}{\partial u_j}u_k + \mathbf{M}_{ik}\delta_{kj}= \displaystyle\int_{\Omega_e} \rho C'(u_h)\phi_i\phi_ku_k\phi_j d\vec{x} + \displaystyle\int_{\Omega_e} \rho C(u_h)\phi_i\phi_j d\vec{x} = \displaystyle\int_{\Omega_e} \rho C'(u_h)u_h\phi_i\phi_j d\vec{x} + \displaystyle\int_{\Omega_e} \rho C(u_h)\phi_i\phi_j d\vec{x}$
+$\dfrac{\partial \mathbf{F}(u_k)}{\partial u_j}= \dfrac{\partial}{\partial u_j}\left(\mathbf{M}_{ik}u_k\right) = \dfrac{\partial \mathbf{M}_{ik}}{\partial u_j}u_k + \mathbf{M}_{ik}\delta_{kj}= \displaystyle\int_{\Omega_e} \rho C'(u_h)\phi_i\phi_ku_k\phi_j d\vec{x} + \displaystyle\int_{\Omega_e} \rho C(u_h)\phi_i\phi_j d\vec{x}$
 
-
-TODO: Decide on how to handle above things. Note that we want to optimize speed and memory, so having a bunch of ProductCoefficients may be dumb. It wouldn't be super hard to update existing code to handle these special cases.
+For the first term, `MassIntegrator::AssembleElementMatrix` is used with two `ProductCoefficient`'s used to yield a single $\lambda=\rho C(u_h)u_h$. For the second term, the same `MassIntegrator` from before is used and `MassIntegrator::AssembleElementMatrix` is called.
 
 # Notes:
 
