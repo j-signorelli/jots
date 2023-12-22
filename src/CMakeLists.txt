@@ -9,7 +9,7 @@ add_library(jotsLib
                 precice_adapter.cpp
                 output_manager.cpp
                 jots_driver.cpp
-                jots_nlfs.cpp)
+                jots_nlfis.cpp)
 
 target_include_directories(jotsLib INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 

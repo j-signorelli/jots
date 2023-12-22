@@ -25,7 +25,7 @@ class NonlinearJOTSDiffusionIntegrator : public NonlinearFormIntegrator
         void AssembleElementGrad(const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun, DenseMatrix &elmat);
 };
 
-/*
+
 class NonlinearJOTSMassIntegrator : public NonlinearFormIntegrator
 {
     private:
@@ -34,12 +34,13 @@ class NonlinearJOTSMassIntegrator : public NonlinearFormIntegrator
         ParFiniteElementSpace& fespace;
         ParGridFunction u_gf;
         GridFunctionCoefficient u_coeff;
-        ProductCoefficient rho_C;
+        ProductCoefficient drhodu_C;
         ProductCoefficient rho_dCdu;
-        ProductCoefficient rho_dCdu_times_u;
+        SumCoefficient mat_prop_coeff;
+        ProductCoefficient mat_prop_coeff_times_u;
 
-        MassIntegrator mass;
-        MassIntegrator mass_d;
+        MassIntegrator term1;
+        MassIntegrator term2;
 
         Array<int> dofs;
 
@@ -50,4 +51,3 @@ class NonlinearJOTSMassIntegrator : public NonlinearFormIntegrator
         void AssembleElementGrad(const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun, DenseMatrix &elmat);
     
 };
-*/
