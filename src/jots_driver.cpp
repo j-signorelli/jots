@@ -323,15 +323,6 @@ void JOTSDriver::ProcessMaterialProperties()
                 return;
         }
 
-        // Ensure that if this is density, it is UNIFORM
-        // JOTS does not currently allow for non-UNIFORM density
-        // Would be straightforward to implement but requires updates
-        if (mp == MATERIAL_PROPERTY::DENSITY && mm != MATERIAL_MODEL::UNIFORM)
-        {
-            MFEM_ABORT("JOTS does not currently allow for non-uniform density!");
-            return;
-        }
-
         // Print remaining portion of label
         if (rank == 0)
             cout << mat_props[mp]->GetInitString() << endl;
