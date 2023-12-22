@@ -6,8 +6,8 @@ using namespace mfem;
 class NonlinearJOTSDiffusionIntegrator : public NonlinearFormIntegrator
 {
     private:
-        MaterialProperty& k;
         ParFiniteElementSpace& fespace;
+        MaterialProperty& k;
         ParGridFunction u_gf;
         GradientGridFunctionCoefficient grad_u_coeff;
         ScalarVectorProductCoefficient dkdu_times_grad_u;
@@ -20,7 +20,7 @@ class NonlinearJOTSDiffusionIntegrator : public NonlinearFormIntegrator
 
     protected:
     public:
-        NonlinearJOTSDiffusionIntegrator(MaterialProperty& k_, ParFiniteElementSpace* fespace_);
+        NonlinearJOTSDiffusionIntegrator(ParFiniteElementSpace* fespace_, MaterialProperty& k_);
         void AssembleElementVector(const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun, Vector &elvect);
         void AssembleElementGrad(const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun, DenseMatrix &elmat);
 };
@@ -29,9 +29,9 @@ class NonlinearJOTSDiffusionIntegrator : public NonlinearFormIntegrator
 class NonlinearJOTSMassIntegrator : public NonlinearFormIntegrator
 {
     private:
+        ParFiniteElementSpace& fespace;
         MaterialProperty& rho;
         MaterialProperty& C;
-        ParFiniteElementSpace& fespace;
         ParGridFunction u_gf;
         GridFunctionCoefficient u_coeff;
         ProductCoefficient drhodu_C;
@@ -46,7 +46,7 @@ class NonlinearJOTSMassIntegrator : public NonlinearFormIntegrator
 
     protected:
     public:
-        NonlinearJOTSMassIntegrator(MaterialProperty& rho_, MaterialProperty& C_, ParFiniteElementSpace* fespace_);
+        NonlinearJOTSMassIntegrator(ParFiniteElementSpace* fespace_, MaterialProperty& rho_, MaterialProperty& C_);
         void AssembleElementVector(const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun, Vector &elvect);
         void AssembleElementGrad(const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun, DenseMatrix &elmat);
     

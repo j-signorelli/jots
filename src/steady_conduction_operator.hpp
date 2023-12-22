@@ -2,7 +2,7 @@
 #include "jots_iterator.hpp"
 #include "material_property.hpp"
 #include "config_file.hpp"
-#include "jots_nlfs.hpp"
+#include "jots_nlfis.hpp"
 
 using namespace mfem;
 

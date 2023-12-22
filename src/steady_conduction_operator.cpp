@@ -15,7 +15,7 @@ SteadyConductionOperator::SteadyConductionOperator(const Config& in_config, cons
     lin_solver->SetMaxIter(in_config.GetMaxIter());
 
     // Add nonlinear diffusion
-    k.AddDomainIntegrator(new NonlinearJOTSDiffusionIntegrator(k_prop, &f_));
+    k.AddDomainIntegrator(new NonlinearJOTSDiffusionIntegrator(&f_, k_prop));
     k.SetEssentialTrueDofs(ess_tdof_list);
 
     // Set NewtonSolver

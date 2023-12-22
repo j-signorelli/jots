@@ -1,9 +1,9 @@
 #include "jots_nlfis.hpp"
 
 
-NonlinearJOTSDiffusionIntegrator::NonlinearJOTSDiffusionIntegrator(MaterialProperty& k_, ParFiniteElementSpace* fespace_)
-: k(k_),
-  fespace(*fespace_),
+NonlinearJOTSDiffusionIntegrator::NonlinearJOTSDiffusionIntegrator(ParFiniteElementSpace* fespace_, MaterialProperty& k_)
+: fespace(*fespace_),
+  k(k_),
   u_gf(fespace_),
   grad_u_coeff(&u_gf),
   dkdu_times_grad_u(k.GetDCoeffRef(), grad_u_coeff),
@@ -50,10 +50,10 @@ void NonlinearJOTSDiffusionIntegrator::AssembleElementGrad(const FiniteElement &
 }
 
 
-NonlinearJOTSMassIntegrator::NonlinearJOTSMassIntegrator(MaterialProperty& rho_, MaterialProperty& C_, ParFiniteElementSpace* fespace_)
-: rho(rho_),
+NonlinearJOTSMassIntegrator::NonlinearJOTSMassIntegrator(ParFiniteElementSpace* fespace_, MaterialProperty& rho_, MaterialProperty& C_)
+: fespace(*fespace_),
+  rho(rho_),
   C(C_),
-  fespace(*fespace_),
   u_gf(fespace_),
   u_coeff(&u_gf),
   drhodu_C(rho.GetDCoeffRef(), C.GetCoeffRef()),
