@@ -10,7 +10,7 @@ class JOTSIterator
     protected:
         mfem::ParFiniteElementSpace& fespace;
         mfem::ParLinearForm b;// LinearForm representing Neumann BCs
-        mfem::Vector b_vec_full; // full - Neumann BC Vector w/o essential BCs removed
+        mfem::Vector b_vec; // Neumann BC Vector
 
         mfem::Array<int> ess_tdof_list; // list of essential true dofs
 

@@ -36,5 +36,5 @@ JOTSIterator::JOTSIterator(ParFiniteElementSpace& f_, const BoundaryCondition* c
 void JOTSIterator::UpdateNeumann()
 {
    b.Assemble();
-   b.ParallelAssemble(b_vec_full);
+   b.ParallelAssemble(b_vec);
 }
