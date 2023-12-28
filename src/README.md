@@ -86,7 +86,7 @@ $$\vec{u}_{n+1} = \vec{u}_n + \Delta t\left.\dfrac{d \vec{u}}{dt}\right|_n$$
 
 where
 
-$$\left.\dfrac{d\vec{u}}{dt}\right|_n=f(\vec{u}_n, t_n)=\bold{M}^{-1}(\vec{u}_n)\left[\bold{K}(\vec{u}_n)\vec{u}_{n} + \vec{N}(t_n)\right]$$
+$$\left.\dfrac{d\vec{u}}{dt}\right|_n=f(\vec{u}_n, t_n)=\bold{M}^{-1}(\vec{u}_n)\left[-\bold{K}(\vec{u}_n)\vec{u}_{n} + \vec{N}(t_n)\right]$$
 
 ### Implicit
 
@@ -96,21 +96,36 @@ $$\vec{u}_{n+1} = \vec{u}_n + \Delta t\left.\dfrac{d \vec{u}}{dt}\right|_{n+1}$$
 
 where
 
-$$\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}=f(\vec{u}_{n+1}, t_{n+1})=\bold{M}^{-1}(\vec{u}_{n+1})\left[\bold{K}(\vec{u}_{n+1})\vec{u}_{n+1} + \vec{N}(t_{n+1})\right]$$
+$$\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}=f(\vec{u}_{n+1}, t_{n+1})=\bold{M}^{-1}(\vec{u}_{n+1})\left[-\bold{K}(\vec{u}_{n+1})\vec{u}_{n+1} + \vec{N}(t_{n+1})\right]$$
 
 Plugging in the above equation for $\vec{u}_{n+1}$:
 
-$$\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}=f(\vec{u}_{n+1}, t_{n+1})=\bold{M}^{-1}(\vec{u}_{n+1})\left[\bold{K}(\vec{u}_{n+1})\left(\vec{u}_{n} + \Delta t\left.\dfrac{d \vec{u}}{dt}\right|_{n+1}\right) + \vec{N}(t_{n+1})\right]$$
+$$\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}=f(\vec{u}_{n+1}, t_{n+1})=\bold{M}^{-1}(\vec{u}_{n+1})\left[-\bold{K}(\vec{u}_{n+1})\left(\vec{u}_{n} + \Delta t\left.\dfrac{d \vec{u}}{dt}\right|_{n+1}\right) + \vec{N}(t_{n+1})\right]$$
 
 Rearranging this yields:
 
-$$\left[\bold{M}(\vec{u}_{n+1})+\Delta t \bold{K}(\vec{u}_{n+1})\right]\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}=\bold{K}(\vec{u}_{n+1})\vec{u}_{n}+\vec{N}(t_{n+1})$$
+$$\left[\bold{M}(\vec{u}_{n+1})+\Delta t \bold{K}(\vec{u}_{n+1})\right]\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}=-\bold{K}(\vec{u}_{n+1})\vec{u}_{n}+\vec{N}(t_{n+1})$$
 
 Thus:
 
-$$\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}=\left[\bold{M}(\vec{u}_{n+1})+\Delta t \bold{K}(\vec{u}_{n+1})\right]^{-1}\left[\bold{K}(\vec{u}_{n+1})\vec{u}_{n}+\vec{N}(t_{n+1})\right]$$
+$$\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}=\left[\bold{M}(\vec{u}_{n+1})+\Delta t \bold{K}(\vec{u}_{n+1})\right]^{-1}\left[-\bold{K}(\vec{u}_{n+1})\vec{u}_{n}+\vec{N}(t_{n+1})\right]$$
 
-JOTS uses Newton iterations to deal with the nonlinearities. More details are provided on this below.
+Previously, at this point, JOTS employed a linearization of $\mathbf{M}$ and $\mathbf{K}$ about the previous timestep $t_n$. However, Newton iteration capability has now been implemented to deal with the nonlinearities more appropriately. The formula to be solved becomes:
+
+$$\mathbf{F}\left(\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}\right) = \left[\bold{M}(\vec{u}_{n+1})+\Delta t \bold{K}(\vec{u}_{n+1})\right]\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}+\bold{K}(\vec{u}_{n+1})\vec{u}_{n}=\vec{N}(t_{n+1})$$
+
+$$\mathbf{F}\left(\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}\right) = \left[\bold{M}\left(\vec{u}_n + \Delta t\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}\right)+\Delta t \bold{K}\left(\vec{u}_n + \Delta t\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}\right)\right]\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}+\bold{K}\left(\vec{u}_n + \Delta t\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}\right)\vec{u}_{n}=\vec{N}(t_{n+1})$$
+
+For clarity of notation, writing $\vec{\kappa}_{n+1}=\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}$:
+
+$$\mathbf{F}\left(\vec{\kappa}_{n+1}\right) = \left[\bold{M}\left(\vec{u}_n + \Delta t\vec{\kappa}_{n+1}\right)+\Delta t \bold{K}\left(\vec{u}_n + \Delta t \vec{\kappa}_{n+1}\right)\right]\vec{\kappa}_{n+1}+\bold{K}\left(\vec{u}_n + \Delta t \vec{\kappa}_{n+1}\right)\vec{u}_{n}$$
+
+This above form is represented as a `ReducedSystemOperator`. The gradient of it is taken below:
+
+$$\dfrac{\partial\mathbf{F}\left(\vec{\kappa}_{n+1}\right)}{\partial \vec{\kappa}} = \left[\Delta t\dfrac{\partial\bold{M}\left(\vec{u}_n + \Delta t\vec{\kappa}_{n+1}\right)}{\partial \vec{u}}+\Delta t^2 \dfrac{\partial\bold{K}\left(\vec{u}_n + \Delta t\vec{\kappa}_{n+1}\right)}{\partial \vec{u}}\right]\vec{\kappa}_{n+1}+\bold{M}\left(\vec{u}_n + \Delta t\vec{\kappa}_{n+1}\right)+\Delta t \bold{K}\left(\vec{u}_n + \Delta t \vec{\kappa}_{n+1}\right)+\Delta t\dfrac{\partial\bold{K}\left(\vec{u}_n + \Delta t\vec{\kappa}_{n+1}\right)}{\partial \vec{u}}\vec{u}_{n}$$
+
+
+More details on the Jacobians of $\mathbf{M}$ and $\mathbf{K}$ are discussed later on.
 
 ## Approximations for Non-Constant Dirichlet + Neumann BCs
 
@@ -174,7 +189,7 @@ $$\mathbf{F}(\vec{u}^{k+1}) \approx \mathbf{F}(\vec{u}^k) + \dfrac{\partial \mat
 
 $$\rightarrow\vec{u}^{k+1} = \vec{u}^k - \left[\dfrac{\partial \mathbf{F}(\vec{u}^k)}{\partial \vec{u}}\right]^{-1}(\mathbf{F}(\vec{u}^k) - N_i)$$
 
-If NewtonSolverSettings is not specified in the config file, JOTS presumes a linear $\mathbf{F}$ term. For clarity of notation, the gradient $\dfrac{\partial \phi_i}{\partial x_j}$ is now written as $[\nabla \phi]_{ij}$. This was implicitly presumed in the above derivations (that the inner products of matrices are taken), not explicitly included for simplicity. Note that subscript $h$ is not used as an index, but as the finite element approximate solution.
+For clarity of notation, the gradient $\dfrac{\partial \phi_i}{\partial x_j}$ is now written as $[\nabla \phi]_{ij}$. This was implicitly presumed in the above derivations (that the inner products of matrices are taken), not explicitly included for simplicity. Note that subscript $h$ is not used as an index, but as the finite element approximate solution.
 
 
 ## Nonlinear Diffusion, $\mathbf{K}$
