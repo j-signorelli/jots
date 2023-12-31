@@ -1,6 +1,8 @@
 # Unsteady Heat Transfer
 
-## Weak Formulation Derivation
+## Approach #1
+
+### Weak Formulation Derivation
 
 Start with the unsteady thermal conduction equation, applying the following assumptions:
 
@@ -9,7 +11,7 @@ Start with the unsteady thermal conduction equation, applying the following assu
 
 This yields:
 
-$$\rho C \dfrac{\partial u}{\partial t} - \nabla \cdot (k \nabla u) = 0$$
+$$ \rho C\dfrac{\partial u}{\partial t} - \nabla \cdot (k \nabla u) = 0$$
 
 We seek a weak formulation of this allowing for nonhomogeneous Neumann and Dirichlet boundary conditions.
 
@@ -24,11 +26,11 @@ So: we seek a solution that at a given point in time $u \in H^1_{\partial \Omega
 
 Multiply the heat equation by test function $v \in H^1_{\partial \Omega_D}(\Omega)$ and integrate:
 
-$$\int_\Omega \rho C \dfrac{\partial u}{\partial t}vd\vec{x} - \int_\Omega \nabla \cdot (k \nabla u)vd\vec{x} = 0$$
+$$\int_\Omega\rho C\dfrac{\partial u}{\partial t}vd\vec{x} - \int_\Omega \nabla \cdot (k \nabla u)vd\vec{x} = 0$$
 
 We can then apply the following Green formula to the second term:
 
-$$\int_\Omega \nabla \cdot (k \nabla u)vd\vec{x} = -\int_\Omega \nabla v \cdot (k\nabla u) d\vec{x} + \int_{\partial \Omega} \hat{n} \cdot (k \nabla u)v d\vec{x}$$
+$$\int_\Omega\nabla \cdot (k \nabla u)vd\vec{x} = -\int_\Omega (\nabla v) \cdot (k\nabla u) d\vec{x} + \int_{\partial \Omega} \hat{n} \cdot (k \nabla u)v d\vec{x}$$
 
 Note from earlier that $ g = \hat{n} \cdot (k \nabla u)$, a specified heat flux on Neumann boundaries. We allow for this heat flux to vary in time as well as in space: $g=g(x,y,z,t)$
 
@@ -43,52 +45,62 @@ $$v(\vec{x},t) \approx v_h(\vec{x},t)=\sum^{N_{\mathcal{V}_h}}_j v_j(t)\phi_j(\v
  Plugging the above in:
 
 
-$$\int_\Omega \rho(u_h) C(u_h) \left(\sum_j \dfrac{d u_j(t)}{d t} \phi_j\right) \left(\sum_i v_i(t)\phi_i\right) d\vec{x} + \int_\Omega \left( k(u_h)\sum_j u_j(t)\nabla \phi_j\right)\cdot \left(\sum_i v_i(t)\nabla \phi_i\right) d\vec{x} = \int_{\partial \Omega} g\left(\sum_i v_i(t) \phi_i \right)d\vec{x}$$
+$$\int_\Omega \rho(u_h)C(u_h)\left(\sum_j \dfrac{d u_j(t)}{d t} \phi_j\right) \left(\sum_i v_i(t)\phi_i\right) d\vec{x} + \int_\Omega \left( k(u_h)\sum_j u_j(t)\nabla \phi_j\right)\cdot \left(\sum_i v_i(t)\nabla \phi_i\right) d\vec{x} = \int_{\partial \Omega} g\left(\sum_i v_i(t) \phi_i \right)d\vec{x}$$
 
 
 Take out the summations and any non-integrated terms from the integrals:
 
-$$\sum_j \sum_i v_i \left( \int_\Omega \rho(u_h) C(u_h) \phi_i \phi_j d\vec{x}\right)\dfrac{d u_j}{d t} + \sum_i \sum_j v_i\left( \int_\Omega (\nabla \phi_i) \cdot (k(u_h) \nabla \phi_j) d\vec{x}\right)u_j = \sum_i v_i\left( \int_{\partial \Omega} g\phi_i d\vec{x}\right)$$
+$$\sum_j \sum_i v_i \left( \int_\Omega \rho(u_h)C(u_h)\phi_i \phi_j d\vec{x}\right)\dfrac{d u_j}{d t} + \sum_i \sum_j v_i\left( \int_\Omega k(u_h)(\nabla \phi_i) \cdot (\nabla \phi_j) d\vec{x}\right)u_j = \sum_i v_i\left( \int_{\partial \Omega} g\phi_i d\vec{x}\right)$$
 
 Now we may define:
 
-$$\bold{M} = \left[M_{ij}\right]=\left[\int_\Omega \rho C \phi_i \phi_j d\vec{x}\right] = \text{Mass Matrix}$$
+$$\mathbf{M} = \left[M_{ij}\right]=\left[\int_\Omega \rho C\phi_i \phi_j d\vec{x}\right] = \text{Mass Matrix}$$
 
-$$\bold{K} = \left[K_{ij}\right] = \left[\int_\Omega (k \nabla \phi_i) \cdot (\nabla \phi_j) d\vec{x} \right] = \text{Stiffness Matrix}$$
+$$ \mathbf{K}= \left[K_{ij}\right] = \left[\int_\Omega k(\nabla \phi_i) \cdot (\nabla \phi_j) d\vec{x} \right] = \text{Stiffness Matrix}$$
 
-$$\vec{N}=\left[\int_{\partial \Omega} g(\vec{x},t)\phi_i d\vec{x}\right]=\text{Neumann Linear Form}$$
+$$\vec{N}=\left[\int_{\partial \Omega}g(\vec{x},t)\phi_i d\vec{x}\right]=\text{Neumann Term}$$
 
 Thus the equation becomes:
 
-$$\vec{v}^T\bold{M}\dfrac{d \vec{u}}{d t} + \vec{v}^T \bold{K}\vec{u} = \vec{v}^T \vec{N}$$
+$$\vec{v}^T\mathbf{M}\dfrac{d \vec{u}}{d t} + \vec{v}^T \mathbf{K}\vec{u} = \vec{v}^T \vec{N}$$
 
-$$\vec{v}^T\left(\bold{M}\dfrac{d \vec{u}}{d t} + \bold{K}\vec{u} - \vec{N}\right)=0$$
+$$\vec{v}^T\left(\mathbf{M}\dfrac{d \vec{u}}{d t} + \mathbf{K}\vec{u} - \vec{N}\right)=0$$
 
 For this inner product to be zero $\forall\vec{v}$, the vector in parentheses must be identically zero. So the equation of interest is:
 $$
-\bold{M}\dfrac{d \vec{u}}{d t} + \bold{K}\vec{u} - \vec{N}=\vec{0}$$
+\mathbf{M}\dfrac{d \vec{u}}{d t} + \mathbf{K}\vec{u} - \vec{N}=\vec{0}$$
 
 or
 
 $$M_{ij}\dfrac{du_j}{dt} = -K_{ij}u_j + N_i$$
 
-Note that generally $\bold{M}=\bold{M}(\vec{u})$,  $\bold{K}=\bold{K}(\vec{u})$, and $\vec{N}=\vec{N}(t)$
+Note that $\vec{N}=\vec{N}(t)$. For linear cases (where all material properties are uniform) the above form with matrices holds. However, generally $\mathbf{M}=\mathbf{M}(\vec{u})$ and $\mathbf{K}=\mathbf{K}(\vec{u})$. Thus, to account for these cases, the equation must be rewritten with nonlinear operators as
 
-## Time-Integration
+$$M\left(\vec{u},\dfrac{d\vec{u}}{dt}\right) =-K(\vec{u}) + N(t)$$
 
-JOTS makes usage of MFEM's layer-of-abstraction `TimeDependentOperator`. Note that $k=\dfrac{d\vec{u}}{dt}$
+where $M\left(\vec{u},\dfrac{d\vec{u}}{dt}\right)=\mathbf{M}(\vec{u})\dfrac{d\vec{u}}{dt}$ and $K(\vec{u})=\mathbf{K}(\vec{u})\vec{u}$.
 
-### Explicit
+### Time-Integration
+
+JOTS makes usage of MFEM's layer-of-abstraction `TimeDependentOperator`.
+
+#### Explicit
 
 For explicit time integration methods,
 
 $$\vec{u}_{n+1} = \vec{u}_n + \Delta t\left.\dfrac{d \vec{u}}{dt}\right|_n$$
 
-where
+where $\left.\dfrac{d \vec{u}}{dt}\right|_n$ is the one that solves 
 
-$$\left.\dfrac{d\vec{u}}{dt}\right|_n=f(\vec{u}_n, t_n)=\bold{M}^{-1}(\vec{u}_n)\left[-\bold{K}(\vec{u}_n)\vec{u}_{n} + \vec{N}(t_n)\right]$$
+$$M\left(\vec{u}_n,\left.\dfrac{d \vec{u}}{dt}\right|_n\right) =-K(\vec{u}_n) + N(t_n)$$
 
-### Implicit
+Writing out the nonlinear mass operator, the following holds:
+
+$$\left.\dfrac{d \vec{u}}{dt}\right|_n =\mathbf{M}_n^{-1}\left[-K(\vec{u}_n) + N(t_n)\right]$$
+
+where $\mathbf{M}_n$ is the previously defined mass matrix evaluated using the solution vector at the previous timestep $t_n$.
+
+#### Implicit
 
 For implicit time-integration methods,
 
@@ -96,36 +108,144 @@ $$\vec{u}_{n+1} = \vec{u}_n + \Delta t\left.\dfrac{d \vec{u}}{dt}\right|_{n+1}$$
 
 where
 
-$$\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}=f(\vec{u}_{n+1}, t_{n+1})=\bold{M}^{-1}(\vec{u}_{n+1})\left[-\bold{K}(\vec{u}_{n+1})\vec{u}_{n+1} + \vec{N}(t_{n+1})\right]$$
+$$M\left(\vec{u}_{n+1},\left.\dfrac{d \vec{u}}{dt}\right|_{n+1}\right) =-K(\vec{u}_{n+1}) + N(t_{n+1})$$
 
-Plugging in the above equation for $\vec{u}_{n+1}$:
+Plugging in the above equation for $\vec{u}_{n+1}$ and $t_{n+1}=t_n + \Delta t$, and writing $\vec{k}_{n+1}=\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}$
 
-$$\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}=f(\vec{u}_{n+1}, t_{n+1})=\bold{M}^{-1}(\vec{u}_{n+1})\left[-\bold{K}(\vec{u}_{n+1})\left(\vec{u}_{n} + \Delta t\left.\dfrac{d \vec{u}}{dt}\right|_{n+1}\right) + \vec{N}(t_{n+1})\right]$$
+$$M(\vec{u}_n + \Delta t\vec{k}_{n+1}, \vec{k}_{n+1})=-K(\vec{u}_n + \Delta t\vec{k}_{n+1}) + N(t_n + \Delta t)$$
 
 Rearranging this yields:
 
-$$\left[\bold{M}(\vec{u}_{n+1})+\Delta t \bold{K}(\vec{u}_{n+1})\right]\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}=-\bold{K}(\vec{u}_{n+1})\vec{u}_{n}+\vec{N}(t_{n+1})$$
+$$R(\vec{k}_{n+1}) = M(\vec{u}_n + \Delta t\vec{k}_{n+1}, \vec{k}_{n+1})+K(\vec{u}_n +\Delta t\vec{k}_{n+1}) - N(t_n + \Delta t)=0$$
 
-Thus:
+Newton iterations must be employed to solve this generally nonlinear system. For Jacobian evaluation, it is useful to write out $M$ as:
 
-$$\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}=\left[\bold{M}(\vec{u}_{n+1})+\Delta t \bold{K}(\vec{u}_{n+1})\right]^{-1}\left[-\bold{K}(\vec{u}_{n+1})\vec{u}_{n}+\vec{N}(t_{n+1})\right]$$
+$$R(\vec{k}_{n+1}) = \mathbf{M}(\vec{u}_n + \Delta t\vec{k}_{n+1})\vec{k}_{n+1}+K(\vec{u}_n +\Delta t\vec{k}_{n+1}) - N(t_n + \Delta t)=0$$
 
-Previously, at this point, JOTS employed a linearization of $\mathbf{M}$ and $\mathbf{K}$ about the previous timestep $t_n$. However, Newton iteration capability has now been implemented to deal with the nonlinearities more appropriately. The formula to be solved becomes:
+Then the Jacobian of $R$ is then given by:
 
-$$\mathbf{F}\left(\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}\right) = \left[\bold{M}(\vec{u}_{n+1})+\Delta t \bold{K}(\vec{u}_{n+1})\right]\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}+\bold{K}(\vec{u}_{n+1})\vec{u}_{n}=\vec{N}(t_{n+1})$$
-
-$$\mathbf{F}\left(\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}\right) = \left[\bold{M}\left(\vec{u}_n + \Delta t\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}\right)+\Delta t \bold{K}\left(\vec{u}_n + \Delta t\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}\right)\right]\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}+\bold{K}\left(\vec{u}_n + \Delta t\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}\right)\vec{u}_{n}=\vec{N}(t_{n+1})$$
-
-For clarity of notation, writing $\vec{\kappa}_{n+1}=\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}$:
-
-$$\mathbf{F}\left(\vec{\kappa}_{n+1}\right) = \left[\bold{M}\left(\vec{u}_n + \Delta t\vec{\kappa}_{n+1}\right)+\Delta t \bold{K}\left(\vec{u}_n + \Delta t \vec{\kappa}_{n+1}\right)\right]\vec{\kappa}_{n+1}+\bold{K}\left(\vec{u}_n + \Delta t \vec{\kappa}_{n+1}\right)\vec{u}_{n}$$
-
-This above form is represented as a `ReducedSystemOperator`. The gradient of it is taken below:
-
-$$\dfrac{\partial\mathbf{F}\left(\vec{\kappa}_{n+1}\right)}{\partial \vec{\kappa}} = \left[\Delta t\dfrac{\partial\bold{M}\left(\vec{u}_n + \Delta t\vec{\kappa}_{n+1}\right)}{\partial \vec{u}}+\Delta t^2 \dfrac{\partial\bold{K}\left(\vec{u}_n + \Delta t\vec{\kappa}_{n+1}\right)}{\partial \vec{u}}\right]\vec{\kappa}_{n+1}+\bold{M}\left(\vec{u}_n + \Delta t\vec{\kappa}_{n+1}\right)+\Delta t \bold{K}\left(\vec{u}_n + \Delta t \vec{\kappa}_{n+1}\right)+\Delta t\dfrac{\partial\bold{K}\left(\vec{u}_n + \Delta t\vec{\kappa}_{n+1}\right)}{\partial \vec{u}}\vec{u}_{n}$$
+$$\dfrac{\partial R(\vec{k}_{n+1})}{\partial \vec{k}}=\mathbf{M}_{n+1} + \Delta t\left.\dfrac{\partial \mathbf{M}}{\partial \vec{u}}\right|_{n+1}\vec{k}_{n+1} + \Delta t \left.\dfrac{\partial K}{\partial \vec{u}}\right|_{n+1} +N(t_n+\Delta t)$$
 
 
-More details on the Jacobians of $\mathbf{M}$ and $\mathbf{K}$ are discussed later on.
+## Approach #2
+
+### Weak Formulation Derivation
+
+Start with the unsteady thermal conduction equation, applying the following assumptions:
+
+1. We assume isotropic density $\rho$, thermal conductivity $k$, and specific heat $C$ but allow for them to vary as a function of temperature: $\rho=\rho(u)$, $k=k(u)$, and $C=C(u)$
+2. No heat generation
+
+This yields:
+
+$$ \dfrac{\partial u}{\partial t} - \dfrac{1}{\rho C}\nabla \cdot (k \nabla u) = 0$$
+
+We seek a weak formulation of this allowing for nonhomogeneous Neumann and Dirichlet boundary conditions.
+
+Given that one applies the appropriate "lifting" of the solution, we can assume homogeneous Dirichlet BCs in the derivation such that:
+
+$$u=0 \text{ on } \partial \Omega_D$$
+$$\hat{n} \cdot (k \nabla u)=g \text{ on } \partial \Omega_N \text{ given } g : \partial \Omega_N \times \mathbb{R}\rightarrow \mathbb{R}$$
+
+where $\Omega$ is our domain and $\partial \Omega$ is the boundary of the domain. Note that $g$ takes in both a location on the boundary and is also allowed to take in a time value that is real.
+
+So: we seek a solution that at a given point in time $u \in H^1_{\partial \Omega_D}(\Omega)$ where $H^1_{\partial \Omega_D}(\Omega) = \{u \in H^1(\Omega) : u=0 \text{ on } \partial \Omega_D \}$. Using conventional notation, the solution space is $\mathcal{V}=H^1_{\partial \Omega_D}(\Omega)$. The test space is chosen to be the same as the solution space.
+
+Multiply the heat equation by test function $v \in H^1_{\partial \Omega_D}(\Omega)$ and integrate:
+
+$$\int_\Omega\dfrac{\partial u}{\partial t}vd\vec{x} - \int_\Omega \dfrac{1}{\rho C}\nabla \cdot (k \nabla u)vd\vec{x} = 0$$
+
+We can then apply the following Green formula to the second term:
+
+$$\int_\Omega \dfrac{1}{\rho C}\nabla \cdot (k \nabla u)vd\vec{x} = -\int_\Omega \dfrac{k}{\rho C}(\nabla v) \cdot (\nabla u) d\vec{x} + \int_{\partial \Omega} \dfrac{1}{\rho C}\hat{n} \cdot (k \nabla u)v d\vec{x}$$
+
+Note from earlier that $ g = \hat{n} \cdot (k \nabla u)$, a specified heat flux on Neumann boundaries. We allow for this heat flux to vary in time as well as in space: $g=g(x,y,z,t)$
+
+Now we may apply a finite element approximation to this weak formulation. This is done assuming $H^1$-conforming nodal elements. An approximate solution $u_h\in\mathcal{V}_h \sub \mathcal{V}$ is sought, where $\mathcal{V}_h$ is a finite-dimensional approximation space, which is a subset of the infinitely-dimensional solution space. Given a basis $\{\phi_j\}$ for the approximation space ($\text{span}\{\phi_j\}=\mathcal{V}_h$) and assuming that the approximate test function $v_h \in \mathcal{V}_h$, we write:
+ 
+$$u(\vec{x},t) \approx u_h(\vec{x},t)= \sum^{N_{\mathcal{V}_h}}_j u_j(t)\phi_j(\vec{x})$$
+$$v(\vec{x},t) \approx v_h(\vec{x},t)=\sum^{N_{\mathcal{V}_h}}_j v_j(t)\phi_j(\vec{x})$$
+
+
+ where the dual basis $u_j$ is chosen to represent $N_{\mathcal{V}_h}$ nodal degrees of freedom in which at a given point in time: $\{u_j\}\in	\mathbb{R}^{N_{\mathcal{V}_h}}$. Going forward for simplification, all summations are presumed to be over ${N_{\mathcal{V}_h}}$ degrees of freedom: $\sum^{N_{\mathcal{V}_h}}_j=\sum_j$.
+
+ Plugging the above in:
+
+
+$$\int_\Omega \left(\sum_j \dfrac{d u_j(t)}{d t} \phi_j\right) \left(\sum_i v_i(t)\phi_i\right) d\vec{x} + \int_\Omega \left( \dfrac{k(u_h)}{\rho(u_h) C(u_h)}\sum_j u_j(t)\nabla \phi_j\right)\cdot \left(\sum_i v_i(t)\nabla \phi_i\right) d\vec{x} = \int_{\partial \Omega} \dfrac{g}{\rho(u_h) C(u_h)}\left(\sum_i v_i(t) \phi_i \right)d\vec{x}$$
+
+
+Take out the summations and any non-integrated terms from the integrals:
+
+$$\sum_j \sum_i v_i \left( \int_\Omega \phi_i \phi_j d\vec{x}\right)\dfrac{d u_j}{d t} + \sum_i \sum_j v_i\left( \int_\Omega \dfrac{k(u_h)}{\rho(u_h) C(u_h)}(\nabla \phi_i) \cdot (\nabla \phi_j) d\vec{x}\right)u_j = \sum_i v_i\left( \int_{\partial \Omega} \dfrac{g}{\rho(u_h) C(u_h)}\phi_i d\vec{x}\right)$$
+
+Now we may define:
+
+$$\mathbf{M} = \left[M_{ij}\right]=\left[\int_\Omega \phi_i \phi_j d\vec{x}\right] = \text{Mass Matrix}$$
+
+$$ \mathbf{K}= \left[\kappa_{ij}\right] = \left[\int_\Omega \dfrac{k}{\rho C}(\nabla \phi_i) \cdot (\nabla \phi_j) d\vec{x} \right] = \text{Stiffness Matrix}$$
+
+$$\vec{N}=\left[\int_{\partial \Omega} \dfrac{g(\vec{x},t)}{\rho C}\phi_i d\vec{x}\right]=\text{Neumann Term}$$
+
+Thus the equation becomes:
+
+$$\vec{v}^T\mathbf{M}\dfrac{d \vec{u}}{d t} + \vec{v}^T \mathbf{K}\vec{u} = \vec{v}^T \vec{N}$$
+
+$$\vec{v}^T\left(\mathbf{M}\dfrac{d \vec{u}}{d t} + \mathbf{K}\vec{u} - \vec{N}\right)=0$$
+
+For this inner product to be zero $\forall\vec{v}$, the vector in parentheses must be identically zero. So the equation of interest is:
+$$
+\mathbf{M}\dfrac{d \vec{u}}{d t} + \mathbf{K}\vec{u} - \vec{N}=\vec{0}$$
+
+or
+
+$$M_{ij}\dfrac{du_j}{dt} = -\kappa_{ij}u_j + N_i$$
+
+For linear cases (where all material properties are uniform) the above form with matrices holds. However, generally $\mathbf{K}=\mathbf{K}(\vec{u})$ and $\vec{N}=\vec{N}(\vec{u}, t)$. Thus, to account for these cases, thr equation is written as:
+
+$$\mathbf{M}\dfrac{d\vec{u}}{dt} = A(\vec{u}, t)=-\kappa(\vec{u}) + N(\vec{u},t)$$
+
+
+where $\kappa$ and $N$, and subsequently $A$, are **nonlinear** operators
+
+
+### Time-Integration
+
+JOTS makes usage of MFEM's layer-of-abstraction `TimeDependentOperator`.
+
+#### Explicit
+
+For explicit time integration methods,
+
+$$\vec{u}_{n+1} = \vec{u}_n + \Delta t\left.\dfrac{d \vec{u}}{dt}\right|_n$$
+
+where
+
+$$\left.\dfrac{d\vec{u}}{dt}\right|_n=f(\vec{u}_n, t_n)=\mathbf{M}^{-1}A(\vec{u}_n,t_n)$$
+
+#### Implicit
+
+For implicit time-integration methods,
+
+$$\vec{u}_{n+1} = \vec{u}_n + \Delta t\left.\dfrac{d \vec{u}}{dt}\right|_{n+1}$$
+
+where
+
+$$\mathbf{M}\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}=A(\vec{u}_{n+1}, t_{n+1})$$
+
+Plugging in the above equation for $\vec{u}_{n+1}$ and $t_{n+1}=t_n + \Delta t$, and writing $\vec{k}_{n+1}=\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}$
+
+$$\mathbf{M}\vec{k}_{n+1}=A\left(\vec{u}_n + \Delta t \vec{k}_{n+1},t_n + \Delta t\right)=-\kappa(\vec{u}_n + \Delta t\vec{k}_{n+1}) + N(\vec{u}_n + \Delta t \vec{k}_{n+1}, t_n + \Delta t)$$
+
+Rearranging this yields:
+
+$$R(\vec{k}_{n+1}) = \mathbf{M}\vec{k}_{n+1} - A(\vec{u}_n + \Delta t \vec{k}_{n+1},t_n + \Delta t) =0$$
+
+Newton iterations are now employed to solve this generally nonlinear system. The Jacobian of $R$ is given by:
+
+$$\dfrac{\partial R(\vec{k}_{n+1})}{\partial \vec{k}}=\mathbf{M} - \Delta t \left.\dfrac{\partial A}{\partial \vec{u}}\right|_{n+1}=\mathbf{M}+\Delta t\left.\dfrac{\partial \kappa}{\partial \vec{u}}\right|_{n+1}-\Delta t\left.\dfrac{\partial N}{\partial \vec{u}}\right|_{n+1}$$
+
+**This approach was selected in JOTS over Approach #1 to avoid the troubles of dealing with a nonlinear form $M\left(\vec{u}, \dfrac{d\vec{u}}{dt}\right)$.**
 
 ## Approximations for Non-Constant Dirichlet + Neumann BCs
 
@@ -173,54 +293,73 @@ $$\sum_i \sum_j v_i\left( \int_\Omega (\nabla \phi_i) \cdot (k(u_h) \nabla \phi_
 
 Thus using the same naming conventions as before:
 
-$$\vec{v}^T \bold{K}\vec{u} = \vec{v}^T \vec{N}$$
+$$\vec{v}^T \mathbf{K}\vec{u} = \vec{v}^T \vec{N}$$
 
 And for this inner product to be identically zero for any test function, we get:
 
-$$\bold{K}\vec{u} = \vec{N}$$
+$$\mathbf{K}\vec{u} = \vec{N}$$
 
-where generally this is a nonlinear problem as $\bold{K}=\bold{K}(\vec{u})$.
+where generally this is a nonlinear problem as $\mathbf{K}=\mathbf{K}(\vec{u})$, so:
+
+$$K(\vec{u})=\vec{N}$$
 
 # JOTS Nonlinear Form Integrators
 
-To solve using Newton-Raphson iterations in MFEM using $H^1$-continuous finite elements, new `NonlinearFormIntegrator`'s must be created with member functions `NonlinearFormIntegrator::AssembleElementVector` and `NonlinearFormIntegrator::AssembleElementGrad` implemented. The specific outputs of those functions are shown below for a given LHS nonlinear operator $\mathbf{F}=\mathbf{F}(\vec{u})$. Note that each operator can be combined into a single LHS operator (as is done for unsteady implicit time-integration). These are used in Newton-Raphson iterations as
+To solve using Newton-Raphson iterations in MFEM using $H^1$-continuous finite elements, new `NonlinearFormIntegrator`'s must be created with member functions `NonlinearFormIntegrator::AssembleElementVector` and `NonlinearFormIntegrator::AssembleElementGrad` implemented. The specific outputs of those functions are shown below for a given LHS nonlinear operator $F=F(\vec{u})$. Note that each operator can be combined into a single LHS operator (as is done for unsteady implicit time-integration). These are used in Newton-Raphson iterations as
 
-$$\mathbf{F}(\vec{u}^{k+1}) \approx \mathbf{F}(\vec{u}^k) + \dfrac{\partial \mathbf{F}(\vec{u}^k)}{\partial \vec{u}}(\vec{u}^{k+1} - \vec{u}^k)$$
+$$F(\vec{u}^{k+1}) \approx F(\vec{u}^k) + \dfrac{\partial F(\vec{u}^k)}{\partial \vec{u}}(\vec{u}^{k+1} - \vec{u}^k)$$
 
-$$\rightarrow\vec{u}^{k+1} = \vec{u}^k - \left[\dfrac{\partial \mathbf{F}(\vec{u}^k)}{\partial \vec{u}}\right]^{-1}(\mathbf{F}(\vec{u}^k) - N_i)$$
+$$\rightarrow\vec{u}^{k+1} = \vec{u}^k - \left[\dfrac{\partial F(\vec{u}^k)}{\partial \vec{u}}\right]^{-1}(F(\vec{u}^k) - N_i)$$
 
 For clarity of notation, the gradient $\dfrac{\partial \phi_i}{\partial x_j}$ is now written as $[\nabla \phi]_{ij}$. This was implicitly presumed in the above derivations (that the inner products of matrices are taken), not explicitly included for simplicity. Note that subscript $h$ is not used as an index, but as the finite element approximate solution.
 
+## Nonlinear Diffusion Integrator
 
-## Nonlinear Diffusion, $\mathbf{K}$
+The only difference between the nonlinear operator $\kappa$ for unsteady heat conduction and the nonlinear operator $K$ for steady heat conduction are their coefficients. Because of this, a general nonlinear diffusion integrator was developed, which is outlined below.
 
 ### `AssembleElementVector`
 
-$\mathbf{F}(u_k)=\mathbf{K}_{ik} u_k=\displaystyle\int_{\Omega_e} k(u_h)[\nabla\phi]_{il}[\nabla\phi]_{lk} u_kd\vec{x}$
+$F(\vec{u})=\mathbf{F}_{ik}u_k=\displaystyle\int_{\Omega_e} \lambda(u_h)[\nabla\phi]_{il}[\nabla\phi]_{lk} u_kd\vec{x}$
 
-For this, `DiffusionIntegrator` is simply used with the coefficient $\lambda=k(u_h)$ set as its `Coefficient`. The action of the operator on $u_k$ is then computed with `DiffusionIntegrator::AssembleElementVector`
+For this, `DiffusionIntegrator` is simply used with the coefficient $\lambda=\lambda(u_h)$ set as its `Coefficient`. The action of the operator on $u_k$ is then computed with `DiffusionIntegrator::AssembleElementVector`.
 
 
 ### `AssembleElementGrad`
 
-$\dfrac{\partial \mathbf{F}(u_k)}{\partial u_j}= \dfrac{\partial}{\partial u_j}\left(\mathbf{K}_{ik}u_k\right) = \dfrac{\partial \mathbf{K}_{ik}}{\partial u_j}u_k + \mathbf{K}_{ik}\delta_{kj}= \displaystyle\int_{\Omega_e} k'(u_h)[\nabla\phi]_{il}[\nabla\phi]_{lk}u_k \phi_j d\vec{x} + \displaystyle\int_{\Omega_e} k(u_h)[\nabla\phi]_{il} [\nabla\phi]_{lj} d\vec{x}$
+$\dfrac{\partial F(u_k)}{\partial u_j}= \dfrac{\partial}{\partial u_j}\left(\mathbf{F}_{ik}u_k\right) = \dfrac{\partial \mathbf{F}_{ik}}{\partial u_j}u_k + \mathbf{F}_{ik}\delta_{kj}= \displaystyle\int_{\Omega_e} \lambda'(u_h)[\nabla\phi]_{il}[\nabla\phi]_{lk}u_k \phi_j d\vec{x} + \displaystyle\int_{\Omega_e} \lambda(u_h)[\nabla\phi]_{il} [\nabla\phi]_{lj} d\vec{x}$
 
-For the first term, a `MixedScalarWeakDivergenceIntegrator::AssembleElementMatrix` with a `ScalarVectorProductCoefficient` is used, multiplying the $k'(u_h)$ coefficient with the gradient of the solution represented as a `GradientGridFunctionCoefficient`. For the second term, the same `DiffusionIntegrator` from before is used and `DiffusionIntegrator::AssembleElementMatrix` is called.
+For the first term, a `MixedScalarWeakDivergenceIntegrator::AssembleElementMatrix` with a `ScalarVectorProductCoefficient` is used, multiplying the $\lambda'(u_h)$ coefficient with the gradient of the solution represented as a `GradientGridFunctionCoefficient`. For the second term, the same `DiffusionIntegrator` from before is used and `DiffusionIntegrator::AssembleElementMatrix` is called.
 
-## Nonlinear Mass, $\mathbf{M}$
+For completion, the forms for both $\kappa$ and $K$ are shown below:
+### Nonlinear Diffusivity, $\kappa$
+
+#### `AssembleElementVector`
+$\kappa(\vec{u})=\displaystyle\int_{\Omega_e} \dfrac{k(u_h)}{\rho(u_h)C(u_h)}[\nabla\phi]_{il}[\nabla\phi]_{lk} u_kd\vec{x}$
+
+
+#### `AssembleElementGrad`
+
+$\dfrac{\partial \kappa}{\partial \vec{u}}=\displaystyle\int_{\Omega_e} \left(\dfrac{k'(u_h)}{\rho(u_h)C(u_h)}-\dfrac{k(u_h)C'(u_h)}{\rho(u_h)C(u_h)^2}-\dfrac{k(u_h)\rho'(u_h)}{\rho(u_h)^2C(u_h)}\right)[\nabla\phi]_{il}[\nabla\phi]_{lk} u_k\phi_jd\vec{x} + \displaystyle\int_{\Omega_e} \dfrac{k(u_h)}{\rho(u_h)C(u_h)}[\nabla\phi]_{il}[\nabla\phi]_{lj}d\vec{x}$
+
+### Nonlinear Conductivity, $K$
+
+#### `AssembleElementVector`
+
+$K(\vec{u})=\mathbf{K}_{ik}u_k=\displaystyle\int_{\Omega_e} k(u_h)[\nabla\phi]_{il}[\nabla\phi]_{lk} u_kd\vec{x}$
+
+#### `AssembleElementGrad`
+
+$\dfrac{\partial K}{\partial \vec{u}}= \displaystyle\int_{\Omega_e} k'(u_h)[\nabla\phi]_{il}[\nabla\phi]_{lk}u_k \phi_j d\vec{x} + \displaystyle\int_{\Omega_e} k(u_h)[\nabla\phi]_{il} [\nabla\phi]_{lj} d\vec{x}$
+
+
+## Nonlinear Neumann, $N$
 
 ### `AssembleElementVector`
-
-$\mathbf{F}(u_k)=\mathbf{M}_{ik} u_k=\displaystyle\int_{\Omega_e} \rho(u_h) C(u_h)\phi_i\phi_ku_k d\vec{x}$
-
-For this, `MassIntegrator` is simply used with $\lambda=\rho(u_h) C(u_h)$ set its `Coefficient`. The action of it on $u_k$ is computed with `MassIntegrator::AssembleElementVector`. Alternatively, the $u_k\phi_k$ could be lumped together and a `DomainLFIntegrator` used with $\lambda=\rho(u_h) C(u_h)u_h$ set as its `Coefficient`; then `DomainLFIntegrator::AssembleRHSElementVect` used.
+$N(\vec{u}, t)=\displaystyle \int_{\partial \Omega} \dfrac{g(\vec{x},t)}{\rho(u_h) C(u_h)}\phi_i d\vec{x}$
 
 
 ### `AssembleElementGrad`
-
-$\dfrac{\partial \mathbf{F}(u_k)}{\partial u_j}= \dfrac{\partial}{\partial u_j}\left(\mathbf{M}_{ik}u_k\right) = \dfrac{\partial \mathbf{M}_{ik}}{\partial u_j}u_k + \mathbf{M}_{ik}\delta_{kj}= \displaystyle\int_{\Omega_e} [\rho'(u_h) C(u_h) + \rho(u_h) C'(u_h)]\phi_i\phi_ku_k\phi_j d\vec{x} + \displaystyle\int_{\Omega_e} \rho(u_h) C(u_h)\phi_i\phi_j d\vec{x}$
-
-For the first term, `MassIntegrator::AssembleElementMatrix` is used with two `ProductCoefficient`'s for the individual material property terms, a `SumCoefficient`, and a `ProductCoeffient` for multiplying by $u_h$ to yield a single $\lambda$. For the second term, the same `MassIntegrator` from before is used and `MassIntegrator::AssembleElementMatrix` is called.
+$\dfrac{\partial N}{\partial u_j}= \displaystyle \int_{\partial \Omega}\left[\dfrac{-\rho'(u_h)C(u_h) - \rho(u_h)C'(u_h)}{\rho(u_h)^2C(u_h)^2}\right]g(\vec{x}, t)\phi_i \phi_j d\vec{x}$
 
 # Notes:
 
