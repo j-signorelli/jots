@@ -126,6 +126,13 @@ Then the Jacobian of $R$ is then given by:
 
 $$\dfrac{\partial R(\vec{k}_{n+1})}{\partial \vec{k}}=\mathbf{M}_{n+1} + \Delta t\left.\dfrac{\partial \mathbf{M}}{\partial \vec{u}}\right|_{n+1}\vec{k}_{n+1} + \Delta t \left.\dfrac{\partial K}{\partial \vec{u}}\right|_{n+1} +N(t_n+\Delta t)$$
 
+To be clear, note that, because of the implicit dependence of the $\vec{u}$ argument in $M(\vec{u},\vec{k})$ on $\vec{k}$ here, it must be accounted for in Jacobian calculation, as
+
+$$M(\vec{u}(\vec{k}),\vec{k})=\mathbf{M}(\vec{u}(\vec{k}))\vec{k}$$
+
+$$\dfrac{\partial M}{\partial \vec{k}}=\mathbf{M}(\vec{u}(\vec{k})) + \dfrac{\partial \mathbf{M}}{\partial \vec{u}} \dfrac{\partial \vec{u}}{\partial \vec{k}} $$
+
+and $\partial\vec{u}/\partial\vec{k}=\Delta t$. This means that $\Delta t$ must be given to any nonlinear form integrator that implements it (or must be accounted for if these terms are manually included/accounted for in the $R$ operator).
 
 ## Approach #2
 
@@ -315,7 +322,7 @@ For clarity of notation, the gradient $\dfrac{\partial \phi_i}{\partial x_j}$ is
 
 ## Nonlinear Diffusion Integrator
 
-The only difference between the nonlinear operator $\kappa$ for unsteady heat conduction and the nonlinear operator $K$ for steady heat conduction are their coefficients. Because of this, a general nonlinear diffusion integrator was developed, which is outlined below.
+The only difference between the nonlinear operator $\kappa$ for unsteady heat conduction and the nonlinear operator $K$ for steady heat conduction are their coefficients. Because of this, a general nonlinear diffusion integrator was developed, which is outlined below. For completion, the forms for both $\kappa$ and $K$ are shown after that.
 
 ### `AssembleElementVector`
 
@@ -330,7 +337,6 @@ $\dfrac{\partial F(u_k)}{\partial u_j}= \dfrac{\partial}{\partial u_j}\left(\mat
 
 For the first term, a `MixedScalarWeakDivergenceIntegrator::AssembleElementMatrix` with a `ScalarVectorProductCoefficient` is used, multiplying the $\lambda'(u_h)$ coefficient with the gradient of the solution represented as a `GradientGridFunctionCoefficient`. For the second term, the same `DiffusionIntegrator` from before is used and `DiffusionIntegrator::AssembleElementMatrix` is called.
 
-For completion, the forms for both $\kappa$ and $K$ are shown below:
 ### Nonlinear Diffusivity, $\kappa$
 
 #### `AssembleElementVector`
