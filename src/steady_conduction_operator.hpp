@@ -1,5 +1,6 @@
 #pragma once
 #include "jots_iterator.hpp"
+#include "helper_functions.hpp"
 #include "material_property.hpp"
 #include "config_file.hpp"
 #include "jots_nlfis.hpp"
@@ -11,10 +12,9 @@ class SteadyConductionOperator : public JOTSIterator
     private:
     protected:
         ParNonlinearForm k;
-
         IterativeSolver* lin_solver;
         HypreSmoother lin_prec;
-        NewtonSolver newton;
+        JOTSNewtonSolver newton;
         
     public:
         SteadyConductionOperator(const Config& in_config, const BoundaryCondition* const* in_bcs, mfem::Array<int>* all_bdr_attr_markers, MaterialProperty& k_prop, ParFiniteElementSpace& f_);

@@ -15,11 +15,12 @@ SteadyConductionOperator::SteadyConductionOperator(const Config& in_config, cons
     lin_solver->SetMaxIter(in_config.GetMaxIter());
 
     // Add nonlinear diffusion
-    k.AddDomainIntegrator(new NonlinearJOTSDiffusionIntegrator(&f_, k_prop));
+    k.AddDomainIntegrator(new JOTSNonlinearDiffusionIntegrator(&f_, k_prop.GetCoeffRef(), k_prop.GetDCoeffRef()));
     k.SetEssentialTrueDofs(ess_tdof_list);
 
     // Set NewtonSolver
     newton.SetOperator(k);
+    newton.AddMaterialProperty(k_prop); // Register k_prop to be updated with solution vector every Newton iteration
     newton.SetSolver(*lin_solver);
     newton.SetPrintLevel(1);
     newton.SetAbsTol(in_config.GetNewtonAbsTol());

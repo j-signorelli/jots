@@ -1,38 +1,31 @@
 #include "jots_nlfis.hpp"
 
 
-NonlinearJOTSDiffusionIntegrator::NonlinearJOTSDiffusionIntegrator(ParFiniteElementSpace* fespace_, MaterialProperty& k_)
+JOTSNonlinearDiffusionIntegrator::JOTSNonlinearDiffusionIntegrator(ParFiniteElementSpace* fespace_, MaterialProperty& k_)
 : fespace(*fespace_),
-  k(k_),
+  lambda(lambda_),
+  dlambdadu(dlambdadu_)
   u_gf(fespace_),
   grad_u_coeff(&u_gf),
-  dkdu_times_grad_u(k.GetDCoeffRef(), grad_u_coeff),
-  term1(dkdu_times_grad_u),
-  term2(k.GetCoeffRef())
+  dlambdadu_times_grad_u(dlambdadu_, grad_u_coeff),
+  term1(dlambdadu_times_grad_u),
+  term2(lambda)
 {
 
 }
 
-void NonlinearJOTSDiffusionIntegrator::AssembleElementVector(const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun, Vector &elvect)
+void JOTSNonlinearDiffusionIntegrator::AssembleElementVector(const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun, Vector &elvect)
 {
-    // Update the coefficient k
-    fespace.GetElementDofs(Tr.ElementNo, dofs);
-    k.UpdateCoeff(elfun, dofs);
-
     // Very simply can just use DiffusionIntegrator::AssembleElementVector,
     // as the coefficient is re-evaluated every call
     term2.AssembleElementVector(el, Tr, elfun, elvect);
 
 }
 
-void NonlinearJOTSDiffusionIntegrator::AssembleElementGrad(const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun, DenseMatrix &elmat)
+void JOTSNonlinearDiffusionIntegrator::AssembleElementGrad(const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun, DenseMatrix &elmat)
 {
-    // Update both coefficients as both required to be updated
-    fespace.GetElementDofs(Tr.ElementNo, dofs);
-    k.UpdateCoeff(elfun, dofs);
-    k.UpdateDCoeff(elfun, dofs);
-    
     // Update u GridFunction associated with dkdu * grad u
+    fespace.GetElementDofs(Tr.ElementNo, dofs);
     u_gf.SetSubVector(dofs, elfun);
 
     // Sum of usual diffusion term plus nonlinear term

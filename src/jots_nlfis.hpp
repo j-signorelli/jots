@@ -3,14 +3,15 @@
 
 using namespace mfem;
 
-class NonlinearJOTSDiffusionIntegrator : public NonlinearFormIntegrator
+class JOTSNonlinearDiffusionIntegrator : public NonlinearFormIntegrator
 {
     private:
         ParFiniteElementSpace& fespace;
-        MaterialProperty& k;
+        Coefficient& lambda;
+        Coefficient& dlambdadu;
         ParGridFunction u_gf;
         GradientGridFunctionCoefficient grad_u_coeff;
-        ScalarVectorProductCoefficient dkdu_times_grad_u;
+        ScalarVectorProductCoefficient dlambdadu_times_grad_u;
 
         MixedScalarWeakDivergenceIntegrator term1;
         DiffusionIntegrator term2;
@@ -20,12 +21,12 @@ class NonlinearJOTSDiffusionIntegrator : public NonlinearFormIntegrator
 
     protected:
     public:
-        NonlinearJOTSDiffusionIntegrator(ParFiniteElementSpace* fespace_, MaterialProperty& k_);
+        JOTSNonlinearDiffusionIntegrator(ParFiniteElementSpace* fespace_, Coefficient& lambda_, Coefficient& dlambdadu_);
         void AssembleElementVector(const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun, Vector &elvect);
         void AssembleElementGrad(const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun, DenseMatrix &elmat);
 };
 
-
+/*
 class NonlinearJOTSMassIntegrator : public NonlinearFormIntegrator
 {
     private:
@@ -51,3 +52,4 @@ class NonlinearJOTSMassIntegrator : public NonlinearFormIntegrator
         void AssembleElementGrad(const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun, DenseMatrix &elmat);
     
 };
+*/

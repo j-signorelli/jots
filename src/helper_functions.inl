@@ -72,3 +72,20 @@ inline vector<Key> GetKeyVector(map<Key, Value> in_map)
 }
 
 }
+
+void JOTSNewtonSolver::AddMaterialProperty(MaterialProperty& mp)
+{
+    mps.Append(&mp);
+}
+
+void JOTSNewtonSolver::ProcessNewState(const Vector& u)
+{
+    for (int i = 0; i < mps.Size(); i++)
+    {
+        if (!mps[i]->IsConstant())
+        {
+            mp.UpdateCoeff(u);
+            mp.UpdateDCoeff(u);
+        }
+    }
+}
