@@ -38,51 +38,23 @@ void JOTSNonlinearDiffusionIntegrator::AssembleElementGrad(const FiniteElement &
 
     elmat_d.Neg();
     elmat += elmat_d;
-
-
 }
 
-
-NonlinearJOTSMassIntegrator::NonlinearJOTSMassIntegrator(ParFiniteElementSpace* fespace_, MaterialProperty& rho_, MaterialProperty& C_)
-: fespace(*fespace_),
-  rho(rho_),
-  C(C_),
-  u_gf(fespace_),
-  u_coeff(&u_gf),
-  drhodu_C(rho.GetDCoeffRef(), C.GetCoeffRef()),
-  rho_dCdu(rho.GetCoeffRef(), C.GetDCoeffRef()),
-  mat_prop_coeff(drhodu_C, rho_dCdu),
-  mat_prop_coeff_times_u(mat_prop_coeff, u_coeff),
-  term1(mat_prop_coeff_times_u),
-  term2(rho_C)
+JOTSNonlinearNeumannIntegrator::JOTSNonlinearNeumannIntegrator(Coefficient& lambda_, Coefficient& dlambdadu_)
+: lambda(lambda_),
+  dlambdadu(dlambdadu_),
+  vec_integ(lambda),
+  grad_integ(dlambdadu)
 {
 
 }
 
-NonlinearJOTSMassIntegrator::AssembleElementVector(const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun, Vector &elvect)
+void JOTSNonlinearNeumannIntegrator::AssembleElementVector(const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun, Vector &elvect)
 {
-    // Update both coefficients
-    rho.UpdateCoeff(elfun, dofs);
-    C.UpdateCoeff(elfun, dofs);
-
-    term2.AssembleElementVector(el, Tr, elfun, elvect);
+    vec_integ.AssembleRHSElementVect(el, Tr, elvect);
 }
 
-NonlinearJOTSMassIntegrator::AssembleElementGrad(const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun, DenseMatrix &elmat)
+void JOTSNonlinearNeumannIntegrator::AssembleElementGrad(const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun, DenseMatrix &elmat)
 {
-    // Update both coefficients + their derivatives
-    rho.UpdateCoeff(elfun, dofs);
-    C.UpdateCoeff(elfun, dofs);
-    rho.UpdateDCoeff(elfun, dofs);
-    C.UpdateDCoeff(elfun, dofs);
-
-
-    // Update u GridFunction associated with mat_prop_coeff* u
-    u_gf.SetSubVector(dofs, elfun);
-
-
-    term2.AssembleElementMatrix(el, Tr, elmat);
-    DenseMatrix elmat_d;
-    term1.AssembleElementMatrix(el, Tr, elmat_d);
-    elmat += elmat_d;
+    grad_integ.AssembleElementMatrix(el, Tr, elmat);
 }

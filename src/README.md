@@ -248,11 +248,9 @@ Rearranging this yields:
 
 $$R(\vec{k}_{n+1}) = \mathbf{M}\vec{k}_{n+1} - A(\vec{u}_n + \Delta t \vec{k}_{n+1},t_n + \Delta t) =0$$
 
-Newton iterations are now employed to solve this generally nonlinear system. The Jacobian of $R$ is given by:
+Newton iterations must now be employed to solve this generally nonlinear system. The Jacobian of $R$ is given by:
 
 $$\dfrac{\partial R(\vec{k}_{n+1})}{\partial \vec{k}}=\mathbf{M} - \Delta t \left.\dfrac{\partial A}{\partial \vec{u}}\right|_{n+1}=\mathbf{M}+\Delta t\left.\dfrac{\partial \kappa}{\partial \vec{u}}\right|_{n+1}-\Delta t\left.\dfrac{\partial N}{\partial \vec{u}}\right|_{n+1}$$
-
-**This approach was selected in JOTS over Approach #1 to avoid the troubles of dealing with a nonlinear form $M\left(\vec{u}, \dfrac{d\vec{u}}{dt}\right)$.**
 
 ## Approximations for Non-Constant Dirichlet + Neumann BCs
 
@@ -320,52 +318,32 @@ $$\rightarrow\vec{u}^{k+1} = \vec{u}^k - \left[\dfrac{\partial F(\vec{u}^k)}{\pa
 
 For clarity of notation, the gradient $\dfrac{\partial \phi_i}{\partial x_j}$ is now written as $[\nabla \phi]_{ij}$. This was implicitly presumed in the above derivations (that the inner products of matrices are taken), not explicitly included for simplicity. Note that subscript $h$ is not used as an index, but as the finite element approximate solution.
 
-## Nonlinear Diffusion Integrator
+Specifically within JOTS, a derived `NewtonSolver` was created that accepts `MaterialProperty`'s to be updated every Newton iteration within `NewtonSolver::ProcessNewState`. This allows for optimal generality in creation of NLFI's.
 
-The only difference between the nonlinear operator $\kappa$ for unsteady heat conduction and the nonlinear operator $K$ for steady heat conduction are their coefficients. Because of this, a general nonlinear diffusion integrator was developed, which is outlined below. For completion, the forms for both $\kappa$ and $K$ are shown after that.
+## Nonlinear Diffusion Integrator
 
 ### `AssembleElementVector`
 
-$F(\vec{u})=\mathbf{F}_{ik}u_k=\displaystyle\int_{\Omega_e} \lambda(u_h)[\nabla\phi]_{il}[\nabla\phi]_{lk} u_kd\vec{x}$
+$K(\vec{u})=\mathbf{K}_{ik}u_k=\displaystyle\int_{\Omega_e} \lambda(u_h)[\nabla\phi]_{il}[\nabla\phi]_{lk} u_kd\vec{x}$
 
-For this, `DiffusionIntegrator` is simply used with the coefficient $\lambda=\lambda(u_h)$ set as its `Coefficient`. The action of the operator on $u_k$ is then computed with `DiffusionIntegrator::AssembleElementVector`.
+For this, `DiffusionIntegrator` is simply used with the coefficient $\lambda(u_h)$ set as its `Coefficient`. The action of the operator on $u_k$ is then computed with `DiffusionIntegrator::AssembleElementVector`.
 
 
 ### `AssembleElementGrad`
 
-$\dfrac{\partial F(u_k)}{\partial u_j}= \dfrac{\partial}{\partial u_j}\left(\mathbf{F}_{ik}u_k\right) = \dfrac{\partial \mathbf{F}_{ik}}{\partial u_j}u_k + \mathbf{F}_{ik}\delta_{kj}= \displaystyle\int_{\Omega_e} \lambda'(u_h)[\nabla\phi]_{il}[\nabla\phi]_{lk}u_k \phi_j d\vec{x} + \displaystyle\int_{\Omega_e} \lambda(u_h)[\nabla\phi]_{il} [\nabla\phi]_{lj} d\vec{x}$
+$\dfrac{\partial K(\vec{u})}{\partial \vec{u}}= \dfrac{\partial}{\partial u_j}\left(\mathbf{K}_{ik}u_k\right) = \dfrac{\partial \mathbf{K}_{ik}}{\partial u_j}u_k + \mathbf{K}_{ik}\delta_{kj}= \displaystyle\int_{\Omega_e} \lambda'(u_h)[\nabla\phi]_{il}[\nabla\phi]_{lk}u_k \phi_j d\vec{x} + \displaystyle\int_{\Omega_e} \lambda(u_h)[\nabla\phi]_{il} [\nabla\phi]_{lj} d\vec{x}$
 
 For the first term, a `MixedScalarWeakDivergenceIntegrator::AssembleElementMatrix` with a `ScalarVectorProductCoefficient` is used, multiplying the $\lambda'(u_h)$ coefficient with the gradient of the solution represented as a `GradientGridFunctionCoefficient`. For the second term, the same `DiffusionIntegrator` from before is used and `DiffusionIntegrator::AssembleElementMatrix` is called.
-
-### Nonlinear Diffusivity, $\kappa$
-
-#### `AssembleElementVector`
-$\kappa(\vec{u})=\displaystyle\int_{\Omega_e} \dfrac{k(u_h)}{\rho(u_h)C(u_h)}[\nabla\phi]_{il}[\nabla\phi]_{lk} u_kd\vec{x}$
-
-
-#### `AssembleElementGrad`
-
-$\dfrac{\partial \kappa}{\partial \vec{u}}=\displaystyle\int_{\Omega_e} \left(\dfrac{k'(u_h)}{\rho(u_h)C(u_h)}-\dfrac{k(u_h)C'(u_h)}{\rho(u_h)C(u_h)^2}-\dfrac{k(u_h)\rho'(u_h)}{\rho(u_h)^2C(u_h)}\right)[\nabla\phi]_{il}[\nabla\phi]_{lk} u_k\phi_jd\vec{x} + \displaystyle\int_{\Omega_e} \dfrac{k(u_h)}{\rho(u_h)C(u_h)}[\nabla\phi]_{il}[\nabla\phi]_{lj}d\vec{x}$
-
-### Nonlinear Conductivity, $K$
-
-#### `AssembleElementVector`
-
-$K(\vec{u})=\mathbf{K}_{ik}u_k=\displaystyle\int_{\Omega_e} k(u_h)[\nabla\phi]_{il}[\nabla\phi]_{lk} u_kd\vec{x}$
-
-#### `AssembleElementGrad`
-
-$\dfrac{\partial K}{\partial \vec{u}}= \displaystyle\int_{\Omega_e} k'(u_h)[\nabla\phi]_{il}[\nabla\phi]_{lk}u_k \phi_j d\vec{x} + \displaystyle\int_{\Omega_e} k(u_h)[\nabla\phi]_{il} [\nabla\phi]_{lj} d\vec{x}$
 
 
 ## Nonlinear Neumann, $N$
 
 ### `AssembleElementVector`
-$N(\vec{u}, t)=\displaystyle \int_{\partial \Omega} \dfrac{g(\vec{x},t)}{\rho(u_h) C(u_h)}\phi_i d\vec{x}$
+$N(\vec{u}, t)=\displaystyle \int_{\partial \Omega_e} \lambda(\vec{u},\vec{x},t)\phi_i d\vec{x}$
 
 
 ### `AssembleElementGrad`
-$\dfrac{\partial N}{\partial u_j}= \displaystyle \int_{\partial \Omega}\left[\dfrac{-\rho'(u_h)C(u_h) - \rho(u_h)C'(u_h)}{\rho(u_h)^2C(u_h)^2}\right]g(\vec{x}, t)\phi_i \phi_j d\vec{x}$
+$\dfrac{\partial N}{\partial u_j}=\displaystyle \int_{\partial \Omega_e}\dfrac{\partial\lambda(\vec{u},\vec{x},t)}{\partial \vec{u}}\phi_i \phi_j d\vec{x}$
 
 # Notes:
 

@@ -6,6 +6,7 @@ using namespace mfem;
 class JOTSNonlinearDiffusionIntegrator : public NonlinearFormIntegrator
 {
     private:
+    protected:
         ParFiniteElementSpace& fespace;
         Coefficient& lambda;
         Coefficient& dlambdadu;
@@ -18,38 +19,24 @@ class JOTSNonlinearDiffusionIntegrator : public NonlinearFormIntegrator
 
 
         Array<int> dofs;
-
-    protected:
     public:
         JOTSNonlinearDiffusionIntegrator(ParFiniteElementSpace* fespace_, Coefficient& lambda_, Coefficient& dlambdadu_);
         void AssembleElementVector(const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun, Vector &elvect);
         void AssembleElementGrad(const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun, DenseMatrix &elmat);
 };
 
-/*
-class NonlinearJOTSMassIntegrator : public NonlinearFormIntegrator
+class JOTSNonlinearNeumannIntegrator : public NonlinearFormIntegrator
 {
     private:
-        ParFiniteElementSpace& fespace;
-        MaterialProperty& rho;
-        MaterialProperty& C;
-        ParGridFunction u_gf;
-        GridFunctionCoefficient u_coeff;
-        ProductCoefficient drhodu_C;
-        ProductCoefficient rho_dCdu;
-        SumCoefficient mat_prop_coeff;
-        ProductCoefficient mat_prop_coeff_times_u;
-
-        MassIntegrator term1;
-        MassIntegrator term2;
-
-        Array<int> dofs;
-
     protected:
+        Coefficient& lambda;
+        Coefficient& dlambdadu;
+
+        DomainLFIntegrator vec_integ;
+        MassIntegrator grad_integ;
+    
     public:
-        NonlinearJOTSMassIntegrator(ParFiniteElementSpace* fespace_, MaterialProperty& rho_, MaterialProperty& C_);
+        JOTSNonlinearNeumannIntegrator(Coefficient& lambda_, Coefficient& dlambdadu_);
         void AssembleElementVector(const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun, Vector &elvect);
         void AssembleElementGrad(const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun, DenseMatrix &elmat);
-    
-};
-*/
+}
