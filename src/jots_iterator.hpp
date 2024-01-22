@@ -9,9 +9,9 @@ class JOTSIterator
     private:
     protected:
         mfem::ParFiniteElementSpace& fespace;
-        mfem::ParLinearForm b;// LinearForm representing Neumann BCs
+        mfem::ParLinearForm* b;// LinearForm representing Neumann BC assuming user-input value = coefficient
         mfem::Vector b_vec; // Neumann BC Vector
-        mfem::PWCoefficient neumann_coeff;
+        mfem::PWCoefficient neuman_coeff;
         
         mfem::Array<int> ess_tdof_list; // list of essential true dofs
 
@@ -21,5 +21,5 @@ class JOTSIterator
 
         virtual void Iterate(mfem::Vector& u) = 0;
         virtual void ProcessMatPropUpdate(MATERIAL_PROPERTY mp) = 0;
-        virtual ~JOTSIterator() = default;
+        virtual ~JOTSIterator() { delete b; };
 };

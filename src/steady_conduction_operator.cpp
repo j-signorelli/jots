@@ -32,5 +32,5 @@ SteadyConductionOperator::SteadyConductionOperator(const Config& in_config, cons
 void SteadyConductionOperator::Iterate(Vector& u)
 {
     // Solve
-    newton.Mult(b, u);
+    newton.Mult(b_vec, u);
 }
