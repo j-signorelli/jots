@@ -23,9 +23,15 @@ class JOTSNewtonSolver : public mfem::NewtonSolver
 {
     protected:
         mfem::Array<MaterialProperty*> mps;
+        const bool iterate_on_k;
+        const mfem::Vector* u_n;
+        const double* dt;
     public:
-        void AddMaterialProperty(MaterialProperty& mp);
-        void ProcessNewState(const mfem::Vector& u);
+        JOTSNewtonSolver(MPI_Comm comm, const bool k) : mfem::NewtonSolver(comm), iterate_on_k(k), u_n(nullptr), dt(nullptr) {};
+        void AddMaterialProperty(MaterialProperty& mp) { mps.Append(&mp); };
+        void SetParameters(const mfem::Vector* u_n_, const double* dt_) { u_n = u_n_; dt = dt_; }
+        void ProcessNewState(const mfem::Vector& x) override;
+        void Mult(const mfem::Vector &b, mfem::Vector &x) const override;
 }
 
 #include "helper_functions.inl"

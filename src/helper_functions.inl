@@ -73,19 +73,39 @@ inline vector<Key> GetKeyVector(map<Key, Value> in_map)
 
 }
 
-void JOTSNewtonSolver::AddMaterialProperty(MaterialProperty& mp)
-{
-    mps.Append(&mp);
-}
-
-void JOTSNewtonSolver::ProcessNewState(const Vector& u)
+void JOTSNewtonSolver::ProcessNewState(const Vector& x) override
 {
     for (int i = 0; i < mps.Size(); i++)
     {
         if (!mps[i]->IsConstant())
         {
-            mp.UpdateCoeff(u);
-            mp.UpdateDCoeff(u);
+            if (iterate_on_k)
+            {
+                // If Newton iterations are on k, then ensure most recent solution vector sent to MPs
+                mp.UpdateCoeff(u_n + dt*x);
+                mp.UpdateDCoeff(u_n + dt*x);
+            }
+            else
+            {
+                mp.UpdateCoeff(x);
+                mp.UpdateDCoeff(x);
+            }
         }
     }
+}
+
+void JOTSNewtonSolver::Mult(const mfem::Vector &b, mfem::Vector &x) const override
+{
+    // Ensure that SetParameters was called if iterating on k
+    MFEM_VERIFY(iterate_on_k && (!u_n || !dt), "u_n and dt must be specified through JOTSNewtonSolver::SetParameters prior to calling Mult when iterating on k!");
+    
+    NewtonSolver::Mult(b,x);
+
+    // Reset u_n and dt if iterating on k -- ensures that user re-specifies prior to every call to Mult
+    if (iterate_on_k)
+    {
+        u_n = nullptr;
+        dt = nullptr;
+    }
+
 }
