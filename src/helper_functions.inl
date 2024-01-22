@@ -80,16 +80,9 @@ void JOTSNewtonSolver::ProcessNewState(const Vector& x) override
         if (!mps[i]->IsConstant())
         {
             if (iterate_on_k)
-            {
-                // If Newton iterations are on k, then ensure most recent solution vector sent to MPs
-                mp.UpdateCoeff(u_n + dt*x);
-                mp.UpdateDCoeff(u_n + dt*x);
-            }
+                mps[i].UpdateAllCoeffs(u_n + dt*x);
             else
-            {
-                mp.UpdateCoeff(x);
-                mp.UpdateDCoeff(x);
-            }
+                mp[i].UpdateAllCoeffs(x);
         }
     }
 }

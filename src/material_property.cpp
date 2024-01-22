@@ -9,6 +9,7 @@ UniformProperty::UniformProperty(const double& in_mp)
 {
     coeff = new ConstantCoefficient(mp_val);
     dcoeffdu = new ConstantCoefficient(0);
+    d2coeffdu2 = new ConstantCoefficient(0);
 }
 
 string UniformProperty::GetInitString() const
@@ -23,10 +24,12 @@ PolynomialProperty::PolynomialProperty(const std::vector<double>& in_poly_coeffs
   poly_coeffs(in_poly_coeffs),
   mp_gf(&f),
   dmpdu_gf(&f),
+  d2mpdu2_gf(&f),
   z(&f)
 {
     coeff = new GridFunctionCoefficient(&mp_gf);
     dcoeffdu = new GridFunctionCoefficient(&dmpdu_gf);
+    d2coeffdu2 = new GridFunctionCoefficient(&d2mpdu2_gf);
 }
 
 void PolynomialProperty::UpdateCoeff(const mfem::Vector& u_ref)
@@ -55,6 +58,19 @@ void PolynomialProperty::UpdateDCoeff(const mfem::Vector& u_ref)
     }
 }
 
+void PolynomialProperty::UpdateD2Coeff(const mfem::Vector& u_ref)
+{   
+    d2mpdu2_gf = 0;
+
+    for (size_t i = 0; i < poly_coeffs.size() - 2; i++)
+    {
+        z = (poly_coeffs.size() - 1 - i) * (poly_coeffs.size() - 2 - i);
+        for (size_t j = 0; j < poly_coeffs.size() - i - 3; j++)
+            z *= u_ref;
+
+        d2mpdu2_gf.Add(poly_coeffs[i], z);// Update the GF associated with the coefficient
+    }
+}
 
 string PolynomialProperty::GetInitString() const
 {
