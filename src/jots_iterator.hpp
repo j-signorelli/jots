@@ -11,7 +11,8 @@ class JOTSIterator
         mfem::ParFiniteElementSpace& fespace;
         mfem::ParLinearForm b;// LinearForm representing Neumann BCs
         mfem::Vector b_vec; // Neumann BC Vector
-
+        mfem::PWCoefficient neumann_coeff;
+        
         mfem::Array<int> ess_tdof_list; // list of essential true dofs
 
     public:
