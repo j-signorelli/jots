@@ -37,7 +37,7 @@ Note from earlier that $ g = \hat{n} \cdot (k \nabla u)$, a specified heat flux 
 Now we may apply a finite element approximation to this weak formulation. This is done assuming $H^1$-conforming nodal elements. An approximate solution $u_h\in\mathcal{V}_h \sub \mathcal{V}$ is sought, where $\mathcal{V}_h$ is a finite-dimensional approximation space, which is a subset of the infinitely-dimensional solution space. Given a basis $\{\phi_j\}$ for the approximation space ($\text{span}\{\phi_j\}=\mathcal{V}_h$) and assuming that the approximate test function $v_h \in \mathcal{V}_h$, we write:
  
 $$u(\vec{x},t) \approx u_h(\vec{x},t)= \sum^{N_{\mathcal{V}_h}}_j u_j(t)\phi_j(\vec{x})$$
-$$v(\vec{x},t) \approx v_h(\vec{x},t)=\sum^{N_{\mathcal{V}_h}}_j v_j(t)\phi_j(\vec{x})$$
+$$v(\vec{x},t) \approx v_h(\vec{x},t)=\sum^{N_{\mathcal{V}_h}}_i v_i(t)\phi_i(\vec{x})$$
 
 
  where the dual basis $u_j$ is chosen to represent $N_{\mathcal{V}_h}$ nodal degrees of freedom in which at a given point in time: $\{u_j\}\in	\mathbb{R}^{N_{\mathcal{V}_h}}$.
@@ -176,12 +176,12 @@ Note from earlier that $ g = \hat{n} \cdot (k \nabla u)$, a specified heat flux 
 Now we may apply a finite element approximation to this weak formulation. This is done assuming $H^1$-conforming nodal elements. An approximate solution $u_h\in\mathcal{V}_h \sub \mathcal{V}$ is sought, where $\mathcal{V}_h$ is a finite-dimensional approximation space, which is a subset of the infinitely-dimensional solution space. Given a basis $\{\phi_j\}$ for the approximation space ($\text{span}\{\phi_j\}=\mathcal{V}_h$) and assuming that the approximate test function $v_h \in \mathcal{V}_h$, we write:
  
 $$u(\vec{x},t) \approx u_h(\vec{x},t)= \sum^{N_{\mathcal{V}_h}}_j u_j(t)\phi_j(\vec{x})$$
-$$v(\vec{x},t) \approx v_h(\vec{x},t)=\sum^{N_{\mathcal{V}_h}}_j v_j(t)\phi_j(\vec{x})$$
+$$v(\vec{x},t) \approx v_h(\vec{x},t)=\sum^{N_{\mathcal{V}_h}}_j v_i(t)\phi_i(\vec{x})$$
 
 
  where the dual basis $u_j$ is chosen to represent $N_{\mathcal{V}_h}$ nodal degrees of freedom in which at a given point in time: $\{u_j\}\in	\mathbb{R}^{N_{\mathcal{V}_h}}$.
 
-Indices $i$ and $j$ are summed over $\mathcal{V}_h$, and $k$ over $\dim(\Omega)$.Plugging the above in:
+Indices $i$ and $j$ are summed over $N_{\mathcal{V}_h}$, and $k$ over $\dim(\Omega)$.Plugging the above in:
 
 $$\int_\Omega \left(\dfrac{d u_j(t)}{d t} \phi_j\right) \left( v_i(t)\phi_i\right) d\vec{x} + \int_\Omega \left( \dfrac{k(u_h)}{\rho(u_h)C(u_h)} u_j(t)\partial_k \phi_j\right)\cdot \left( v_i(t)\partial_k \phi_i\right) d\vec{x} + \int_\Omega \partial_k \left(\dfrac{1}{\rho(u_h) C(u_h)}\right) \cdot \left(k(u_h) u_j(t)\partial_k \phi_j\right) \left( v_i(t) \phi_{i}\right) d\vec{x} = \int_{\partial \Omega} \dfrac{g}{\rho(u_h) C(u_h)}\left(v_i(t) \phi_i \right)d\vec{x}$$
 
@@ -194,7 +194,7 @@ Note the following:
 
 $$\dfrac{\partial}{\partial x_k}\left(\dfrac{1}{\rho(u) C(u)}\right)=\dfrac{\partial}{\partial u}\left(\dfrac{1}{\rho(u) C(u)}\right)\dfrac{\partial u}{\partial x_k}=\dfrac{\partial}{\partial u}\left(\dfrac{1}{\rho(u) C(u)}\right)u_m\partial_k\phi_m$$
 
-where a new index $m$ is introduced that is summed over $\mathcal{V}_h$. For simplicity, define $h=h(u)=k(u)\dfrac{\partial}{\partial u}\left(\dfrac{1}{\rho(u) C(u)}\right)$.
+where a new index $m$ is introduced that is summed over $N_{\mathcal{V}_h}$. For simplicity, define $\beta=\beta(u)=k(u)\dfrac{\partial}{\partial u}\left(\dfrac{1}{\rho(u) C(u)}\right)$.
 
 Now we may define:
 
@@ -202,7 +202,7 @@ $$\mathbf{M} = \left[M_{ij}\right]=\left[\int_\Omega \phi_i \phi_j d\vec{x}\righ
 
 $$ \mathbf{K}= \left[\kappa_{ij}\right] = \left[\int_\Omega \dfrac{k}{\rho C}(\partial_k\phi_i) (\partial_k \phi_j)d\vec{x} \right] = \text{Stiffness Matrix}$$
 
-$$ \mathbf{B}= \left[B_{ij}\right] = \left[ \int_\Omega \phi_i \left(hu_m\partial_k\phi_m\right)(\partial_k \phi_j) d\vec{x}\right] = \text{``Convection'' Matrix - nonzero for non-constant $\rho$ and $C$}$$
+$$ \mathbf{B}= \left[B_{ij}\right] = \left[ \int_\Omega \phi_i \left(\beta u_m\partial_k\phi_m\right)(\partial_k \phi_j) d\vec{x}\right] = \text{``Convection'' Matrix - nonzero for non-constant $\rho$ and $C$}$$
 
 
 $$\vec{N}=\left[\int_{\partial \Omega} \dfrac{g(\vec{x},t)}{\rho C}\phi_i d\vec{x}\right]=\text{Neumann Term}$$
@@ -323,17 +323,15 @@ $$K(\vec{u})=\vec{N}$$
 
 # JOTS Nonlinear Form Integrators
 
-To solve using Newton-Raphson iterations in MFEM using $H^1$-continuous finite elements, new `NonlinearFormIntegrator`'s must be created with member functions `NonlinearFormIntegrator::AssembleElementVector` and `NonlinearFormIntegrator::AssembleElementGrad` implemented. The specific outputs of those functions are shown below for a given LHS nonlinear operator $F=F(\vec{u})$. Note that each operator can be combined into a single LHS operator (as is done for unsteady implicit time-integration). These are used in Newton-Raphson iterations as
+To solve using Newton-Raphson iterations in MFEM using $H^1$-continuous finite elements, new `NonlinearFormIntegrator`'s must be created with member functions `NonlinearFormIntegrator::AssembleElementVector` and `NonlinearFormIntegrator::AssembleElementGrad` implemented. The specific outputs of those functions are shown below for a given LHS nonlinear operator $F=F(\vec{u})$. These are used in Newton-Raphson iterations as
 
 $$F(\vec{u}^{k+1}) \approx F(\vec{u}^k) + \dfrac{\partial F(\vec{u}^k)}{\partial \vec{u}}(\vec{u}^{k+1} - \vec{u}^k)$$
 
 $$\rightarrow\vec{u}^{k+1} = \vec{u}^k - \left[\dfrac{\partial F(\vec{u}^k)}{\partial \vec{u}}\right]^{-1}(F(\vec{u}^k) - N_i)$$
 
-Note that subscript $h$ is not used as an index, but as the finite element approximate solution.
+Note that for all NFIs below, $i,j$ sum over $N_{\mathcal{V}_h}$ and $k$ over the physical dimension, as before, but a additional indices $l$ and $m$ are used, which are summed over $N_{\mathcal{V}_h}$.
 
-Note that for all NFIs below, $i,j$ sum over $N_{\mathcal{V}_h}$ and $k$ over the physical dimension, as before, but an additional index $m$ is used for the Jacobian, which is summed over $N_{\mathcal{V}_h}$.
-
-Specifically within JOTS, a derived `NewtonSolver` was created that accepts `MaterialProperty`'s to be updated every Newton iteration within `NewtonSolver::ProcessNewState`. This allows for optimal generality in creation of NLFI's.
+To maintain generality, the NFIs are written under the presumption that given coefficients $\lambda(u)$ and $\lambda'(u)$ are updated *externally* prior to calls to `AssembleElementVector` and `AssembleElementGrad`. This allows usage of the same NFIs for different applications/coefficients. To aid in this, a `JOTSNewtonSolver` was inherited from `NewtonSolver`. This class accepts "registered" `MaterialProperty` objects to be updated with the most recent solution every Newton iteration, which is done through overriding `NewtonSolver::ProcessNewState`. Because material properties presently only depend on the solution $u$ but Newton iterations can be called on $du/dt$, there is an included member function `JOTSNewtonSolver::SetParameters`, which accepts $\vec{u}_n$ and $\Delta t$, and ensures that $u_{n+1}=\vec{u}_n + \Delta t\vec{k}_{n+1}$ is sent to each `MaterialProperty` instead of $\vec{k}_{n+1}$.
 
 
 ## Nonlinear Diffusion Integrator
@@ -368,14 +366,14 @@ $\dfrac{\partial N}{\partial \vec{u}}=\displaystyle \int_{\partial \Omega_e}\dfr
 
 ## Nonlinear "Convection", $B$
 
-Given $\lambda(u) \in \mathbb{R}^{\dim(\Omega)}$ (ie: $\lambda$ is a vector in physical space defined for a given $u$).
+Given $\lambda(u)\in\mathbb{R}$.
 
 ### `AssembleElementVector`
-$B(\vec{u})=\displaystyle \int_\Omega \phi_i\lambda_k(u_h)(\partial_k \phi_{j}) u_j d\vec{x}$
+$B(\vec{u})=\displaystyle \int_\Omega \phi_i\left[\lambda(u_h)u_l\partial_k\phi_l\right](\partial_k \phi_{j}) u_j d\vec{x}$
 
 
 ### `AssembleElementGrad`
-$\dfrac{\partial B}{\partial \vec{u}}= \displaystyle \int_\Omega \lambda'_k(u_h)(\partial_k\phi_{j}) u_j  \phi_i\phi_md\vec{x} + \displaystyle \int_\Omega \phi_i\lambda_k(u_h)\partial_k \phi_{m} d\vec{x}$
+$\dfrac{\partial B}{\partial \vec{u}}= \displaystyle \int_\Omega \left[\lambda'(u_h)(u_l\partial_k\phi_l)(u_j\partial_k\phi_j) \right] \phi_i\phi_md\vec{x} + 2\displaystyle \int_\Omega \phi_i\left[\lambda_k(u_h)u_l\partial_k \phi_l\right](\partial_k\phi_m) d\vec{x}$
 
 
 # Notes:
