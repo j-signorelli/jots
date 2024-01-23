@@ -73,32 +73,36 @@ inline vector<Key> GetKeyVector(map<Key, Value> in_map)
 
 }
 
+void JOTSNewtonSolver::SetOperator(const Operator& op) override
+{
+    NewtonSolver::SetOperator(op);
+    // If this is a JOTS_k_Operator, update flag.
+    if (dynamic_cast<JOTS_k_Operator>(op) != nullptr)
+    {
+        iterate_on_k = true;
+    }
+    else
+        iterate_on_k = false;
+}
+
 void JOTSNewtonSolver::ProcessNewState(const Vector& x) override
 {
     for (int i = 0; i < mps.Size(); i++)
     {
         if (!mps[i]->IsConstant())
         {
-            if (iterate_on_k)
+            if (iterate_on_k) // x = k
+            {   
+                // Retrieve u_n and dt from the operator
+                const Vector& u_n = dynamic_cast<JOTS_k_Operator>(op).Get_u_n();
+                const double& dt = dynamic_cast<JOTS_k_Operator>(op).Get_dt();
+                
+                // Update coefficients
                 mps[i].UpdateAllCoeffs(u_n + dt*x);
-            else
+            
+            }
+            else // x = u
                 mp[i].UpdateAllCoeffs(x);
         }
     }
-}
-
-void JOTSNewtonSolver::Mult(const mfem::Vector &b, mfem::Vector &x) const override
-{
-    // Ensure that SetParameters was called if iterating on k
-    MFEM_VERIFY(iterate_on_k && (!u_n || !dt), "u_n and dt must be specified through JOTSNewtonSolver::SetParameters prior to calling Mult when iterating on k!");
-    
-    NewtonSolver::Mult(b,x);
-
-    // Reset u_n and dt if iterating on k -- ensures that user re-specifies prior to every call to Mult
-    if (iterate_on_k)
-    {
-        u_n = nullptr;
-        dt = nullptr;
-    }
-
 }

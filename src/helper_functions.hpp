@@ -22,16 +22,25 @@ std::vector<Key> GetKeyVector(std::map<Key, Value> in_map);
 class JOTSNewtonSolver : public mfem::NewtonSolver
 {
     protected:
-        mfem::Array<MaterialProperty*> mps;
-        const bool iterate_on_k;
-        const mfem::Vector* u_n;
-        const double* dt;
+        mfem::Array<MaterialProperty*> mps; // None owned
+        bool iterate_on_k;
     public:
-        JOTSNewtonSolver(MPI_Comm comm, const bool k) : mfem::NewtonSolver(comm), iterate_on_k(k), u_n(nullptr), dt(nullptr) {};
+        JOTSNewtonSolver(MPI_Comm comm) : mfem::NewtonSolver(comm), iterate_on_k(false) {};
         void AddMaterialProperty(MaterialProperty& mp) { mps.Append(&mp); };
-        void SetParameters(const mfem::Vector* u_n_, const double* dt_) { u_n = u_n_; dt = dt_; }
+        void SetOperator(const Operator& op) override;
         void ProcessNewState(const mfem::Vector& x) override;
-        void Mult(const mfem::Vector &b, mfem::Vector &x) const override;
+}
+
+// Use for Operators R(k) where k=dudt
+class JOTS_k_Operator : public mfem::Operator
+{
+    protected:
+        const mfem::Vector* u_n; // not owned
+        const double* dt; // not owned
+    public:
+        void SetParameters(const mfem::Vector* u_n_, const double* dt_) { u_n = u_n_; dt = dt_; }
+        const Vector& Get_u_n() const { return *u_n; };
+        const double& Get_dt() const {return *dt; };
 }
 
 #include "helper_functions.inl"
