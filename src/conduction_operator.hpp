@@ -16,31 +16,34 @@ using namespace mfem;
 class ReducedSystemOperatorA : public Operator
 {
     protected:
-        const Operator* K; // not owned
+        const Operator* K; // not owned - either a HypreParMatrix or ParNonlinearForm
         const ParNonlinearForm* B; // not owned - !NULL if rho(u) or C(u)
         const ParNonlinearForm* N; // not owned - !NULL if NL Neumann (rho(u) or C(u))
         const Vector* N_vec; // not owned - !NULL if linear Neummann
-        mutable HypreParMatrix* Jacobian;
+        mutable HypreParMatrix* Jacobian; // owned
     public:
-        ReducedSystemOperatorA(Operator* K_, ParNonlinearForm* B_, ParNonlinearForm* N_);  // For non-constant rhoC
-        ReducedSystemOperatorA(Operator* K_, const Vector& N_vec_); // For constant rhoC
+        ReducedSystemOperatorA(const Operator* K_, const ParNonlinearForm* B_, const ParNonlinearForm* N_);  // For non-constant rhoC
+        ReducedSystemOperatorA(const Operator* K_, const Vector* N_vec_); // For constant rhoC
         void Mult(const Vector &u, Vector &y) const;
         Operator& GetGradient(const Vector &u) const;
-        ~ReducedSystemOperatorA() { delete K; delete B; delete N; };
+        ~ReducedSystemOperatorA() { delete Jacobian; };
 }
 
-// Reduced system operator for R(u,t) ---> See README.md
-class ReducedSystemOperatorR : public Operator
+// Reduced system operator for R(k) ---> See README.md
+class ReducedSystemOperatorR : public JOTS_k_Operator // Use JOTS_k_Operator
 {
     private:
     protected:
-        ParBilinearForm& m;
-        ReducedSystemOperatorA& A;
-        double& dt;
+        const ParBilinearForm& M;
+        const ReducedSystemOperatorA& A;
+        const Array<int>& ess_tdof_list;
+        mutable HypreParMatrix* Jacobian; // owned
+        mutable Vector z;
     public:
-        ReducedSystemOperatorR(ParBilinearForm& m_, ReducedSystemOperatorA& A_, double& dt_) : Operator(), m(m_), A(A_), dt(dt_) {}; 
+        ReducedSystemOperatorR(ParBilinearForm& m_, ReducedSystemOperatorA& A_, const Array<int>& ess_tdof_list_) : JOTS_k_Operator(m_ParFESpace()->TrueVSize()), m(m_), A(A_), ess_tdof_list_(ess_tdof_list_), Jacobian(nullptr), z(height) {}; 
         void Mult(const Vector &k, Vector &y) const;
         Operator& GetGradient(const Vector &k) const;
+        ~ReducedSystemOperatorR() { delete Jacobian; };
 }
 
 class ConductionOperator : public TimeDependentOperator, public JOTSIterator
@@ -64,65 +67,44 @@ class ConductionOperator : public TimeDependentOperator, public JOTSIterator
                 dAOverBCCoefficient(Coefficient& A_, Coefficient& dA_, Coefficient& B, Coefficient& dB_, Coefficient& C Coefficient& dC_) : A(A_), dA(dA_), B(B_), dB(dB_), C(C_), dC(dC_) {};
                 double Eval(ElementTransformation &T, const IntegrationPoint &ip);
         };
-
-        double& time;
-        double& dt;
         
         mfem::ODESolver* ode_solver;
 
-        IterativeSolver *expl_solver;    // Solver for explicit time integration
-        HypreSmoother expl_prec; // Preconditioner for the mass matrix M
-        IterativeSolver *impl_solver;   // Solver for implicit time integration
-        HypreSmoother impl_prec; // Preconditioner for the implicit solver
-        JOTSNewtonSolver newton_solver;
+        IterativeSolver *lin_solver;    // Linear solver
+        HypreSmoother lin_prec; // Preconditioner for linear solver
+        JOTSNewtonSolver newton;
         
         AOverBCCoefficient diffusivity, g_over_rhoC, one_over_rhoC;
         dAOverBCCoefficient d_diffusivity, dg_over_rhoC, done_over_rhoC;
         ProductCoefficient beta, d_beta;
-        
 
         ParBilinearForm M;
         Operator* K;
         ParNonlinearForm* B;
         ParNonlinearForm* N;
         ReducedSystemOperatorA* A;
+        JOTS_k_Operator* R;
+        HypreParMatrix M_mat;
 
-        HypreParMatrix *M_full; // full - no essential DOFs eliminated
-        HypreParMatrix *K_full; // full - no essential DOFs eliminated
-
-        HypreParMatrix *M; // ess DOFs eliminated - Operator for explicit time-integration
-        HypreParMatrix *K; // ess DOFs eliminated
-        HypreParMatrix *A; // ess DOFs eliminated - Operator for implicit time integration (A = M + dt K)
-        
-        HypreParMatrix *M_e; // eliminated part of M, M_full = M + M_e
-        HypreParMatrix *K_e; // eliminated part of K, K_full = K + K_e
-        HypreParMatrix *A_e; // eliminated part of A, A_full = A + A_e - required for setting BCs in implicit time integration
         mutable Vector rhs;
-        mutable bool mass_updated;
 
-        void CalculateRHS(const Vector &u) const;
+        public:
+            // Note: bdr attributes array cannot be constant. May move into BoundaryCondition class in future
+            ConductionOperator(const Config& in_config, const BoundaryCondition* const* in_bcs, mfem::Array<int>* all_bdr_attr_markers, MaterialProperty& rho_prop, MaterialProperty& C_prop, MaterialProperty& k_prop, ParFiniteElementSpace &f, double& t_ref, double& dt_ref);
 
-        void ReassembleMass();
+            //--------------------------------------------------------------------------------------
+            // TimeDependentOperator Function implementations:
+            void Mult(const Vector &u, Vector &k) const;
 
-        void ReassembleStiffness();
+            /** Solve the Backward-Euler equation: k = f(u + dt*k, t), for the unknown k.
+                 This is the only requirement for high-order SDIRK implicit integration.*/
+            void ImplicitSolve(const double dt, const Vector &u, Vector &k);
 
-    public:
-        // Note: bdr attributes array cannot be constant. May move into BoundaryCondition class in future
-        ConductionOperator(const Config& in_config, const BoundaryCondition* const* in_bcs, mfem::Array<int>* all_bdr_attr_markers, MaterialProperty& rho_prop, MaterialProperty& C_prop, MaterialProperty& k_prop, ParFiniteElementSpace &f, double& t_ref, double& dt_ref);
+            //--------------------------------------------------------------------------------------
+            // JOTSIterator Function implementations:
+            void Iterate(mfem::Vector& u);
 
-        //--------------------------------------------------------------------------------------
-        // TimeDependentOperator Function implementations:
-        void Mult(const Vector &u, Vector &du_dt) const;
-
-        /** Solve the Backward-Euler equation: k = f(u + dt*k, t), for the unknown k.
-             This is the only requirement for high-order SDIRK implicit integration.*/
-        void ImplicitSolve(const double dt, const Vector &u, Vector &k);
-
-        //--------------------------------------------------------------------------------------
-        // JOTSIterator Function implementations:
-        void Iterate(mfem::Vector& u);
-
-        void ProcessMatPropUpdate(MATERIAL_PROPERTY mp) {};
+            void ProcessMatPropUpdate(MATERIAL_PROPERTY mp) {};
 
         ~ConductionOperator();
 };

@@ -38,6 +38,8 @@ class JOTS_k_Operator : public mfem::Operator
         const mfem::Vector* u_n; // not owned
         const double* dt; // not owned
     public:
+        JOTS_k_Operator(int s=0) : Operator(s), u_n(nullptr), dt(nullptr) {};
+        JOTS_k_Operator(int h, int w) : Operator(h,w), u_n(nullptr), dt(nullptr) {}; 
         void SetParameters(const mfem::Vector* u_n_, const double* dt_) { u_n = u_n_; dt = dt_; }
         const Vector& Get_u_n() const { return *u_n; };
         const double& Get_dt() const {return *dt; };
