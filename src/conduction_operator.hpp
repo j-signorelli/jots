@@ -50,16 +50,64 @@ class ReducedSystemOperatorR : public JOTS_k_Operator // Use JOTS_k_Operator
 class ConductionOperator : public TimeDependentOperator, public JOTSIterator
 {
     protected:
-        
+        class DiffusivityCoefficient : public Coefficient
+        {
+            const Coefficient& k, rho, C;
+            DiffusivityCoefficient(const MaterialProperty& k_, const MaterialProperty& rho_, const MaterialProperty& C_)
+            : k(k_.GetCoeffRef()), rho(rho_.GetCoeffRef()), C(C_.GetCoeffRef()) {};
+            double Eval(ElementTransformation &T, const IntegrationPoint &ip);
+        };
+        class dDiffusivityCoefficient : public Coefficient
+        {
+            const Coefficient& k, dk, rho, drho, C, dC;
+            dDiffusivityCoefficient(const MaterialProperty& k_, const MaterialProperty& rho_, const MaterialProperty& C_)
+            : k(k_.GetCoeffRef()), dk(k_.GetDCoeffRef()), rho(rho_.GetCoeffRef()), drho(rho_.GetDCoeffRef()), C(C_.GetCoeffRef()), dC(C_.GetDCoeffRef()) {};
+            double Eval(ElementTransformation &T, const IntegrationPoint &ip);
+        };
+        class NeumannCoefficient : public Coefficient
+        {
+            const Coefficient& g, rho, C;
+            NeumannCoefficient(const Coefficient& g_, const MaterialProperty& rho_, const MaterialProperty& C_)
+            : g(g_), rho(rho_.GetCoeffRef()), C(C_.GetCoeffRef()) {};
+            double Eval(ElementTransformation &T, const IntegrationPoint &ip);
+        };
+        class dNeumannCoefficient : public Coefficient
+        {
+            const Coefficient& g, rho, drho, C, dC;
+            dNeumannCoefficient(const Coefficient& g_, const MaterialProperty& rho_, const MaterialProperty& C_)
+            : g(g_), rho(rho_.GetCoeffRef()), drho(rho_.GetDCoeffRef()), C(C_.GetCoeffRef()), dC(C_.GetDCoeffRef()) {};
+            double Eval(ElementTransformation &T, const IntegrationPoint &ip);
+        };
+        class BetaCoefficient : public Coefficient
+        {
+            const Coefficient& k, dk, rho, drho, C, dC;
+            BetaCoefficient(const MaterialProperty& k_, const MaterialProperty& rho_, const MaterialProperty& C_)
+            : k(k_.GetCoeffRef()), dk(k_.GetDCoeffRef()), rho(rho_.GetCoeffRef()), drho(rho_.GetDCoeffRef()), C(C_.GetCoeffRef()), dC(C_.GetDCoeffRef()) {};
+            double Eval(ElementTransformation &T, const IntegrationPoint &ip);
+        };
+        class dBetaCoefficient : public Coefficient
+        {
+            const Coefficient& k, dk, rho, drho, d2rho, C, dC, d2C;
+            dBetaCoefficient(const MaterialProperty& k_, const MaterialProperty& rho_, const MaterialProperty& C_)
+            : k(k_.GetCoeffRef()), dk(k_.GetDCoeffRef()), rho(rho_.GetCoeffRef()), drho(rho_.GetDCoeffRef()), d2rho(rho_.GetD2CoeffRef()), C(C_.GetCoeffRef()), dC(C_.GetDCoeffRef()), d2C(C_.GetD2CoeffRef()) {};
+            double Eval(ElementTransformation &T, const IntegrationPoint &ip);
+        };
+
+
         mfem::ODESolver* ode_solver;
 
         IterativeSolver *lin_solver;    // Linear solver
         HypreSmoother lin_prec; // Preconditioner for linear solver
         JOTSNewtonSolver newton;
         
-        AOverBCCoefficient diffusivity, g_over_rhoC, one_over_rhoC;
-        dAOverBCCoefficient d_diffusivity, dg_over_rhoC, done_over_rhoC;
-        ProductCoefficient beta, d_beta;
+        DiffusivityCoefficient diffusivity;
+        dDiffusivityCoefficient d_diffusivity;
+
+        NeumannCoefficient g_over_rhoC;
+        dNeumannCoefficient dg_over_rhoC;
+
+        BetaCoefficient beta;
+        dBetaCoefficient d_beta;
 
         ParBilinearForm M;
         Operator* K;

@@ -90,6 +90,77 @@ Operator& ReducedSystemOperatorR::GetGradient(const Vector &u) const
     return *Jacobian;
 }
 
+double ConductionOperator::DiffusivityCoefficient::Eval(ElementTransformation &T, const IntegrationPoint &ip)
+{
+    return k.Eval(T, ip)/(rho.Eval(T, ip)*C.Eval(T,ip));
+}
+
+double ConductionOperator::dDiffusivityCoefficient::Eval(ElementTransformation &T, const IntegrationPoint &ip)
+{
+    double k_val = k.Eval(T, ip);
+    double dk_val = dk.Eval(T, ip);
+    double rho_val = rho.Eval(T, ip);
+    double drho_val = drho.Eval(T, ip);
+    double C_val = C.Eval(T, ip);
+    double dC_val = dC.Eval(T, ip);
+    
+    return dk_val/(rho_val*C_val) 
+           - k_val*drho_val/(rho_val*rho_val*C_val)
+           - k_val*dC_val/(C_val*C_val*rho_val);
+}
+
+double ConductionOperator::NeumannCoefficient::Eval(ElementTransformation &T, const IntegrationPoint &ip)
+{
+    return g.Eval(T, ip)/(rho.Eval(T, ip)*C.Eval(T,ip));
+}
+
+double ConductionOperator::dNeumannCoefficient::Eval(ElementTransformation &T, const IntegrationPoint &ip)
+{
+    double g_val = g.Eval(T, ip);
+
+    double rho_val = rho.Eval(T, ip);
+    double drho_val = drho.Eval(T, ip);
+    double C_val = C.Eval(T, ip);
+    double dC_val = dC.Eval(T, ip);
+    
+    return - g_val*drho_val/(rho_val*rho_val*C_val)
+           - g_val*dC_val/(C_val*C_val*rho_val);
+}
+
+double ConductionOperator::BetaCoefficient::Eval(ElementTransformation &T, const IntegrationPoint &ip)
+{
+    double k_val = k.Eval(T, ip);
+
+    double rho_val = rho.Eval(T, ip);
+    double drho_val = drho.Eval(T, ip);
+    double C_val = C.Eval(T, ip);
+    double dC_val = dC.Eval(T, ip);
+    return k_val*(-drho_val/(rho_val*rho_val*C_val)
+                  -dC_val/(C_val*C_val*rho_val));
+}
+
+double ConductionOperator::dBetaCoefficient::Eval(ElementTransformation &T, const IntegrationPoint &ip)
+{
+    double k_val = k.Eval(T, ip);
+    double dk_val = dk.Eval(T, ip);
+    double rho_val = rho.Eval(T, ip);
+    double drho_val = drho.Eval(T, ip);
+    double d2rho_val = d2rho.Eval(T, ip);
+    double C_val = C.Eval(T, ip);
+    double dC_val = dC.Eval(T, ip);
+    double d2C_val = d2C.Eval(T, ip);
+
+    return dk_val*(-drho_val/(rho_val*rho_val*C_val)
+                  -dC_val/(C_val*C_val*rho_val))
+            + k_val*(-d2C_val/(C_val*C_val*rho_val)
+                    +  2*dC_val*drho_val/(C_val*C_val*rho_val*rho_val)
+                    + 2*dC_val*dC_val/(C_val*C_val*C_val*rho_val)
+                    - d2rho_val/(C_val*rho_val*rho_val)
+                    + 2*drho_val*drho_val/(C_val*rho_val*rho_val*rho_val));
+
+}
+
+
 ConductionOperator::ConductionOperator(const Config& in_config, const BoundaryCondition* const* in_bcs, Array<int>* all_bdr_attr_markers, MaterialProperty& rho_prop, MaterialProperty& C_prop, MaterialProperty& k_prop, ParFiniteElementSpace &f, double& t_ref, double& dt_ref)
 :  TimeDependentOperator(f.GetTrueVSize(), t_ref),
    JOTSIterator(f, in_bcs, all_bdr_attr_markers, in_config.GetBCCount()),
@@ -97,12 +168,12 @@ ConductionOperator::ConductionOperator(const Config& in_config, const BoundaryCo
    lin_solver(nullptr),
    impl_solver(nullptr),
    newton_solver(f.GetComm(), true),
-   diffusitivity(k.GetCoeffRef(), rho.GetCoeffRef(), C.GetCoeffRef()),
-   g_over_rhoC(neumann_coeff, rho.GetCoeffRef(), C.GetCoeffRef()),
-   one_over_rhoC(1, rho.GetCoeffRef(), C.GetCoeffRef()),
-   done_over_rhoC()
-   d_diffusivity(k.GetCoeffRef(), k.GetDCoeffRef(), rho.GetCoeffRef(), rho.GetDCoeffRef(), C.GetCoeffRef(), C.GetDCoeffRef()),
-   dg_over_rhoC(neumann_coeff, zero, rho.GetCoeffRef(), rho.GetDCoeffRef(), C.GetCoeffRef(), C.GetDCoeffRef()),
+   diffusitivity(k, rho, C),
+   d_diffusivity(k, rho, C),
+   g_over_rhoC(neumann_coeff, rho, C),
+   dg_over_rhoC(neumann_coeff, rho, C),
+   beta(k, rho, C),
+   d_beta(k, rho, C),
    M(&f),
    K(nullptr),
    B(&f),
