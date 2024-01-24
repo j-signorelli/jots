@@ -28,7 +28,7 @@ class ReducedSystemOperatorA : public Operator
         void Mult(const Vector &u, Vector &y) const;
         Operator& GetGradient(const Vector &u) const;
         ~ReducedSystemOperatorA() { delete Jacobian; };
-}
+};
 
 // Reduced system operator for R(k) ---> See README.md
 class ReducedSystemOperatorR : public JOTS_k_Operator // Use JOTS_k_Operator
@@ -45,7 +45,7 @@ class ReducedSystemOperatorR : public JOTS_k_Operator // Use JOTS_k_Operator
         void Mult(const Vector &k, Vector &y) const;
         Operator& GetGradient(const Vector &k) const;
         ~ReducedSystemOperatorR() { delete Jacobian; };
-}
+};
 
 class ConductionOperator : public TimeDependentOperator, public JOTSIterator
 {
