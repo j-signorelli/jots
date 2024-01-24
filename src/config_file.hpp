@@ -9,7 +9,7 @@
 #include "boost/algorithm/string.hpp"
 
 #include "option_structure.hpp"
-#include "helper_functions.hpp"
+#include "jots_common.hpp"
 
 class Config
 {

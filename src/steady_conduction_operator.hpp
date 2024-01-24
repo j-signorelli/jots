@@ -1,6 +1,6 @@
 #pragma once
 #include "jots_iterator.hpp"
-#include "helper_functions.hpp"
+#include "jots_common.hpp"
 #include "material_property.hpp"
 #include "config_file.hpp"
 #include "jots_nlfis.hpp"

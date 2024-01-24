@@ -7,7 +7,7 @@
 #include "boundary_condition.hpp"
 #include "material_property.hpp"
 #include "jots_iterator.hpp"
-#include "helper_functions.hpp"
+#include "jots_common.hpp"
 #include "jots_nlfis.hpp"
 using namespace mfem;
 
