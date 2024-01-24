@@ -4,7 +4,7 @@ using namespace mfem;
 
 JOTSIterator::JOTSIterator(ParFiniteElementSpace& f_, const BoundaryCondition* const* in_bcs, Array<int>* all_bdr_attr_markers, int bc_count)
 : fespace(f_),
-  b(nullptr),
+  b(&f),
   b_vec(f_.GetTrueVSize())
 {
 
@@ -29,8 +29,7 @@ JOTSIterator::JOTSIterator(ParFiniteElementSpace& f_, const BoundaryCondition* c
     // Get the essential true dofs, given the Dirichlet boundaries. Store in ess_tdof_list
     fespace.GetEssentialTrueDofs(dbc_bdr, ess_tdof_list);
 
-    // Create Neumann LF
-    b = new ParLinearForm(fespace);
+    // Add Neumann term
     b.AddBoundaryIntegrator(new BoundaryLFIntegrator(neumann_coeff));
     
     // Initialize Neumann LF and vector
