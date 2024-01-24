@@ -212,11 +212,11 @@ ConductionOperator::ConductionOperator(const Config& in_config, const BoundaryCo
     {
         // Convection-type term for NL problems
         // If gradients of rho or C may exist, need to include this term
-        B.AddDomainIntegrator(new JOTSNonlinearConvectionIntegrator(&f, beta_grad_u, dbeta_grad_u));
+        B.AddDomainIntegrator(new JOTSNonlinearConvectionIntegrator(&f, beta, d_beta));
         B.SetEssentialTrueDofs(ess_tdof_list);
 
         // Neumann term
-        N.AddBoundaryIntegrator(new JOTSNonlinearNeumannIntegrator(neumann, d_neumann));
+        N.AddBoundaryIntegrator(new JOTSNonlinearNeumannIntegrator(g_over_rhoC, dg_over_rhoC));
         N.SetEssentialTrueDofs(ess_tdof_list);
 
         // Prepare ReducedSystemOperatorA with nonlinear Neumann term
@@ -227,7 +227,7 @@ ConductionOperator::ConductionOperator(const Config& in_config, const BoundaryCo
         // else
         // Re-initialize Neumann term with division of input heat flux by rho*C
         b.GetBLFI()->DeleteAll(); // Delete all current boundary linear form integrators
-        b.AddBoundaryIntegrator(new BoundaryLFIntegrator(neumann));
+        b.AddBoundaryIntegrator(new BoundaryLFIntegrator(g_over_rhoC));
         UpdateNeumann();
         // Prepare ReducedSystemOperatorA with linear Neumann term
         A = new ReducedSystemOperatorA(K, &b_vec);

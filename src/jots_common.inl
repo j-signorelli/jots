@@ -77,7 +77,7 @@ void JOTSNewtonSolver::SetOperator(const Operator& op) override
 {
     NewtonSolver::SetOperator(op);
     // If this is a JOTS_k_Operator, update flag.
-    if (dynamic_cast<JOTS_k_Operator>(op) != nullptr)
+    if (dynamic_cast<JOTS_k_Operator*>(&op) != nullptr)
     {
         iterate_on_k = true;
     }

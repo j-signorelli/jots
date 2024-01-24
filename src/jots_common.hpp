@@ -29,7 +29,7 @@ class JOTSNewtonSolver : public mfem::NewtonSolver
         void AddMaterialProperty(MaterialProperty& mp) { mps.Append(&mp); };
         void SetOperator(const Operator& op) override;
         void ProcessNewState(const mfem::Vector& x) override;
-}
+};
 
 // Use for Operators R(k) where k=dudt
 class JOTS_k_Operator : public mfem::Operator
@@ -43,6 +43,7 @@ class JOTS_k_Operator : public mfem::Operator
         void SetParameters(const mfem::Vector* u_n_, const double* dt_) { u_n = u_n_; dt = dt_; }
         const Vector& Get_u_n() const { return *u_n; };
         const double& Get_dt() const {return *dt; };
-}
+};
+
 
 #include "helper_functions.inl"
