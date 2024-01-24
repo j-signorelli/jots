@@ -41,7 +41,7 @@ class ReducedSystemOperatorR : public JOTS_k_Operator // Use JOTS_k_Operator
         mutable HypreParMatrix* Jacobian; // owned
         mutable Vector z;
     public:
-        ReducedSystemOperatorR(const ParBilinearForm& M_, const ReducedSystemOperatorA& A_, const Array<int>& ess_tdof_list_) : JOTS_k_Operator(M_ParFESpace()->TrueVSize()), M(M_), A(A_), ess_tdof_list_(ess_tdof_list_), Jacobian(nullptr), z(height) {}; 
+        ReducedSystemOperatorR(const ParBilinearForm& M_, const ReducedSystemOperatorA& A_, const Array<int>& ess_tdof_list_) : JOTS_k_Operator(M_.ParFESpace()->TrueVSize()), M(M_), A(A_), ess_tdof_list(ess_tdof_list_), Jacobian(nullptr), z(height) {}; 
         void Mult(const Vector &k, Vector &y) const;
         Operator& GetGradient(const Vector &k) const;
         ~ReducedSystemOperatorR() { delete Jacobian; };
@@ -52,45 +52,57 @@ class ConductionOperator : public TimeDependentOperator, public JOTSIterator
     protected:
         class DiffusivityCoefficient : public Coefficient
         {
-            const Coefficient& k, rho, C;
-            DiffusivityCoefficient(const MaterialProperty& k_, const MaterialProperty& rho_, const MaterialProperty& C_)
-            : k(k_.GetCoeffRef()), rho(rho_.GetCoeffRef()), C(C_.GetCoeffRef()) {};
-            double Eval(ElementTransformation &T, const IntegrationPoint &ip);
+            protected:
+                Coefficient &k, &rho, &C;
+            public:
+                DiffusivityCoefficient(const MaterialProperty& k_, const MaterialProperty& rho_, const MaterialProperty& C_)
+                : k(k_.GetCoeffRef()), rho(rho_.GetCoeffRef()), C(C_.GetCoeffRef()) {};
+                double Eval(ElementTransformation &T, const IntegrationPoint &ip);
         };
         class dDiffusivityCoefficient : public Coefficient
         {
-            const Coefficient& k, dk, rho, drho, C, dC;
-            dDiffusivityCoefficient(const MaterialProperty& k_, const MaterialProperty& rho_, const MaterialProperty& C_)
-            : k(k_.GetCoeffRef()), dk(k_.GetDCoeffRef()), rho(rho_.GetCoeffRef()), drho(rho_.GetDCoeffRef()), C(C_.GetCoeffRef()), dC(C_.GetDCoeffRef()) {};
-            double Eval(ElementTransformation &T, const IntegrationPoint &ip);
+            protected:
+                Coefficient &k, &dk, &rho, &drho, &C, &dC;
+            public:
+                dDiffusivityCoefficient(const MaterialProperty& k_, const MaterialProperty& rho_, const MaterialProperty& C_)
+                : k(k_.GetCoeffRef()), dk(k_.GetDCoeffRef()), rho(rho_.GetCoeffRef()), drho(rho_.GetDCoeffRef()), C(C_.GetCoeffRef()), dC(C_.GetDCoeffRef()) {};
+                double Eval(ElementTransformation &T, const IntegrationPoint &ip);
         };
         class NeumannCoefficient : public Coefficient
         {
-            const Coefficient& g, rho, C;
-            NeumannCoefficient(const Coefficient& g_, const MaterialProperty& rho_, const MaterialProperty& C_)
-            : g(g_), rho(rho_.GetCoeffRef()), C(C_.GetCoeffRef()) {};
-            double Eval(ElementTransformation &T, const IntegrationPoint &ip);
+            protected:
+                Coefficient &g, &rho, &C;
+            public:
+                NeumannCoefficient(Coefficient& g_, const MaterialProperty& rho_, const MaterialProperty& C_)
+                : g(g_), rho(rho_.GetCoeffRef()), C(C_.GetCoeffRef()) {};
+                double Eval(ElementTransformation &T, const IntegrationPoint &ip);
         };
         class dNeumannCoefficient : public Coefficient
-        {
-            const Coefficient& g, rho, drho, C, dC;
-            dNeumannCoefficient(const Coefficient& g_, const MaterialProperty& rho_, const MaterialProperty& C_)
-            : g(g_), rho(rho_.GetCoeffRef()), drho(rho_.GetDCoeffRef()), C(C_.GetCoeffRef()), dC(C_.GetDCoeffRef()) {};
-            double Eval(ElementTransformation &T, const IntegrationPoint &ip);
+        {   
+            protected:
+                Coefficient &g, &rho, &drho, &C, &dC;
+            public:
+                dNeumannCoefficient(Coefficient& g_, const MaterialProperty& rho_, const MaterialProperty& C_)
+                : g(g_), rho(rho_.GetCoeffRef()), drho(rho_.GetDCoeffRef()), C(C_.GetCoeffRef()), dC(C_.GetDCoeffRef()) {};
+                double Eval(ElementTransformation &T, const IntegrationPoint &ip);
         };
         class BetaCoefficient : public Coefficient
-        {
-            const Coefficient& k, dk, rho, drho, C, dC;
-            BetaCoefficient(const MaterialProperty& k_, const MaterialProperty& rho_, const MaterialProperty& C_)
-            : k(k_.GetCoeffRef()), dk(k_.GetDCoeffRef()), rho(rho_.GetCoeffRef()), drho(rho_.GetDCoeffRef()), C(C_.GetCoeffRef()), dC(C_.GetDCoeffRef()) {};
-            double Eval(ElementTransformation &T, const IntegrationPoint &ip);
+        {   
+            protected:
+                Coefficient &k, &dk, &rho, &drho, &C, &dC;
+            public:
+                BetaCoefficient(const MaterialProperty& k_, const MaterialProperty& rho_, const MaterialProperty& C_)
+                : k(k_.GetCoeffRef()), dk(k_.GetDCoeffRef()), rho(rho_.GetCoeffRef()), drho(rho_.GetDCoeffRef()), C(C_.GetCoeffRef()), dC(C_.GetDCoeffRef()) {};
+                double Eval(ElementTransformation &T, const IntegrationPoint &ip);
         };
         class dBetaCoefficient : public Coefficient
         {
-            const Coefficient& k, dk, rho, drho, d2rho, C, dC, d2C;
-            dBetaCoefficient(const MaterialProperty& k_, const MaterialProperty& rho_, const MaterialProperty& C_)
-            : k(k_.GetCoeffRef()), dk(k_.GetDCoeffRef()), rho(rho_.GetCoeffRef()), drho(rho_.GetDCoeffRef()), d2rho(rho_.GetD2CoeffRef()), C(C_.GetCoeffRef()), dC(C_.GetDCoeffRef()), d2C(C_.GetD2CoeffRef()) {};
-            double Eval(ElementTransformation &T, const IntegrationPoint &ip);
+            protected:
+                Coefficient &k, &dk, &rho, &drho, &d2rho, &C, &dC, &d2C;
+            public:
+                dBetaCoefficient(const MaterialProperty& k_, const MaterialProperty& rho_, const MaterialProperty& C_)
+                : k(k_.GetCoeffRef()), dk(k_.GetDCoeffRef()), rho(rho_.GetCoeffRef()), drho(rho_.GetDCoeffRef()), d2rho(rho_.GetD2CoeffRef()), C(C_.GetCoeffRef()), dC(C_.GetDCoeffRef()), d2C(C_.GetD2CoeffRef()) {};
+                double Eval(ElementTransformation &T, const IntegrationPoint &ip);
         };
 
 

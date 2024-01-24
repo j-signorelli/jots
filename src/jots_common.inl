@@ -73,19 +73,7 @@ inline vector<Key> GetKeyVector(map<Key, Value> in_map)
 
 }
 
-void JOTSNewtonSolver::SetOperator(const Operator& op) override
-{
-    NewtonSolver::SetOperator(op);
-    // If this is a JOTS_k_Operator, update flag.
-    if (dynamic_cast<JOTS_k_Operator*>(&op) != nullptr)
-    {
-        iterate_on_k = true;
-    }
-    else
-        iterate_on_k = false;
-}
-
-void JOTSNewtonSolver::ProcessNewState(const Vector& x) override
+void JOTSNewtonSolver::ProcessNewState(const Vector& x) const
 {
     for (int i = 0; i < mps.Size(); i++)
     {
@@ -94,15 +82,17 @@ void JOTSNewtonSolver::ProcessNewState(const Vector& x) override
             if (iterate_on_k) // x = k
             {   
                 // Retrieve u_n and dt from the operator
-                const Vector& u_n = dynamic_cast<JOTS_k_Operator>(op).Get_u_n();
-                const double& dt = dynamic_cast<JOTS_k_Operator>(op).Get_dt();
+                const Vector& u_n = dynamic_cast<const JOTS_k_Operator*>(oper)->Get_u_n();
+                const double& dt = dynamic_cast<const JOTS_k_Operator*>(oper)->Get_dt();
                 
                 // Update coefficients
-                mps[i].UpdateAllCoeffs(u_n + dt*x);
+                Vector z;
+                add(u_n, dt, x, z);
+                mps[i]->UpdateAllCoeffs(z);
             
             }
             else // x = u
-                mp[i].UpdateAllCoeffs(x);
+                mps[i]->UpdateAllCoeffs(x);
         }
     }
 }

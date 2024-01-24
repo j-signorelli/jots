@@ -20,7 +20,7 @@ class MaterialProperty
         mfem::Coefficient& GetDCoeffRef() const { return *dcoeffdu; };
         mfem::Coefficient& GetD2CoeffRef() const { return *d2coeffdu2; };
 
-        void UpdateAllCoeffs(const mfem::Vector& u_ref) { UpdateCoeff(u); UpdateDCoeff(u); UpdateD2Coeff(u); };
+        void UpdateAllCoeffs(const mfem::Vector& u_ref) { UpdateCoeff(u_ref); UpdateDCoeff(u_ref); UpdateD2Coeff(u_ref); };
 
         virtual bool IsConstant() const = 0; // true if dcoeffdu = 0
         virtual void UpdateCoeff(const mfem::Vector& u_ref) = 0;
@@ -29,7 +29,7 @@ class MaterialProperty
 
         virtual std::string GetInitString() const = 0;
         virtual double GetLocalValue(double u_local) const = 0;
-        virtual ~MaterialProperty() { delete coeff; delete dcoeffdu; delete d2coeffdu; };
+        virtual ~MaterialProperty() { delete coeff; delete dcoeffdu; delete d2coeffdu2; };
 };
 
 class UniformProperty : public MaterialProperty

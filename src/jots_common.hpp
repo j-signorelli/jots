@@ -23,12 +23,11 @@ class JOTSNewtonSolver : public mfem::NewtonSolver
 {
     protected:
         mfem::Array<MaterialProperty*> mps; // None owned
-        bool iterate_on_k;
+        const bool iterate_on_k;
     public:
-        JOTSNewtonSolver(MPI_Comm comm) : mfem::NewtonSolver(comm), iterate_on_k(false) {};
+        JOTSNewtonSolver(MPI_Comm comm, const bool k) : mfem::NewtonSolver(comm), iterate_on_k(k) {};
         void AddMaterialProperty(MaterialProperty& mp) { mps.Append(&mp); };
-        void SetOperator(const Operator& op) override;
-        void ProcessNewState(const mfem::Vector& x) override;
+        void ProcessNewState(const mfem::Vector& x) const override;
 };
 
 // Use for Operators R(k) where k=dudt
@@ -41,9 +40,9 @@ class JOTS_k_Operator : public mfem::Operator
         JOTS_k_Operator(int s=0) : Operator(s), u_n(nullptr), dt(nullptr) {};
         JOTS_k_Operator(int h, int w) : Operator(h,w), u_n(nullptr), dt(nullptr) {}; 
         void SetParameters(const mfem::Vector* u_n_, const double* dt_) { u_n = u_n_; dt = dt_; }
-        const Vector& Get_u_n() const { return *u_n; };
+        const mfem::Vector& Get_u_n() const { return *u_n; };
         const double& Get_dt() const {return *dt; };
 };
 
 
-#include "helper_functions.inl"
+#include "jots_common.inl"

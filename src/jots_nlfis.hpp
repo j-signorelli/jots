@@ -38,7 +38,7 @@ class JOTSNonlinearNeumannIntegrator : public NonlinearFormIntegrator
         JOTSNonlinearNeumannIntegrator(Coefficient& lambda_, Coefficient& dlambdadu_);
         void AssembleElementVector(const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun, Vector &elvect);
         void AssembleElementGrad(const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun, DenseMatrix &elmat);
-}
+};
 
 class JOTSNonlinearConvectionIntegrator : public NonlinearFormIntegrator
 {
@@ -57,4 +57,4 @@ class JOTSNonlinearConvectionIntegrator : public NonlinearFormIntegrator
         JOTSNonlinearConvectionIntegrator(ParFiniteElementSpace* fespace_, Coefficient& lambda_, Coefficient& dlambdadu_);
         void AssembleElementVector(const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun, Vector &elvect);
         void AssembleElementGrad(const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun, DenseMatrix &elmat);
-}
+};

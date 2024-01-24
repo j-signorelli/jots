@@ -2,7 +2,7 @@
 
 using namespace std;
 
-ReducedSystemOperatorA::ReducedSystemOperatorA(Operator* K_, ParNonlinearForm* B_, ParNonlinearForm* N_)
+ReducedSystemOperatorA::ReducedSystemOperatorA(const Operator* K_, const ParNonlinearForm* B_, const ParNonlinearForm* N_)
 : Operator(K_->Height()),
   K(K_), 
   B(B_),
@@ -13,12 +13,12 @@ ReducedSystemOperatorA::ReducedSystemOperatorA(Operator* K_, ParNonlinearForm* B
 
 }
 
-ReducedSystemOperatorA::ReducedSystemOperatorA(Operator* K_, const Vector& N_vec_)
+ReducedSystemOperatorA::ReducedSystemOperatorA(const Operator* K_, const Vector* N_vec_)
 : Operator(K_->Height()),
   K(K_),
   B(nullptr),
   N(nullptr),
-  N_vec(&N_vec_),
+  N_vec(N_vec_),
   Jacobian(nullptr)
 {
 
@@ -26,17 +26,17 @@ ReducedSystemOperatorA::ReducedSystemOperatorA(Operator* K_, const Vector& N_vec
 
 void ReducedSystemOperatorA::Mult(const Vector &u, Vector &y) const
 {
-    K.Mult(u,y);
+    K->Mult(u,y);
     y.Neg();
 
     if (B)
     {
-        B.AddMult(u,y)
+        B->AddMult(u,y);
         y.Neg();
-        N.AddMult(u,y)
+        N->AddMult(u,y);
     }
     else
-        y += b_vec;// Else just linear Neumann term -- just add
+        y += *N_vec;// Else just linear Neumann term -- just add
 
 }
 
@@ -46,20 +46,20 @@ Operator& ReducedSystemOperatorA::GetGradient(const Vector& u) const
     Jacobian = nullptr;
     // If K is linear (ie: k, rho, C all constant), then Jacobian is zero
     // If above true, then operator is a HypreParMatrix
-    if (K.GetType() == Operator::Hypre_ParCSR)
+    if (K->GetType() == Operator::Hypre_ParCSR)
     {
         MFEM_WARNING("ReducedSystemOperatorA::GetGradient is being called despite all terms being linear. Newton iterations should be set to 1." )
-        Jacobian = new HypreParMatrix(dynamic_cast<HypreParMatrix>(K));
-        Jacobian = 0;
+        Jacobian = new HypreParMatrix(dynamic_cast<const HypreParMatrix>(*K));
+        *Jacobian = 0;
     }
     else
     {
-        Jacobian = new HypreParMatrix(K.GetGradient(u));
-        Jacobian *= -1;
+        Jacobian = new HypreParMatrix(K->GetGradient(u));
+        *Jacobian *= -1;
         if (B) // if rho(u) or C(u)
         {
-            Jacobian -= B.GetGradient(u);
-            Jacobian += N.GetGradient(u);
+            *Jacobian -= B->GetGradient(u);
+            *Jacobian += N->GetGradient(u);
         }
     }
 

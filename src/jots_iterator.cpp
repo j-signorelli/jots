@@ -4,7 +4,7 @@ using namespace mfem;
 
 JOTSIterator::JOTSIterator(ParFiniteElementSpace& f_, const BoundaryCondition* const* in_bcs, Array<int>* all_bdr_attr_markers, int bc_count)
 : fespace(f_),
-  b(&f),
+  b(&f_),
   b_vec(f_.GetTrueVSize())
 {
 
