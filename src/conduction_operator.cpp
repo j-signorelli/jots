@@ -2,19 +2,6 @@
 
 using namespace std;
 
-
-double ConductionOperator::AOverBCCoefficient::Eval(ElementTransformation &T, const IntegrationPoint &ip)
-{
-    return A->Eval(T, ip)/(B->Eval(T, ip)*C->Eval(T,ip));
-}
-
-double ConductionOperator::dAOverBCCoefficient::Eval(ElementTransformation &T, const IntegrationPoint &ip)
-{
-    return dA->Eval(T, ip)/(B->Eval(T, ip)*C->Eval(T,ip)) 
-           - A->Eval(T, ip)*dB->Eval(T,ip)/(pow(B->Eval(T, ip),2.0)*C->Eval(T,ip));
-           - A->Eval(T, ip)*dC->Eval(T,ip)/(pow(C->Eval(T, ip),2.0)*B->Eval(T,ip))
-}
-
 ReducedSystemOperatorA::ReducedSystemOperatorA(Operator* K_, ParNonlinearForm* B_, ParNonlinearForm* N_)
 : Operator(K_->Height()),
   K(K_), 
@@ -56,7 +43,7 @@ void ReducedSystemOperatorA::Mult(const Vector &u, Vector &y) const
 Operator& ReducedSystemOperatorA::GetGradient(const Vector& u) const
 {
     delete Jacobian;
-
+    Jacobian = nullptr;
     // If K is linear (ie: k, rho, C all constant), then Jacobian is zero
     // If above true, then operator is a HypreParMatrix
     if (K.GetType() == Operator::Hypre_ParCSR)
@@ -93,8 +80,13 @@ void ReducedSystemOperatorR::Mult(const Vector &k, Vector &y) const
 Operator& ReducedSystemOperatorR::GetGradient(const Vector &u) const
 {
     delete Jacobian;
+    Jacobian = nullptr;
     add(*u, dt, k, z);
-    Jacobian = Add(1.0, ..., -dt, A.GetGradient(z));
+    SparseMatrix* localJ = Add(1.0, M.SpMat(), -dt, A.GetLocalGradient(z));
+    Jacobian = M.ParallelAssemble(localJ); // Apply prolongation
+    delete localJ;
+    HypreParMatrix* Je = Jacobian->EliminateRowsCols(ess_tdof_list);
+    delete Je;
     return *Jacobian;
 }
 
@@ -107,14 +99,16 @@ ConductionOperator::ConductionOperator(const Config& in_config, const BoundaryCo
    newton_solver(f.GetComm(), true),
    diffusitivity(k.GetCoeffRef(), rho.GetCoeffRef(), C.GetCoeffRef()),
    g_over_rhoC(neumann_coeff, rho.GetCoeffRef(), C.GetCoeffRef()),
+   one_over_rhoC(1, rho.GetCoeffRef(), C.GetCoeffRef()),
+   done_over_rhoC()
    d_diffusivity(k.GetCoeffRef(), k.GetDCoeffRef(), rho.GetCoeffRef(), rho.GetDCoeffRef(), C.GetCoeffRef(), C.GetDCoeffRef()),
    dg_over_rhoC(neumann_coeff, zero, rho.GetCoeffRef(), rho.GetDCoeffRef(), C.GetCoeffRef(), C.GetDCoeffRef()),
    M(&f),
    K(nullptr),
-   B(nullptr),
-   N(nullptr),
+   B(&f),
+   N(&f),
    A(nullptr),
-   R(nullptr)
+   R(nullptr),
    rhs(height)
 {
 
@@ -147,24 +141,21 @@ ConductionOperator::ConductionOperator(const Config& in_config, const BoundaryCo
     {
         // Convection-type term for NL problems
         // If gradients of rho or C may exist, need to include this term
-        B = new ParNonlinearForm(&f);
-        B->AddDomainIntegrator(new JOTSNonlinearConvectionIntegrator(&f, beta_grad_u, dbeta_grad_u));
-        B->SetEssentialTrueDofs(ess_tdof_list);
+        B.AddDomainIntegrator(new JOTSNonlinearConvectionIntegrator(&f, beta_grad_u, dbeta_grad_u));
+        B.SetEssentialTrueDofs(ess_tdof_list);
 
         // Neumann term
-        N = new ParNonlinearForm(&f);
-        N->AddBoundaryIntegrator(new JOTSNonlinearNeumannIntegrator(neumann, d_neumann));
-        N->SetEssentialTrueDofs(ess_tdof_list);
+        N.AddBoundaryIntegrator(new JOTSNonlinearNeumannIntegrator(neumann, d_neumann));
+        N.SetEssentialTrueDofs(ess_tdof_list);
 
         // Prepare ReducedSystemOperatorA with nonlinear Neumann term
-        A = new ReducedSystemOperatorA(K, B, N);
+        A = new ReducedSystemOperatorA(K, &B, &N);
     }
     else
     {
-        // else leave B as null
+        // else
         // Re-initialize Neumann term with division of input heat flux by rho*C
-        delete b;
-        b  = new ParLinearForm(fespace);
+        b.GetBLFI()->DeleteAll(); // Delete all current boundary linear form integrators
         b.AddBoundaryIntegrator(new BoundaryLFIntegrator(neumann));
         UpdateNeumann();
         // Prepare ReducedSystemOperatorA with linear Neumann term
@@ -191,7 +182,7 @@ ConductionOperator::ConductionOperator(const Config& in_config, const BoundaryCo
 	//----------------------------------------------------------------
 	// Prepare the NewtonSolver (for implicit time integration)
     // Use same linear solver obj and settings
-    R = new ReducedSystemOperatorR(M, A);
+    R = new ReducedSystemOperatorR(M, A, ess_tdof_list);
     newton.iterative_mode = false;
     newton.SetOperator(R);
     newton.AddMaterialProperty(k_prop); // Register k_prop to be updated with solution vector every Newton iteration

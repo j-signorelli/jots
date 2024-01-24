@@ -20,6 +20,7 @@ class ReducedSystemOperatorA : public Operator
         const ParNonlinearForm* B; // not owned - !NULL if rho(u) or C(u)
         const ParNonlinearForm* N; // not owned - !NULL if NL Neumann (rho(u) or C(u))
         const Vector* N_vec; // not owned - !NULL if linear Neummann
+        
         mutable HypreParMatrix* Jacobian; // owned
     public:
         ReducedSystemOperatorA(const Operator* K_, const ParNonlinearForm* B_, const ParNonlinearForm* N_);  // For non-constant rhoC
@@ -40,7 +41,7 @@ class ReducedSystemOperatorR : public JOTS_k_Operator // Use JOTS_k_Operator
         mutable HypreParMatrix* Jacobian; // owned
         mutable Vector z;
     public:
-        ReducedSystemOperatorR(ParBilinearForm& m_, ReducedSystemOperatorA& A_, const Array<int>& ess_tdof_list_) : JOTS_k_Operator(m_ParFESpace()->TrueVSize()), m(m_), A(A_), ess_tdof_list_(ess_tdof_list_), Jacobian(nullptr), z(height) {}; 
+        ReducedSystemOperatorR(const ParBilinearForm& M_, const ReducedSystemOperatorA& A_, const Array<int>& ess_tdof_list_) : JOTS_k_Operator(M_ParFESpace()->TrueVSize()), M(M_), A(A_), ess_tdof_list_(ess_tdof_list_), Jacobian(nullptr), z(height) {}; 
         void Mult(const Vector &k, Vector &y) const;
         Operator& GetGradient(const Vector &k) const;
         ~ReducedSystemOperatorR() { delete Jacobian; };
@@ -49,24 +50,6 @@ class ReducedSystemOperatorR : public JOTS_k_Operator // Use JOTS_k_Operator
 class ConductionOperator : public TimeDependentOperator, public JOTSIterator
 {
     protected:
-        // Custom coefficients
-        class AOverBCCoefficient : public Coefficient
-        {
-            private:
-                Coefficient* A,B,C;
-            public:
-                AOverBCCoefficient(Coefficient& A_, Coefficient& B, Coefficient& C) : A(A_),  B(B_), C(C_) {};
-                double Eval(ElementTransformation &T, const IntegrationPoint &ip);
-
-        };
-        class dAOverBCCoefficient : public Coefficient
-        {
-            private:
-                Coefficient& A,dA,B,dB,C,dC;
-            public:
-                dAOverBCCoefficient(Coefficient& A_, Coefficient& dA_, Coefficient& B, Coefficient& dB_, Coefficient& C Coefficient& dC_) : A(A_), dA(dA_), B(B_), dB(dB_), C(C_), dC(dC_) {};
-                double Eval(ElementTransformation &T, const IntegrationPoint &ip);
-        };
         
         mfem::ODESolver* ode_solver;
 
@@ -80,8 +63,8 @@ class ConductionOperator : public TimeDependentOperator, public JOTSIterator
 
         ParBilinearForm M;
         Operator* K;
-        ParNonlinearForm* B;
-        ParNonlinearForm* N;
+        ParNonlinearForm B;
+        ParNonlinearForm N;
         ReducedSystemOperatorA* A;
         JOTS_k_Operator* R;
         HypreParMatrix M_mat;
