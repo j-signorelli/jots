@@ -63,9 +63,9 @@ JOTSNonlinearConvectionIntegrator::JOTSNonlinearConvectionIntegrator(ParFiniteEl
   dlambdadu(dlambdadu_),
   u_gf(fespace_),
   grad_u_coeff(&u_gf),
-  lamdbda_times_grad_u(lambda, grad_u),
+  lambda_times_grad_u(lambda, grad_u_coeff),
   dlambdadu_times_grad_u(dlambdadu, grad_u_coeff),
-  dlambdadu_times_grad_u_dot_grad_u(dlambdadu_times_grad_u, grad_u),
+  dlambdadu_times_grad_u_dot_grad_u(dlambdadu_times_grad_u, grad_u_coeff),
   term1(dlambdadu_times_grad_u_dot_grad_u),
   term2(lambda_times_grad_u)
 {

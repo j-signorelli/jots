@@ -2,7 +2,7 @@
 
 SteadyConductionOperator::SteadyConductionOperator(const Config& in_config, const BoundaryCondition* const* in_bcs, mfem::Array<int>* all_bdr_attr_markers, MaterialProperty& k_prop, ParFiniteElementSpace& f_)
 : JOTSIterator(f_, in_bcs, all_bdr_attr_markers, in_config.GetBCCount()),
-  k(&f_, false),
+  k(&f_),
   lin_solver(nullptr),
   newton(f_.GetComm())
 {

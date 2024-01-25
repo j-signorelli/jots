@@ -73,7 +73,18 @@ inline vector<Key> GetKeyVector(map<Key, Value> in_map)
 
 }
 
-void JOTSNewtonSolver::ProcessNewState(const Vector& x) const
+inline void JOTSNewtonSolver::SetOperator(const Operator &op)
+{
+    NewtonSolver::SetOperator(op);
+
+    // Check if iterating on k
+    if (dynamic_cast<const JOTS_k_Operator*>(&op) != nullptr)
+        iterate_on_k = true;
+    else
+        iterate_on_k = false;
+}
+
+inline void JOTSNewtonSolver::ProcessNewState(const Vector& x) const
 {
     for (int i = 0; i < mps.Size(); i++)
     {
@@ -82,8 +93,9 @@ void JOTSNewtonSolver::ProcessNewState(const Vector& x) const
             if (iterate_on_k) // x = k
             {   
                 // Retrieve u_n and dt from the operator
-                const Vector& u_n = dynamic_cast<const JOTS_k_Operator*>(oper)->Get_u_n();
-                const double& dt = dynamic_cast<const JOTS_k_Operator*>(oper)->Get_dt();
+                const JOTS_k_Operator* jop = dynamic_cast<const JOTS_k_Operator*>(oper);
+                const Vector& u_n = jop->Get_u_n();
+                const double& dt = jop->Get_dt();
                 
                 // Update coefficients
                 Vector z;

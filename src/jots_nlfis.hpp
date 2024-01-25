@@ -48,11 +48,13 @@ class JOTSNonlinearConvectionIntegrator : public NonlinearFormIntegrator
         Coefficient& dlambdadu;
         ParGridFunction u_gf;
         GradientGridFunctionCoefficient grad_u_coeff;
-        ScalarVectorProductCoefficient lambda_times_grad_u;
+        ScalarVectorProductCoefficient lambda_times_grad_u, dlambdadu_times_grad_u;
         InnerProductCoefficient dlambdadu_times_grad_u_dot_grad_u;
 
         MassIntegrator term1;
         ConvectionIntegrator term2;
+
+        Array<int> dofs;
     public:
         JOTSNonlinearConvectionIntegrator(ParFiniteElementSpace* fespace_, Coefficient& lambda_, Coefficient& dlambdadu_);
         void AssembleElementVector(const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun, Vector &elvect);

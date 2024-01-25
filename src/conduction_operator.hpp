@@ -35,13 +35,13 @@ class ReducedSystemOperatorR : public JOTS_k_Operator // Use JOTS_k_Operator
 {
     private:
     protected:
-        const ParBilinearForm& M;
+        const HypreParMatrix& M_mat;
         const ReducedSystemOperatorA& A;
         const Array<int>& ess_tdof_list;
         mutable HypreParMatrix* Jacobian; // owned
         mutable Vector z;
     public:
-        ReducedSystemOperatorR(const ParBilinearForm& M_, const ReducedSystemOperatorA& A_, const Array<int>& ess_tdof_list_) : JOTS_k_Operator(M_.ParFESpace()->TrueVSize()), M(M_), A(A_), ess_tdof_list(ess_tdof_list_), Jacobian(nullptr), z(height) {}; 
+        ReducedSystemOperatorR(const HypreParMatrix& M_mat_, const ReducedSystemOperatorA& A_, const Array<int>& ess_tdof_list_) : JOTS_k_Operator(M_mat_.Height()), M_mat(M_mat_), A(A_), ess_tdof_list(ess_tdof_list_), Jacobian(nullptr), z(height) {}; 
         void Mult(const Vector &k, Vector &y) const;
         Operator& GetGradient(const Vector &k) const;
         ~ReducedSystemOperatorR() { delete Jacobian; };
@@ -105,7 +105,7 @@ class ConductionOperator : public TimeDependentOperator, public JOTSIterator
                 double Eval(ElementTransformation &T, const IntegrationPoint &ip);
         };
 
-
+        const double &dt;
         mfem::ODESolver* ode_solver;
 
         IterativeSolver *lin_solver;    // Linear solver
@@ -133,7 +133,7 @@ class ConductionOperator : public TimeDependentOperator, public JOTSIterator
 
         public:
             // Note: bdr attributes array cannot be constant. May move into BoundaryCondition class in future
-            ConductionOperator(const Config& in_config, const BoundaryCondition* const* in_bcs, mfem::Array<int>* all_bdr_attr_markers, MaterialProperty& rho_prop, MaterialProperty& C_prop, MaterialProperty& k_prop, ParFiniteElementSpace &f, double& t_ref, double& dt_ref);
+            ConductionOperator(const Config& in_config, const BoundaryCondition* const* in_bcs, mfem::Array<int>* all_bdr_attr_markers, MaterialProperty& rho_prop, MaterialProperty& C_prop, MaterialProperty& k_prop, ParFiniteElementSpace &f, double &time_, double &dt_);
 
             //--------------------------------------------------------------------------------------
             // TimeDependentOperator Function implementations:
