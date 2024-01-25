@@ -25,7 +25,7 @@ class JOTSNewtonSolver : public mfem::NewtonSolver
         mfem::Array<MaterialProperty*> mps; // None owned
         bool iterate_on_k;
     public:
-        JOTSNewtonSolver(MPI_Comm comm) : mfem::NewtonSolver(comm), iterate_on_k(false) {};
+        JOTSNewtonSolver(MPI_Comm comm_) : mfem::NewtonSolver(comm_), iterate_on_k(false) {};
         void AddMaterialProperty(MaterialProperty& mp) { mps.Append(&mp); };
         void SetOperator(const Operator &op) override;
         void ProcessNewState(const mfem::Vector& x) const override;
