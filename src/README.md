@@ -1,5 +1,7 @@
 # Unsteady Heat Transfer
 
+JOTS utilizes Approach #2 due to it's simplicity in defining an $A$ operator that can be used for both explicit and implicit time integration. Note that, currently, JOTS *always* solves using Newton-Raphson iterations on the nonlinear formulation, which may be slower for problems that are linear. A future release may include linear solve capabilities/operators.
+
 ## Approach #1
 
 ### Weak Formulation Derivation
@@ -277,6 +279,7 @@ Some boundary conditions have an analytical expression, so $\dfrac{d\vec{u}_D}{d
 However, for now to maintain consistency, the above assumptions are applied uniformly across JOTS. As $\Delta t \rightarrow0$, the error in the assumptions above also approach zero.
 
 # Steady Heat Transfer
+As with unsteady heat transfer, again: JOTS *always* solves using Newton-Raphson iterations on the nonlinear formulation, which may be slower for problems that are linear. 
 
 ## Weak Formulation Derivation
 The following assumptions are made:
