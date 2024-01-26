@@ -51,7 +51,6 @@ class Config
         double rel_tol;               /*!< \brief Solver relative tolerance */
         int max_iter;                 /*!< \brief Maximum solver iterations */
 
-        bool using_newton;
         double newton_abs_tol;               /*!< \brief Solver absolute tolerance */
         double newton_rel_tol;               /*!< \brief Solver relative tolerance */
         int newton_max_iter;                 /*!< \brief Maximum solver iterations */
@@ -179,10 +178,6 @@ class Config
         double GetRelTol() const { return rel_tol; };
 
         void SetRelTol(double in_tol) { rel_tol = in_tol; };
-
-        bool UsingNewton() const { return using_newton; };
-
-        void SetNewton(bool in_using) { using_newton = in_using; };
 
         int GetNewtonMaxIter() const { return newton_max_iter; };
 

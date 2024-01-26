@@ -77,9 +77,8 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
     // Print LinearSolverSettings
     PrintLinearSolverSettings();
     //----------------------------------------------------------------------
-    // Print NewtonSolverSettings (if using)
-    if (user_input.UsingNewton())
-        PrintNewtonSolverSettings();
+    // Print NewtonSolverSettings
+    PrintNewtonSolverSettings();
     
     //----------------------------------------------------------------------
     // Print Output settings (if unsteady)
@@ -578,6 +577,8 @@ void JOTSDriver::Run()
 
         // Update and Apply BCs
         UpdateAndApplyBCs();
+        
+        // TODO: re-update + apply material properties here ??? With BCs set?
 
         // Iterate
         Iteration();
@@ -734,19 +735,22 @@ void JOTSDriver::PostprocessIteration()
         if (viz_out || res_out)
         {
             if (rank == 0)
+            {    
                 cout << LINE << endl;
-                
+                cout << "Cycle: " << it_num << endl;
+                cout << "Time: " << time << endl;
+            }    
             if (viz_out)
             {
                 if (rank == 0)
-                    cout << "Saving Paraview Data: Cycle " << it_num << endl;
+                    cout << "Saving Paraview Data..." <<endl;
                 output->WriteVizOutput(it_num, time);
             }
 
             if (res_out)
             {
                 if (rank == 0)
-                    cout << "Saving Restart File: Cycle " << it_num << endl;
+                    cout << "Saving Restart File..." << endl;
                 output->WriteRestartOutput(it_num, time);
             }
 
