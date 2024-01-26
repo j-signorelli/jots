@@ -21,4 +21,5 @@ class JOTSIterator
 
         virtual void Iterate(mfem::Vector& u) = 0;
         virtual void ProcessMatPropUpdate(MATERIAL_PROPERTY mp) = 0;
+        virtual ~JOTSIterator() = default; // Explicitly define destructor as virtual, so derived types can have their own destructors
 };
