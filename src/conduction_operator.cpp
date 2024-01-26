@@ -4,7 +4,8 @@ using namespace std;
 
 ReducedSystemOperatorA::ReducedSystemOperatorA(const Operator* K_, const ParNonlinearForm* B_, const ParNonlinearForm* N_)
 : Operator(K_->Height()),
-  K(K_), 
+  K_mat(dynamic_cast<const HypreParMatrix*>(K_)),
+  K(dynamic_cast<const ParNonlinearForm*>(K_)), 
   B(B_),
   N(N_),
   N_vec(nullptr),
@@ -15,7 +16,8 @@ ReducedSystemOperatorA::ReducedSystemOperatorA(const Operator* K_, const ParNonl
 
 ReducedSystemOperatorA::ReducedSystemOperatorA(const Operator* K_, const Vector* N_vec_)
 : Operator(K_->Height()),
-  K(K_),
+  K_mat(dynamic_cast<const HypreParMatrix*>(K_)),
+  K(dynamic_cast<const ParNonlinearForm*>(K_)),
   B(nullptr),
   N(nullptr),
   N_vec(N_vec_),
@@ -26,7 +28,11 @@ ReducedSystemOperatorA::ReducedSystemOperatorA(const Operator* K_, const Vector*
 
 void ReducedSystemOperatorA::Mult(const Vector &u, Vector &y) const
 {
-    K->Mult(u,y);
+    if (K)
+        K->Mult(u,y);
+    else
+        K_mat->Mult(u,y);
+
     y.Neg();
 
     if (B)
@@ -36,8 +42,9 @@ void ReducedSystemOperatorA::Mult(const Vector &u, Vector &y) const
         N->AddMult(u,y);
     }
     else
+    {
         y += *N_vec;// Else just linear Neumann term -- just add
-
+    }
 }
 
 Operator& ReducedSystemOperatorA::GetGradient(const Vector& u) const
@@ -46,14 +53,7 @@ Operator& ReducedSystemOperatorA::GetGradient(const Vector& u) const
     Jacobian = nullptr;
     // If K is linear (ie: k, rho, C all constant), then Jacobian is zero
     // If above true, then operator is a HypreParMatrix
-    if (K->GetType() == Operator::Hypre_ParCSR)
-    {
-        MFEM_WARNING("ReducedSystemOperatorA::GetGradient is being called despite all terms being linear. Newton iterations should be set to 1." )
-        const HypreParMatrix* K_mat = static_cast<const HypreParMatrix*>(K); // Static cast because we KNOW in this if that it is a HypreParMatrix
-        Jacobian = new HypreParMatrix(*K_mat); // Just create copy based on K_mat
-        *Jacobian = 0; // Set all values to zero so that code still functions w/ warning
-    }
-    else
+    if (K)
     {
         // Default Operator type for ParNonlinearForm::GetGradient are &HypreParMatrix
         // So can static_cast all safely
@@ -66,8 +66,12 @@ Operator& ReducedSystemOperatorA::GetGradient(const Vector& u) const
             Jacobian->Add(1, static_cast<HypreParMatrix&>(N->GetGradient(u)));
         }
     }
+    else
+    {
+        Jacobian = new HypreParMatrix(*K_mat); // Just create copy of K_mat
+        *Jacobian *= -1;
+    }
 
-    // No need to deal with any essential BCs -- handled by ParNonlinearForms
     return *Jacobian;
 
 }
@@ -78,7 +82,8 @@ void ReducedSystemOperatorR::Mult(const Vector &k, Vector &y) const
     add(*u_n, *dt, k, z);
     A.Mult(z, y);
     y.Neg();
-    M_mat.Mult(k, y);
+
+    M_mat.AddMult(k, y);
     y.SetSubVector(ess_tdof_list, 0.0); // Pertinent if linear
 }
 
@@ -167,6 +172,7 @@ double ConductionOperator::dBetaCoefficient::Eval(ElementTransformation &T, cons
 ConductionOperator::ConductionOperator(const Config& in_config, const BoundaryCondition* const* in_bcs, Array<int>* all_bdr_attr_markers, MaterialProperty& rho_prop, MaterialProperty& C_prop, MaterialProperty& k_prop, ParFiniteElementSpace &f, double& time_, double& dt_)
 :  TimeDependentOperator(f.GetTrueVSize(), time_),
    JOTSIterator(f, in_bcs, all_bdr_attr_markers, in_config.GetBCCount()),
+   time(time_),
    dt(dt_),
    ode_solver(nullptr),
    lin_solver(nullptr),
@@ -196,6 +202,7 @@ ConductionOperator::ConductionOperator(const Config& in_config, const BoundaryCo
     if (k_prop.IsConstant() && rho_prop.IsConstant() && C_prop.IsConstant())
     {
         // If all material properties are constant, then setup K as HypreParMatrix
+        // ^Avoids reassembly
         ParBilinearForm K_temp(&f);
         K_temp.AddDomainIntegrator(new DiffusionIntegrator(diffusivity));
         K_temp.Assemble(0);
@@ -204,15 +211,17 @@ ConductionOperator::ConductionOperator(const Config& in_config, const BoundaryCo
     }
     else
     {
-        // Otherwise, prepare as ParNonlinearForm
+        // Otherwise, prepare as K ParNonlinearForm
         K = new ParNonlinearForm(&f);
         ParNonlinearForm* K_temp = dynamic_cast<ParNonlinearForm*>(K);
         K_temp->AddDomainIntegrator(new JOTSNonlinearDiffusionIntegrator(&f, diffusivity, d_diffusivity));
         K_temp->SetEssentialTrueDofs(ess_tdof_list);
+
     }
-	
+
     if (!rho_prop.IsConstant() || !C_prop.IsConstant())
     {
+        // If NL Neumann term...
         // Convection-type term for NL problems
         // If gradients of rho or C may exist, need to include this term
         B.AddDomainIntegrator(new JOTSNonlinearConvectionIntegrator(&f, beta, d_beta));
@@ -226,15 +235,17 @@ ConductionOperator::ConductionOperator(const Config& in_config, const BoundaryCo
         A = new ReducedSystemOperatorA(K, &B, &N);
     }
     else
-    {
-        // else
+    {   
+        // Otherwise:
         // Re-initialize Neumann term with division of input heat flux by rho*C
+        // ^Avoids any reassembly
         b.GetBLFI()->DeleteAll(); // Delete all current boundary linear form integrators
         b.AddBoundaryIntegrator(new BoundaryLFIntegrator(g_over_rhoC));
         UpdateNeumann();
         // Prepare ReducedSystemOperatorA with linear Neumann term
         A = new ReducedSystemOperatorA(K, &b_vec);
     }
+    
 
 	//----------------------------------------------------------------
 	double abs_tol = in_config.GetAbsTol();
@@ -254,7 +265,7 @@ ConductionOperator::ConductionOperator(const Config& in_config, const BoundaryCo
 	lin_solver->SetPreconditioner(lin_prec); // Set preconditioner to matrix inversion solver
 
 	//----------------------------------------------------------------
-	// Prepare the NewtonSolver (for implicit time integration)
+	// Prepare the NewtonSolver
     // Use same linear solver obj and settings
     R = new ReducedSystemOperatorR(M_mat, *A, ess_tdof_list);
     newton.iterative_mode = false;
@@ -299,8 +310,10 @@ void ConductionOperator::Mult(const Vector &u, Vector &k) const
 void ConductionOperator::ImplicitSolve(const double dt,
 									   const Vector &u, Vector &k)
 {
+
     // Solve the equation:
     //    R(k_{n+1}) = Mk_{n+1} - A(u_n + k*dt, t_n) = 0
+    // for k
 
     // Update R(k) w/ most recent state
     R->SetParameters(&u, &dt);
@@ -312,9 +325,10 @@ void ConductionOperator::Iterate(Vector& u)
 {
    // Step in time
    double dt_ = dt; // make copy of dt
-   ode_solver->Step(u, t, dt_);
+   ode_solver->Step(u, time, dt);
    // Verify no change in dt
    MFEM_VERIFY(dt_ == dt, "JOTS does not support time integration shemes that implicitly change dt!");
+   t = time;
 }
 
 ConductionOperator::~ConductionOperator()

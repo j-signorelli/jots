@@ -16,7 +16,8 @@ using namespace mfem;
 class ReducedSystemOperatorA : public Operator
 {
     protected:
-        const Operator* K; // not owned - either a HypreParMatrix or ParNonlinearForm
+        const HypreParMatrix* K_mat; // not owned - !NULL if linear K
+        const ParNonlinearForm* K; // not owned - !NULL if k(u) or rho(u) or C(u)
         const ParNonlinearForm* B; // not owned - !NULL if rho(u) or C(u)
         const ParNonlinearForm* N; // not owned - !NULL if NL Neumann (rho(u) or C(u))
         const Vector* N_vec; // not owned - !NULL if linear Neummann
@@ -25,8 +26,8 @@ class ReducedSystemOperatorA : public Operator
     public:
         ReducedSystemOperatorA(const Operator* K_, const ParNonlinearForm* B_, const ParNonlinearForm* N_);  // For non-constant rhoC
         ReducedSystemOperatorA(const Operator* K_, const Vector* N_vec_); // For constant rhoC
-        void Mult(const Vector &u, Vector &y) const;
-        Operator& GetGradient(const Vector &u) const;
+        void Mult(const Vector &u, Vector &y) const override;
+        Operator& GetGradient(const Vector &u) const override;
         ~ReducedSystemOperatorA() { delete Jacobian; };
 };
 
@@ -42,8 +43,8 @@ class ReducedSystemOperatorR : public JOTS_k_Operator // Use JOTS_k_Operator
         mutable Vector z;
     public:
         ReducedSystemOperatorR(const HypreParMatrix& M_mat_, const ReducedSystemOperatorA& A_, const Array<int>& ess_tdof_list_) : JOTS_k_Operator(M_mat_.Height()), M_mat(M_mat_), A(A_), ess_tdof_list(ess_tdof_list_), Jacobian(nullptr), z(height) {}; 
-        void Mult(const Vector &k, Vector &y) const;
-        Operator& GetGradient(const Vector &k) const;
+        void Mult(const Vector &k, Vector &y) const override;
+        Operator& GetGradient(const Vector &k) const override;
         ~ReducedSystemOperatorR() { delete Jacobian; };
 };
 
@@ -104,8 +105,9 @@ class ConductionOperator : public TimeDependentOperator, public JOTSIterator
                 : k(k_.GetCoeffRef()), dk(k_.GetDCoeffRef()), rho(rho_.GetCoeffRef()), drho(rho_.GetDCoeffRef()), d2rho(rho_.GetD2CoeffRef()), C(C_.GetCoeffRef()), dC(C_.GetDCoeffRef()), d2C(C_.GetD2CoeffRef()) {};
                 double Eval(ElementTransformation &T, const IntegrationPoint &ip);
         };
-
-        const double &dt;
+        
+        double &time;
+        double &dt;
         mfem::ODESolver* ode_solver;
 
         IterativeSolver *lin_solver;    // Linear solver
