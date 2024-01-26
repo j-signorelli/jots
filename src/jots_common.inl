@@ -98,7 +98,7 @@ inline void JOTSNewtonSolver::ProcessNewState(const Vector& x) const
                 const double& dt = jop->Get_dt();
                 
                 // Update coefficients
-                Vector z;
+                Vector z(x.Size());
                 add(u_n, dt, x, z);
                 mps[i]->UpdateAllCoeffs(z);
             
