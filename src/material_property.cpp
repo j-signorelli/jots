@@ -25,7 +25,8 @@ PolynomialProperty::PolynomialProperty(const std::vector<double>& in_poly_coeffs
   mp_gf(&f),
   dmpdu_gf(&f),
   d2mpdu2_gf(&f),
-  z(&f)
+  z1(f.GetTrueVSize()),
+  z2(f.GetTrueVSize())
 {
     coeff = new GridFunctionCoefficient(&mp_gf);
     dcoeffdu = new GridFunctionCoefficient(&dmpdu_gf);
@@ -34,42 +35,49 @@ PolynomialProperty::PolynomialProperty(const std::vector<double>& in_poly_coeffs
 
 void PolynomialProperty::UpdateCoeff(const mfem::Vector& u_ref)
 {   
-    mp_gf = 0;
-
+    z1 = 0.0;
     for (size_t i = 0; i < poly_coeffs.size(); i++)
     {
-        z = 1;
+        z2 = 1.0;
         for (size_t j = 0; j < poly_coeffs.size() - i - 1; j++)
-            z *= u_ref;
-        mp_gf.Add(poly_coeffs[i],z); // Update the GF associated with the coefficient
+            z2 *= u_ref;
+        z2 *= poly_coeffs[i];
+        z1 += z2;
     }
+
+    mp_gf.SetFromTrueDofs(z1); // tdofs --> dofs
 }
 
 void PolynomialProperty::UpdateDCoeff(const mfem::Vector& u_ref)
 {   
-    dmpdu_gf = 0;
-
+    z1 = 0.0;
     for (size_t i = 0; i < poly_coeffs.size() - 1; i++)
     {
-        z = poly_coeffs.size() - 1 - i;
+        z2 = poly_coeffs.size() - 1 - i;
         for (size_t j = 0; j < poly_coeffs.size() - i - 2; j++)
-            z *= u_ref;
-        dmpdu_gf.Add(poly_coeffs[i], z); // Update the GF associated with the coefficient
+            z2 *= u_ref;
+        z2 *= poly_coeffs[i];
+        z1 += z2;
     }
+
+    dmpdu_gf.SetFromTrueDofs(z1);
 }
 
 void PolynomialProperty::UpdateD2Coeff(const mfem::Vector& u_ref)
 {   
-    d2mpdu2_gf = 0;
+    z1 = 0.0;
 
     for (size_t i = 0; i < poly_coeffs.size() - 2; i++)
     {
-        z = (poly_coeffs.size() - 1 - i) * (poly_coeffs.size() - 2 - i);
+        z2 = (poly_coeffs.size() - 1 - i) * (poly_coeffs.size() - 2 - i);
         for (size_t j = 0; j < poly_coeffs.size() - i - 3; j++)
-            z *= u_ref;
-
-        d2mpdu2_gf.Add(poly_coeffs[i], z);// Update the GF associated with the coefficient
+            z2 *= u_ref;
+        z2 *= poly_coeffs[i];
+        z1 += z2;
+        
     }
+
+    d2mpdu2_gf.SetFromTrueDofs(z1);
 }
 
 string PolynomialProperty::GetInitString() const

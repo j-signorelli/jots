@@ -57,7 +57,7 @@ class PolynomialProperty : public MaterialProperty
         mfem::ParGridFunction dmpdu_gf; // PGF for dcoeffdu
         mfem::ParGridFunction d2mpdu2_gf; // PGF for d2coeffdu2
 
-        mutable mfem::ParGridFunction z;
+        mutable mfem::Vector z1, z2;
     public:
         PolynomialProperty(const std::vector<double>& in_poly_coeffs, mfem::ParFiniteElementSpace& f);
         bool IsConstant() const { return false; };
