@@ -74,6 +74,9 @@ JOTSNonlinearConvectionIntegrator::JOTSNonlinearConvectionIntegrator(ParFiniteEl
 
 void JOTSNonlinearConvectionIntegrator::AssembleElementVector(const FiniteElement &el, ElementTransformation &Tr, const Vector &elfun, Vector &elvect)
 {
+    u_gf.ParFESpace()->GetElementDofs(Tr.ElementNo, dofs);
+    u_gf.SetSubVector(dofs, elfun);
+    
     term2.AssembleElementVector(el, Tr, elfun, elvect);
 }
 
