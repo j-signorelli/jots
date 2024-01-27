@@ -378,7 +378,7 @@ $B(\vec{u})=\displaystyle \int_\Omega \phi_i\left[\lambda(u_h)u_l\partial_k\phi_
 
 
 ### `AssembleElementGrad`
-$\dfrac{\partial B}{\partial \vec{u}}= \displaystyle \int_\Omega \left[\lambda'(u_h)(u_l\partial_k\phi_l)(u_j\partial_k\phi_j) \right] \phi_i\phi_md\vec{x} + 2\displaystyle \int_\Omega \phi_i\left[\lambda_k(u_h)u_l\partial_k \phi_l\right](\partial_k\phi_m) d\vec{x}$
+$\dfrac{\partial B}{\partial \vec{u}}= \displaystyle \int_\Omega \left[\lambda'(u_h)(u_l\partial_k\phi_l)(u_j\partial_k\phi_j) \right] \phi_i\phi_md\vec{x} + 2\displaystyle \int_\Omega \phi_i\left[\lambda(u_h)u_l\partial_k \phi_l\right](\partial_k\phi_m) d\vec{x}$
 
 
 # Notes:
