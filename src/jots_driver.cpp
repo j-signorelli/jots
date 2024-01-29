@@ -622,8 +622,8 @@ void JOTSDriver::UpdateAndApplyMatProps()
         MATERIAL_PROPERTY mp = MATERIAL_PROPERTY(i);
         if (mat_props[mp] != nullptr && !mat_props[mp]->IsConstant())
         {
-            // Update coefficient using current solution field, ie: k=k(T)
-            mat_props[mp]->UpdateCoeff(u);
+            // Update coefficients using current solution field, ie: k=k(T)
+            mat_props[mp]->UpdateAllCoeffs(u);
             
             // Update any BLFs affected by changed coefficient (Apply)
             jots_iterator->ProcessMatPropUpdate(mp);
