@@ -33,16 +33,16 @@ void ReducedSystemOperatorA::Mult(const Vector &u, Vector &y) const
     else
         K_mat->Mult(u,y);
 
-    y.Neg();
-
     if (B)
     {
         B->AddMult(u,y);
         y.Neg();
+        
         N->AddMult(u,y);
     }
     else
     {
+        y.Neg();
         y += *N_vec;// Else just linear Neumann term -- just add
     }
 }
@@ -59,17 +59,17 @@ Operator& ReducedSystemOperatorA::GetGradient(const Vector& u) const
         // So can static_cast all safely
         HypreParMatrix &K_grad = static_cast<HypreParMatrix&>(K->GetGradient(u));
         Jacobian = new HypreParMatrix(K_grad); // Create copy
-        *Jacobian *= -1;
+        *Jacobian *= -1.0;
         if (B) // if rho(u) or C(u)
         {
-            Jacobian->Add(-1, static_cast<HypreParMatrix&>(B->GetGradient(u)));
-            Jacobian->Add(1, static_cast<HypreParMatrix&>(N->GetGradient(u)));
+            Jacobian->Add(-1.0, static_cast<HypreParMatrix&>(B->GetGradient(u)));
+            Jacobian->Add(1.0, static_cast<HypreParMatrix&>(N->GetGradient(u)));
         }
     }
     else
     {
         Jacobian = new HypreParMatrix(*K_mat); // Just create copy of K_mat
-        *Jacobian *= -1;
+        *Jacobian *= -1.0;
     }
 
     return *Jacobian;
@@ -84,6 +84,7 @@ void ReducedSystemOperatorR::Mult(const Vector &k, Vector &y) const
     y.Neg();
 
     M_mat.AddMult(k, y);
+
     y.SetSubVector(ess_tdof_list, 0.0); // Pertinent if linear
 }
 
@@ -213,7 +214,7 @@ ConductionOperator::ConductionOperator(const Config& in_config, const BoundaryCo
     {
         // Otherwise, prepare as K ParNonlinearForm
         K = new ParNonlinearForm(&f);
-        ParNonlinearForm* K_temp = dynamic_cast<ParNonlinearForm*>(K);
+        ParNonlinearForm* K_temp = static_cast<ParNonlinearForm*>(K);
         K_temp->AddDomainIntegrator(new JOTSNonlinearDiffusionIntegrator(&f, diffusivity, d_diffusivity));
         K_temp->SetEssentialTrueDofs(ess_tdof_list);
 
@@ -319,6 +320,7 @@ void ConductionOperator::ImplicitSolve(const double dt,
     R->SetParameters(&u, &dt);
     rhs = 0.0;
     newton.Mult(rhs, k);
+    MFEM_VERIFY(newton.GetConverged(), "Newton solver did not converge.");
 } 
 
 void ConductionOperator::Iterate(Vector& u)
