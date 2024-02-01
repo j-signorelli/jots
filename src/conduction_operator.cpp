@@ -2,12 +2,11 @@
 
 using namespace std;
 
-ReducedSystemOperatorA::ReducedSystemOperatorA(const Operator* K_, const ParNonlinearForm* B_, const ParNonlinearForm* N_)
+ReducedSystemOperatorA::ReducedSystemOperatorA(const Operator* K_, const ParNonlinearForm* BN_)
 : Operator(K_->Height()),
   K_mat(dynamic_cast<const HypreParMatrix*>(K_)),
   K(dynamic_cast<const ParNonlinearForm*>(K_)), 
-  B(B_),
-  N(N_),
+  BN(BN_),
   N_vec(nullptr),
   Jacobian(nullptr)
 {
@@ -18,8 +17,7 @@ ReducedSystemOperatorA::ReducedSystemOperatorA(const Operator* K_, const Vector*
 : Operator(K_->Height()),
   K_mat(dynamic_cast<const HypreParMatrix*>(K_)),
   K(dynamic_cast<const ParNonlinearForm*>(K_)),
-  B(nullptr),
-  N(nullptr),
+  BN(nullptr),
   N_vec(N_vec_),
   Jacobian(nullptr)
 {
@@ -33,18 +31,11 @@ void ReducedSystemOperatorA::Mult(const Vector &u, Vector &y) const
     else
         K_mat->Mult(u,y);
 
-    if (B)
-    {
-        B->AddMult(u,y);
-        y.Neg();
-        
-        N->AddMult(u,y);
-    }
+    y.Neg();
+    if (BN)
+        BN->AddMult(u,y);
     else
-    {
-        y.Neg();
         y += *N_vec;// Else just linear Neumann term -- just add
-    }
 }
 
 Operator& ReducedSystemOperatorA::GetGradient(const Vector& u) const
@@ -58,13 +49,12 @@ Operator& ReducedSystemOperatorA::GetGradient(const Vector& u) const
         // Default Operator type for ParNonlinearForm::GetGradient are &HypreParMatrix
         // So can static_cast all safely
         HypreParMatrix &K_grad = static_cast<HypreParMatrix&>(K->GetGradient(u));
-        Jacobian = new HypreParMatrix(K_grad); // Create copy
+
+        Jacobian = new HypreParMatrix(K_grad); // Create deep copy
         *Jacobian *= -1.0;
-        if (B) // if rho(u) or C(u)
-        {
-            Jacobian->Add(-1.0, static_cast<HypreParMatrix&>(B->GetGradient(u)));
-            Jacobian->Add(1.0, static_cast<HypreParMatrix&>(N->GetGradient(u)));
-        }
+        if (BN) // if rho(u) or C(u)
+            Jacobian->Add(1.0, static_cast<HypreParMatrix&>(BN->GetGradient(u)));
+
     }
     else
     {
@@ -144,8 +134,10 @@ double ConductionOperator::BetaCoefficient::Eval(ElementTransformation &T, const
     double drho_val = drho.Eval(T, ip);
     double C_val = C.Eval(T, ip);
     double dC_val = dC.Eval(T, ip);
-    return k_val*(-drho_val/(rho_val*rho_val*C_val)
-                  -dC_val/(C_val*C_val*rho_val));
+
+     // Include negative sign for B here!
+    return -(k_val*(-drho_val/(rho_val*rho_val*C_val)
+                  -dC_val/(C_val*C_val*rho_val)));
 }
 
 double ConductionOperator::dBetaCoefficient::Eval(ElementTransformation &T, const IntegrationPoint &ip)
@@ -159,13 +151,14 @@ double ConductionOperator::dBetaCoefficient::Eval(ElementTransformation &T, cons
     double dC_val = dC.Eval(T, ip);
     double d2C_val = d2C.Eval(T, ip);
 
-    return dk_val*(-drho_val/(rho_val*rho_val*C_val)
+    // Include negative sign for B here!
+    return -(dk_val*(-drho_val/(rho_val*rho_val*C_val)
                   -dC_val/(C_val*C_val*rho_val))
             + k_val*(-d2C_val/(C_val*C_val*rho_val)
                     +  2*dC_val*drho_val/(C_val*C_val*rho_val*rho_val)
                     + 2*dC_val*dC_val/(C_val*C_val*C_val*rho_val)
                     - d2rho_val/(C_val*rho_val*rho_val)
-                    + 2*drho_val*drho_val/(C_val*rho_val*rho_val*rho_val));
+                    + 2*drho_val*drho_val/(C_val*rho_val*rho_val*rho_val)));
 
 }
 
@@ -186,8 +179,7 @@ ConductionOperator::ConductionOperator(const Config& in_config, const BoundaryCo
    d_beta(k_prop, rho_prop, C_prop),
    M(&f),
    K(nullptr),
-   B(&f),
-   N(&f),
+   BN(&f),
    A(nullptr),
    R(nullptr),
    rhs(height)
@@ -222,18 +214,13 @@ ConductionOperator::ConductionOperator(const Config& in_config, const BoundaryCo
 
     if (!rho_prop.IsConstant() || !C_prop.IsConstant())
     {
-        // If NL Neumann term...
-        // Convection-type term for NL problems
-        // If gradients of rho or C may exist, need to include this term
-        B.AddDomainIntegrator(new JOTSNonlinearConvectionIntegrator(&f, beta, d_beta));
-        B.SetEssentialTrueDofs(ess_tdof_list);
-
-        // Neumann term
-        N.AddBoundaryIntegrator(new JOTSNonlinearNeumannIntegrator(g_over_rhoC, dg_over_rhoC));
-        N.SetEssentialTrueDofs(ess_tdof_list);
+        
+        BN.AddDomainIntegrator(new JOTSNonlinearConvectionIntegrator(&f, beta, d_beta));
+        BN.AddBoundaryIntegrator(new JOTSNonlinearNeumannIntegrator(g_over_rhoC, dg_over_rhoC));
+        BN.SetEssentialTrueDofs(ess_tdof_list);
 
         // Prepare ReducedSystemOperatorA with nonlinear Neumann term
-        A = new ReducedSystemOperatorA(K, &B, &N);
+        A = new ReducedSystemOperatorA(K, &BN);
     }
     else
     {   

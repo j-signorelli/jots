@@ -18,13 +18,12 @@ class ReducedSystemOperatorA : public Operator
     protected:
         const HypreParMatrix* K_mat; // not owned - !NULL if linear K
         const ParNonlinearForm* K; // not owned - !NULL if k(u) or rho(u) or C(u)
-        const ParNonlinearForm* B; // not owned - !NULL if rho(u) or C(u)
-        const ParNonlinearForm* N; // not owned - !NULL if NL Neumann (rho(u) or C(u))
+        const ParNonlinearForm* BN; // not owned - !NULL if rho(u) or C(u)
         const Vector* N_vec; // not owned - !NULL if linear Neummann
         
         mutable HypreParMatrix* Jacobian; // owned
     public:
-        ReducedSystemOperatorA(const Operator* K_, const ParNonlinearForm* B_, const ParNonlinearForm* N_);  // For non-constant rhoC
+        ReducedSystemOperatorA(const Operator* K_, const ParNonlinearForm* BN_);  // For non-constant rhoC
         ReducedSystemOperatorA(const Operator* K_, const Vector* N_vec_); // For constant rhoC
         void Mult(const Vector &u, Vector &y) const override;
         Operator& GetGradient(const Vector &u) const override;
@@ -125,8 +124,7 @@ class ConductionOperator : public TimeDependentOperator, public JOTSIterator
 
         ParBilinearForm M;
         Operator* K;
-        ParNonlinearForm B;
-        ParNonlinearForm N;
+        ParNonlinearForm BN;
         ReducedSystemOperatorA* A;
         JOTS_k_Operator* R;
         HypreParMatrix M_mat;

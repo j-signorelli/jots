@@ -32,7 +32,7 @@ class JOTSNonlinearNeumannIntegrator : public NonlinearFormIntegrator
         Coefficient& dlambdadu;
 
         BoundaryLFIntegrator vec_integ;
-        BoundaryMassIntegrator grad_integ;
+        MassIntegrator grad_integ;
     
     public:
         JOTSNonlinearNeumannIntegrator(Coefficient& lambda_, Coefficient& dlambdadu_);
