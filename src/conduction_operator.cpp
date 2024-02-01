@@ -2,330 +2,281 @@
 
 using namespace std;
 
-ReducedSystemOperatorA::ReducedSystemOperatorA(const Operator* K_, const ParNonlinearForm* BN_)
-: Operator(K_->Height()),
-  K_mat(dynamic_cast<const HypreParMatrix*>(K_)),
-  K(dynamic_cast<const ParNonlinearForm*>(K_)), 
-  BN(BN_),
-  N_vec(nullptr),
-  Jacobian(nullptr)
-{
 
-}
-
-ReducedSystemOperatorA::ReducedSystemOperatorA(const Operator* K_, const Vector* N_vec_)
-: Operator(K_->Height()),
-  K_mat(dynamic_cast<const HypreParMatrix*>(K_)),
-  K(dynamic_cast<const ParNonlinearForm*>(K_)),
-  BN(nullptr),
-  N_vec(N_vec_),
-  Jacobian(nullptr)
-{
-
-}
-
-void ReducedSystemOperatorA::Mult(const Vector &u, Vector &y) const
-{
-    if (K)
-        K->Mult(u,y);
-    else
-        K_mat->Mult(u,y);
-
-    y.Neg();
-    if (BN)
-        BN->AddMult(u,y);
-    else
-        y += *N_vec;// Else just linear Neumann term -- just add
-}
-
-Operator& ReducedSystemOperatorA::GetGradient(const Vector& u) const
-{
-    delete Jacobian;
-    Jacobian = nullptr;
-    // If K is linear (ie: k, rho, C all constant), then Jacobian is zero
-    // If above true, then operator is a HypreParMatrix
-    if (K)
-    {
-        // Default Operator type for ParNonlinearForm::GetGradient are &HypreParMatrix
-        // So can static_cast all safely
-        HypreParMatrix &K_grad = static_cast<HypreParMatrix&>(K->GetGradient(u));
-
-        Jacobian = new HypreParMatrix(K_grad); // Create deep copy
-        *Jacobian *= -1.0;
-        if (BN) // if rho(u) or C(u)
-            Jacobian->Add(1.0, static_cast<HypreParMatrix&>(BN->GetGradient(u)));
-
-    }
-    else
-    {
-        Jacobian = new HypreParMatrix(*K_mat); // Just create copy of K_mat
-        *Jacobian *= -1.0;
-    }
-
-    return *Jacobian;
-
-}
-
-
-void ReducedSystemOperatorR::Mult(const Vector &k, Vector &y) const
-{
-    add(*u_n, *dt, k, z);
-    A.Mult(z, y);
-    y.Neg();
-
-    M_mat.AddMult(k, y);
-
-    y.SetSubVector(ess_tdof_list, 0.0); // Pertinent if linear
-}
-
-Operator& ReducedSystemOperatorR::GetGradient(const Vector &k) const
-{
-    delete Jacobian;
-    Jacobian = nullptr;
-    add(*u_n, *dt, k, z);
-    Jacobian = Add(1.0, M_mat, -1.0*(*dt), static_cast<HypreParMatrix&>(A.GetGradient(z)));
-    HypreParMatrix* Je = Jacobian->EliminateRowsCols(ess_tdof_list);
-    delete Je; // ^Not sure if above is necessary -- TODO
-    return *Jacobian;
-}
-
-double ConductionOperator::DiffusivityCoefficient::Eval(ElementTransformation &T, const IntegrationPoint &ip)
-{
-    return k.Eval(T, ip)/(rho.Eval(T, ip)*C.Eval(T,ip));
-}
-
-double ConductionOperator::dDiffusivityCoefficient::Eval(ElementTransformation &T, const IntegrationPoint &ip)
-{
-    double k_val = k.Eval(T, ip);
-    double dk_val = dk.Eval(T, ip);
-    double rho_val = rho.Eval(T, ip);
-    double drho_val = drho.Eval(T, ip);
-    double C_val = C.Eval(T, ip);
-    double dC_val = dC.Eval(T, ip);
-    
-    return dk_val/(rho_val*C_val) 
-           - k_val*drho_val/(rho_val*rho_val*C_val)
-           - k_val*dC_val/(C_val*C_val*rho_val);
-}
-
-double ConductionOperator::NeumannCoefficient::Eval(ElementTransformation &T, const IntegrationPoint &ip)
-{
-    return g.Eval(T, ip)/(rho.Eval(T, ip)*C.Eval(T,ip));
-}
-
-double ConductionOperator::dNeumannCoefficient::Eval(ElementTransformation &T, const IntegrationPoint &ip)
-{
-    double g_val = g.Eval(T, ip);
-
-    double rho_val = rho.Eval(T, ip);
-    double drho_val = drho.Eval(T, ip);
-    double C_val = C.Eval(T, ip);
-    double dC_val = dC.Eval(T, ip);
-    
-    return - g_val*drho_val/(rho_val*rho_val*C_val)
-           - g_val*dC_val/(C_val*C_val*rho_val);
-}
-
-double ConductionOperator::BetaCoefficient::Eval(ElementTransformation &T, const IntegrationPoint &ip)
-{
-    double k_val = k.Eval(T, ip);
-
-    double rho_val = rho.Eval(T, ip);
-    double drho_val = drho.Eval(T, ip);
-    double C_val = C.Eval(T, ip);
-    double dC_val = dC.Eval(T, ip);
-
-     // Include negative sign for B here!
-    return -(k_val*(-drho_val/(rho_val*rho_val*C_val)
-                  -dC_val/(C_val*C_val*rho_val)));
-}
-
-double ConductionOperator::dBetaCoefficient::Eval(ElementTransformation &T, const IntegrationPoint &ip)
-{
-    double k_val = k.Eval(T, ip);
-    double dk_val = dk.Eval(T, ip);
-    double rho_val = rho.Eval(T, ip);
-    double drho_val = drho.Eval(T, ip);
-    double d2rho_val = d2rho.Eval(T, ip);
-    double C_val = C.Eval(T, ip);
-    double dC_val = dC.Eval(T, ip);
-    double d2C_val = d2C.Eval(T, ip);
-
-    // Include negative sign for B here!
-    return -(dk_val*(-drho_val/(rho_val*rho_val*C_val)
-                  -dC_val/(C_val*C_val*rho_val))
-            + k_val*(-d2C_val/(C_val*C_val*rho_val)
-                    +  2*dC_val*drho_val/(C_val*C_val*rho_val*rho_val)
-                    + 2*dC_val*dC_val/(C_val*C_val*C_val*rho_val)
-                    - d2rho_val/(C_val*rho_val*rho_val)
-                    + 2*drho_val*drho_val/(C_val*rho_val*rho_val*rho_val)));
-
-}
-
-
-ConductionOperator::ConductionOperator(const Config& in_config, const BoundaryCondition* const* in_bcs, Array<int>* all_bdr_attr_markers, MaterialProperty& rho_prop, MaterialProperty& C_prop, MaterialProperty& k_prop, ParFiniteElementSpace &f, double& time_, double& dt_)
-:  TimeDependentOperator(f.GetTrueVSize(), time_),
+/** After spatial discretization, the conduction model can be written as:
+ *
+ *     du/dt = m^{-1}(-Ku + boundary_terms)
+ *
+ *  where u is the vector representing the temperature, m is the mass matrix,
+ *  and K is the stiffness matrix
+ *
+ *  Class ConductionOperator represents the right-hand side of the above ODE.
+ */
+ConductionOperator::ConductionOperator(const Config& in_config, const BoundaryCondition* const* in_bcs, Array<int>* all_bdr_attr_markers, const MaterialProperty* rho_prop, const MaterialProperty* C_prop, const MaterialProperty* k_prop, ParFiniteElementSpace &f, double& t_ref, double& dt_ref)
+:  TimeDependentOperator(f.GetTrueVSize(), t_ref),
    JOTSIterator(f, in_bcs, all_bdr_attr_markers, in_config.GetBCCount()),
-   time(time_),
-   dt(dt_),
+   time(t_ref),
+   dt(dt_ref), 
+   rho_C(rho_prop->GetLocalValue(0), C_prop->GetCoeffRef()),
    ode_solver(nullptr),
-   lin_solver(nullptr),
-   newton(f.GetComm()),
-   diffusivity(k_prop, rho_prop, C_prop),
-   d_diffusivity(k_prop, rho_prop, C_prop),
-   g_over_rhoC(neumann_coeff, rho_prop, C_prop),
-   dg_over_rhoC(neumann_coeff, rho_prop, C_prop),
-   beta(k_prop, rho_prop, C_prop),
-   d_beta(k_prop, rho_prop, C_prop),
-   M(&f),
+   expl_solver(nullptr),
+   impl_solver(nullptr),
+   m(nullptr), 
+   k(nullptr),
+   M_full(nullptr),
+   K_full(nullptr),
+   M(nullptr),
    K(nullptr),
-   BN(&f),
    A(nullptr),
-   R(nullptr),
-   rhs(height)
+   M_e(nullptr),
+   K_e(nullptr),
+   A_e(nullptr),
+   rhs(height),
+   mass_updated(false)
 {
 
-    // Prepare mass bilinear form
-    M.AddDomainIntegrator(new MassIntegrator());
-	M.Assemble(0); // keep sparsity pattern of all the same!
-    M.Finalize(0);
-    M.FormSystemMatrix(ess_tdof_list, M_mat);
+   PreprocessSolver(in_config);
+   
+   PreprocessMass();
 
-    // Stiffness matrix:
-    if (k_prop.IsConstant() && rho_prop.IsConstant() && C_prop.IsConstant())
-    {
-        // If all material properties are constant, then setup K as HypreParMatrix
-        // ^Avoids reassembly
-        ParBilinearForm K_temp(&f);
-        K_temp.AddDomainIntegrator(new DiffusionIntegrator(diffusivity));
-        K_temp.Assemble(0);
-        K_temp.Finalize(0);
-        K = K_temp.ParallelAssemble();// Ensure that K = PtAP
-    }
-    else
-    {
-        // Otherwise, prepare as K ParNonlinearForm
-        K = new ParNonlinearForm(&f);
-        ParNonlinearForm* K_temp = static_cast<ParNonlinearForm*>(K);
-        K_temp->AddDomainIntegrator(new JOTSNonlinearDiffusionIntegrator(&f, diffusivity, d_diffusivity));
-        K_temp->SetEssentialTrueDofs(ess_tdof_list);
+   PreprocessStiffness(k_prop);
 
-    }
-
-    if (!rho_prop.IsConstant() || !C_prop.IsConstant())
-    {
-        
-        BN.AddDomainIntegrator(new JOTSNonlinearConvectionIntegrator(&f, beta, d_beta));
-        BN.AddBoundaryIntegrator(new JOTSNonlinearNeumannIntegrator(g_over_rhoC, dg_over_rhoC));
-        BN.SetEssentialTrueDofs(ess_tdof_list);
-
-        // Prepare ReducedSystemOperatorA with nonlinear Neumann term
-        A = new ReducedSystemOperatorA(K, &BN);
-    }
-    else
-    {   
-        // Otherwise:
-        // Re-initialize Neumann term with division of input heat flux by rho*C
-        // ^Avoids any reassembly
-        b.GetBLFI()->DeleteAll(); // Delete all current boundary linear form integrators
-        b.AddBoundaryIntegrator(new BoundaryLFIntegrator(g_over_rhoC));
-        UpdateNeumann();
-        // Prepare ReducedSystemOperatorA with linear Neumann term
-        A = new ReducedSystemOperatorA(K, &b_vec);
-    }
-    
-
-	//----------------------------------------------------------------
-	double abs_tol = in_config.GetAbsTol();
-	double rel_tol = in_config.GetRelTol();
-	int max_iter = in_config.GetMaxIter();
-	//----------------------------------------------------------------
-	// Prepare linear solver
-	lin_solver = Factory::GetSolver(in_config.GetSolverLabel(), fespace.GetComm());
-
-	// Set up the linear solver
-	lin_solver->iterative_mode = false; // If true, would use second argument of Mult() as initial guess; here it is set to false
-	lin_solver->SetRelTol(rel_tol); // Sets "relative tolerance" of iterative solver
-	lin_solver->SetAbsTol(abs_tol); // Sets "absolute tolerance" of iterative solver
-	lin_solver->SetMaxIter(max_iter); // Sets maximum number of iterations
-	lin_solver->SetPrintLevel(0); // Print all information about detected issues
-	lin_prec.SetType(Factory::GetPrec(in_config.GetPrecLabel())); // Set type of preconditioning (relaxation type) 
-	lin_solver->SetPreconditioner(lin_prec); // Set preconditioner to matrix inversion solver
-
-	//----------------------------------------------------------------
-	// Prepare the NewtonSolver
-    // Use same linear solver obj and settings
-    R = new ReducedSystemOperatorR(M_mat, *A, ess_tdof_list);
-    newton.iterative_mode = false;
-    newton.SetOperator(*R);
-    newton.AddMaterialProperty(k_prop); // Register k_prop to be updated with solution vector every Newton iteration
-    newton.AddMaterialProperty(C_prop);
-    newton.AddMaterialProperty(rho_prop);
-    newton.SetSolver(*lin_solver);
-    newton.SetPrintLevel(1);
-    newton.SetAbsTol(in_config.GetNewtonAbsTol());
-    newton.SetRelTol(in_config.GetNewtonRelTol());
-    newton.SetMaxIter(in_config.GetNewtonMaxIter());
-
-	//----------------------------------------------------------------
-	// Instantiate ODESolver
-	ode_solver = Factory::GetODESolver(in_config.GetTimeSchemeLabel());
-
-	// Initialize ODESolver with THIS operator
-	ode_solver->Init(*this);
+   //----------------------------------------------------------------
+   // Instantiate ODESolver
+   ode_solver = Factory::GetODESolver(in_config.GetTimeSchemeLabel());
+   
+   // Initialize ODESolver with THIS operator
+   ode_solver->Init(*this);
 }
 
+void ConductionOperator::PreprocessSolver(const Config& in_config)
+{  
+   double abs_tol = in_config.GetAbsTol();
+   double rel_tol = in_config.GetRelTol();
+   int max_iter = in_config.GetMaxIter();
 
-void ConductionOperator::Mult(const Vector &u, Vector &k) const
+   //----------------------------------------------------------------
+   // Prepare explicit solver
+   
+   expl_solver = Factory::GetSolver(in_config.GetSolverLabel(), fespace.GetComm());
+
+   // Set up the solver for Mult
+   expl_solver->iterative_mode = false; // If true, would use second argument of Mult() as initial guess; here it is set to false
+
+   expl_solver->SetRelTol(rel_tol); // Sets "relative tolerance" of iterative solver
+   expl_solver->SetAbsTol(abs_tol); // Sets "absolute tolerance" of iterative solver
+   expl_solver->SetMaxIter(max_iter); // Sets maximum number of iterations
+   expl_solver->SetPrintLevel(0); // Print all information about detected issues
+
+   expl_prec.SetType(Factory::GetPrec(in_config.GetPrecLabel())); // Set type of preconditioning (relaxation type) 
+   expl_solver->SetPreconditioner(expl_prec); // Set preconditioner to matrix inversion solver
+
+   //----------------------------------------------------------------
+   // Prepare implicit solver
+   impl_solver = Factory::GetSolver(in_config.GetSolverLabel(), fespace.GetComm());
+   
+   // Set up solver for ImplicitSolve
+   impl_solver->iterative_mode = false;
+   impl_solver->SetRelTol(rel_tol);
+   impl_solver->SetAbsTol(abs_tol);
+   impl_solver->SetMaxIter(max_iter);
+   impl_solver->SetPrintLevel(0);
+   impl_prec.SetType(Factory::GetPrec(in_config.GetPrecLabel()));
+   impl_solver->SetPreconditioner(impl_prec);
+
+
+}
+
+void ConductionOperator::PreprocessMass()
+{   
+   // Prepare mass matrix
+   // Assemble parallel bilinear form for mass matrix
+   m = new ParBilinearForm(&fespace);
+
+   // Add the domain integral with included rho*Cp coefficient everywhere
+   m->AddDomainIntegrator(new MassIntegrator(rho_C));
+
+   // Initialize mass matrix data structures
+   ReassembleMass();
+}
+
+void ConductionOperator::PreprocessStiffness(const MaterialProperty* k_prop)
+{  
+
+   // Assemble the parallel bilinear form for stiffness matrix
+   k = new ParBilinearForm(&fespace);
+
+   // Add domain integrator to the bilinear form with the cond_model coeff
+   k->AddDomainIntegrator(new DiffusionIntegrator(k_prop->GetCoeffRef()));
+   
+   // Initialize stiffness data structures
+   ReassembleStiffness();
+}
+
+void ConductionOperator::ReassembleMass()
 {
-	// Compute:
-	//    k_n = M^{-1}A(u_n,t_n)
-	// for k
+   delete M_full;
+   delete M;
+   delete M_e;
 
-	// Evaluate action of A
-	A->Mult(u, rhs);
-    
-    // Zero out essential tdof rows on RHS
-	rhs.SetSubVector(ess_tdof_list, 0.0); // Pertinent if linear
+   M_full = nullptr;
+   M = nullptr;
+   M_e = nullptr;
 
-	// Solve for M^-1 * rhs
-    lin_solver->SetOperator(M_mat);
-	lin_solver->Mult(rhs, k);   
+   m->Update(); // delete old data (M and M_e) if anything changed
+
+   m->Assemble(0); // keep sparsity pattern of m and k the same
+   m->Finalize(0);
+
+   // Create full mass matrix w/o removed essential DOFs
+   M_full = m->ParallelAssemble();
+   M = new HypreParMatrix(*M_full);
+   
+   // Create mass matrix w/ removed essential DOFs + save eliminated portion
+   M_e = m->ParallelEliminateTDofs(ess_tdof_list, *M);
+
+   // Flag mass updated (called if Mult called)
+   mass_updated = true;
+}
+
+void ConductionOperator::ReassembleStiffness()
+{    
+
+   delete K_full;
+   delete K;
+   delete K_e;
+
+   K_full = nullptr;
+   K = nullptr;
+   K_e = nullptr;
+
+
+   k->Update(); // delete old data (M and M_e) if conductivity changed
+
+   k->Assemble(0);
+   k->Finalize(0);
+
+   // Create full stiffness matrix w/o removed essential DOFs
+   K_full = k->ParallelAssemble();
+   K = new HypreParMatrix(*K_full);
+
+   // Create stiffness matrix w/ removed essential DOFs
+   K_e = k->ParallelEliminateTDofs(ess_tdof_list, *K);
+
+
+}
+
+void ConductionOperator::CalculateRHS(const Vector &u) const
+{   
+
+   // Complete multiplication of HypreParMatrix with primal vector for dual vector z
+   K_full->Mult(u, rhs);
+
+   rhs.Neg(); // z = -z
+
+   // Add Neumann vector term
+   rhs.Add(1, b_vec_full);
+
+   // Now have RHS without "eliminated" essential DOFs
+   // ^this must be done depending on LHS
+}
+
+void ConductionOperator::Mult(const Vector &u, Vector &du_dt) const
+{
+   // Compute:
+   //    du/dt = M^{-1}(-Ku + boundary_terms)
+   // for du_dt
+
+   // If mass matrix updated, reset operator
+   if (mass_updated)
+   {
+      expl_solver->SetOperator(*M);
+      mass_updated = false;
+   }
+   
+   // Calculate RHS pre-essential update
+   CalculateRHS(u);
+
+   du_dt.SetSubVector(ess_tdof_list, 0.0); // **Assume essential DOFs du_dt = 0.0
+
+   // Apply elimination of essential BCs to rhs vector
+   EliminateBC(*M, *M_e, ess_tdof_list, du_dt, rhs);
+
+   // Solve for M^-1 * rhs
+   expl_solver->Mult(rhs, du_dt);   
 
 }
 
 
 void ConductionOperator::ImplicitSolve(const double dt,
-									   const Vector &u, Vector &k)
+                                       const Vector &u, Vector &du_dt)
 {
+   // Solve the equation:
+   //    du_dt = M^{-1}*[-K(u + dt*du_dt)]
+   // for du_dt, where K is linearized by using u from the previous timestep
 
-    // Solve the equation:
-    //    R(k_{n+1}) = Mk_{n+1} - A(u_n + k*dt, t_n) = 0
-    // for k
+   // Deallocate any previous A, A_e
+   delete A;
+   delete A_e;
 
-    // Update R(k) w/ most recent state
-    R->SetParameters(&u, &dt);
-    rhs = 0.0;
-    newton.Mult(rhs, k);
-    MFEM_VERIFY(newton.GetConverged(), "Newton solver did not converge.");
-} 
+   // Calculate RHS pre-essential update
+   CalculateRHS(u);
+
+   // Calculate LHS w/o essential DOFs eliminated at first
+   A = Add(1.0, *M, dt, *K);
+
+   impl_solver->SetOperator(*A);
+
+   // Calculate LHS eliminated part using already calculated M_e's from the individual bilinear forms
+   A_e = Add(1.0, *M_e, dt, *K_e);
+
+   du_dt.SetSubVector(ess_tdof_list, 0.0); // **Assume essential DOFs du_dt = 0.0
+                                           // Could this above be the issue^^?
+
+   // Eliminate BCs from RHS given LHS
+   A->EliminateBC(*A_e, ess_tdof_list, du_dt, rhs);
+
+   // Solve for du_dt
+   impl_solver->Mult(rhs, du_dt);
+}
 
 void ConductionOperator::Iterate(Vector& u)
 {
    // Step in time
-   double dt_ = dt; // make copy of dt
    ode_solver->Step(u, time, dt);
-   // Verify no change in dt
-   MFEM_VERIFY(dt_ == dt, "JOTS does not support time integration shemes that implicitly change dt!");
-   t = time;
+}
+
+void ConductionOperator::ProcessMatPropUpdate(MATERIAL_PROPERTY mp)
+{
+   switch (mp)
+   {
+      case MATERIAL_PROPERTY::DENSITY:
+      case MATERIAL_PROPERTY::SPECIFIC_HEAT:
+         ReassembleMass();
+         break;
+      case MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY:
+         ReassembleStiffness();
+         break;
+   }
 }
 
 ConductionOperator::~ConductionOperator()
 {
    delete ode_solver;
-   delete lin_solver;
+   delete expl_solver;
+   delete impl_solver;
 
+   delete m;
+   delete k;
+
+   delete M_full;
+   delete K_full;
+   
+   delete M;
    delete K;
    delete A;
-   delete R;
+
+   delete M_e;
+   delete K_e;
+   delete A_e;
 }
