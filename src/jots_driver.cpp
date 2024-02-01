@@ -85,6 +85,17 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
     // Print Output settings (if unsteady)
     if (user_input.UsingTimeIntegration())
         PrintOutput();
+
+    //----------------------------------------------------------------------
+    // Initialize material properties w/ solution field (only pertinent for non-uniform non-constant ones)
+    if (rank == 0)
+        cout << "Initializing material properties field...";
+
+    UpdateAndApplyMatProps();
+
+    if (rank == 0)
+        cout << " Done!" << endl;
+
     //---------------------------------------------------------------------
     // Create JOTSIterator object/s
     if (rank == 0)
@@ -127,16 +138,6 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
     //----------------------------------------------------------------------
     if (rank == 0)
         cout << "Done!" << endl;
-    //----------------------------------------------------------------------
-
-    // Initialize material properties w/ solution field (only pertinent for non-uniform non-constant ones)
-    if (rank == 0)
-        cout << "Initializing material properties field...";
-
-    UpdateAndApplyMatProps();
-
-    if (rank == 0)
-        cout << " Done!" << endl;
 }
 
 void JOTSDriver::ProcessFiniteElementSetup()
@@ -638,7 +639,8 @@ void JOTSDriver::UpdateAndApplyMatProps()
             mat_props[mp]->UpdateAllCoeffs(u);
             
             // Update any BLFs affected by changed coefficient (Apply)
-            jots_iterator->ProcessMatPropUpdate(mp);
+            if (jots_iterator)
+                jots_iterator->ProcessMatPropUpdate(mp);
         }
     }
 }
