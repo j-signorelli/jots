@@ -78,7 +78,8 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
     PrintLinearSolverSettings();
     //----------------------------------------------------------------------
     // Print NewtonSolverSettings
-    PrintNewtonSolverSettings();
+    if (user_input.UsingNewton())
+        PrintNewtonSolverSettings();
     
     //----------------------------------------------------------------------
     // Print Output settings (if unsteady)

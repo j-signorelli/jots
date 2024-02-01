@@ -140,9 +140,20 @@ void Config::ReadLinSolSettings()
 void Config::ReadNewtonSettings()
 {
     // Read NewtonSolverSettings
-    newton_max_iter = property_tree.get("NewtonSolverSettings.Max_Iterations", 100);
-    newton_abs_tol = property_tree.get("NewtonSolverSettings.Absolute_Tolerance", 1e-16);
-    newton_rel_tol = property_tree.get("NewtonSolverSettings.Relative_Tolerance", 1e-10);
+    if (property_tree.find("NewtonSolverSettings") == property_tree.not_found())
+    {
+        using_newton = false;
+        newton_max_iter = 0;
+        newton_abs_tol = 1e-16;
+        newton_rel_tol = 1e-10;
+    }
+    else
+    {
+        using_newton=true;
+        newton_max_iter = property_tree.get("NewtonSolverSettings.Max_Iterations", 100);
+        newton_abs_tol = property_tree.get("NewtonSolverSettings.Absolute_Tolerance", 1e-16);
+        newton_rel_tol = property_tree.get("NewtonSolverSettings.Relative_Tolerance", 1e-10);
+    }
 }
 
 void Config::ReadOutput()
