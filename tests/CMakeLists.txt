@@ -18,5 +18,5 @@ function(add_parallel_reg_tests tests tests_category)
     endforeach()
 endfunction()
 
-add_subdirectory(unsteady_heat)
+add_subdirectory(linearized_unsteady_heat)
 add_subdirectory(steady_heat)

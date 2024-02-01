@@ -93,8 +93,19 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
     }
     switch (Simulation_Type_Map.at(user_input.GetSimTypeLabel()))
     {
-        case SIMULATION_TYPE::UNSTEADY:
-            jots_iterator = new ConductionOperator(user_input,
+        case SIMULATION_TYPE::LINEARIZED_UNSTEADY:
+            jots_iterator = new LinearConductionOperator(user_input,
+                                             boundary_conditions,
+                                             all_bdr_attr_markers,
+                                             *mat_props[MATERIAL_PROPERTY::DENSITY],
+                                             *mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT],
+                                             *mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY],
+                                             *fespace,
+                                             time,
+                                             dt);
+            break;
+        case SIMULATION_TYPE::NONLINEAR_UNSTEADY:
+            jots_iterator = new NonlinearConductionOperator(user_input,
                                              boundary_conditions,
                                              all_bdr_attr_markers,
                                              *mat_props[MATERIAL_PROPERTY::DENSITY],

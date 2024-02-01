@@ -147,6 +147,10 @@ class NonlinearConductionOperator : public TimeDependentOperator, public JOTSIte
             // JOTSIterator Function implementations:
             void Iterate(mfem::Vector& u);
 
+            // Newton solver automatically updates + uses most recent MaterialProperty coefficients,
+            // so no implementation needed as of now. In future coupled thermomechanical simulations,
+            // this may need to be updated to account for material properties that depend on OTHER
+            // solution data (strain, etc.)
             void ProcessMatPropUpdate(MATERIAL_PROPERTY mp) {};
 
         ~NonlinearConductionOperator();
