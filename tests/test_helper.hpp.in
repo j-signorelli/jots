@@ -14,14 +14,11 @@ const int N_REINERT = 1000; // Inclusive end of summation over terms of analytic
 
 // No checking or anything, just run a given input file in tests directory to completion
 // It is presumed that MPI is initialized prior to this function call for generality
-int RunTestConfig(string input_file, int rank, int size, MPI_Comm comm=MPI_COMM_WORLD)
+int RunTestConfig(Config input, int rank, int size, MPI_Comm comm=MPI_COMM_WORLD)
 {
     // Initialize HYPRE.
     Hypre::Init();
 
-    // Parse the config file
-    Config input(input_file);
-    
     // Create new JOTSDriver
     JOTSDriver* driver = new JOTSDriver(input, rank, size, comm);
 
@@ -35,7 +32,7 @@ int RunTestConfig(string input_file, int rank, int size, MPI_Comm comm=MPI_COMM_
 }
 
 // Run to end with comparison against analytical solution at end
-int Analytical_Reg_Test(string input_file, std::function<double(const Vector &, double)> Analytical, const double EPSILON=1e-5)
+int Analytical_Reg_Test(string input_file, std::function<double(const Vector &, double)> Analytical, const double EPSILON=1e-10)
 {
     // Initialize MPI and HYPRE.
     Mpi::Init();
@@ -53,11 +50,16 @@ int Analytical_Reg_Test(string input_file, std::function<double(const Vector &, 
     driver->Run();
 
     // Define exact solution coefficient
-    FunctionCoefficient u_exact(Analytical);
-    u_exact.SetTime(input.GetMaxTimesteps()*input.Getdt());
+    FunctionCoefficient u_exact_coeff(Analytical);
+    u_exact_coeff.SetTime(input.GetMaxTimesteps()*input.Getdt());
+
+    ParGridFunction u_h = *(driver->GetOutputManager()->GetVectorPGF("Temperature"));
+    ParGridFunction u_exact(u_h);
+    u_exact.ProjectCoefficient(u_exact_coeff);
 
     // Get the finite-element approximation solution
-    double error = driver->GetOutputManager()->GetVectorPGF("Temperature")->ComputeL2Error(u_exact);
+    // Compute relative forward error
+    double error = u_h.ComputeL2Error(u_exact_coeff) / GlobalLpNorm(2.0, u_exact.Norml2(), MPI_COMM_WORLD);
 
     if (myid == 0)
         cout << "Error: " << error;
