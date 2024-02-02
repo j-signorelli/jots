@@ -12,7 +12,7 @@ enum class SIMULATION_TYPE
   STEADY=2 // Only Nonlinear Newton solver
 };
 static const std::map<std::string, SIMULATION_TYPE> Simulation_Type_Map = {{"Linearized_Unsteady", SIMULATION_TYPE::LINEARIZED_UNSTEADY},
-                                                                           {"Nonlinear_Unsteady", SIMULATION_TYPE::NONLINEAR_UNSTEADY}
+                                                                           {"Nonlinear_Unsteady", SIMULATION_TYPE::NONLINEAR_UNSTEADY},
                                                                            {"Steady", SIMULATION_TYPE::STEADY}};
 
 

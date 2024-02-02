@@ -10,7 +10,8 @@
 #include "precice_adapter.hpp"
 #include "output_manager.hpp"
 #include "jots_iterator.hpp"
-#include "conduction_operator.hpp"
+#include "linear_conduction_operator.hpp"
+#include "nl_conduction_operator.hpp"
 #include "steady_conduction_operator.hpp"
 
 class JOTSDriver

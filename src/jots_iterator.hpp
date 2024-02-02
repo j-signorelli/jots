@@ -10,7 +10,7 @@ class JOTSIterator
     protected:
         mfem::ParFiniteElementSpace& fespace;
         mfem::ParLinearForm b;// LinearForm representing Neumann BC assuming user-input value = coefficient
-        mfem::Vector b_vec; // Neumann BC Vector
+        mfem::Vector b_vec; // Neumann BC Vector (tdofs)
         mfem::PWCoefficient neumann_coeff;
         
         mfem::Array<int> ess_tdof_list; // list of essential true dofs
