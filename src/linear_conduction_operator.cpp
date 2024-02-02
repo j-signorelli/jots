@@ -1,4 +1,4 @@
-#include "conduction_operator.hpp"
+#include "linear_conduction_operator.hpp"
 
 using namespace std;
 
@@ -23,16 +23,10 @@ LinearConductionOperator::LinearConductionOperator(const Config &in_config, cons
    impl_solver(nullptr),
    M(&f), 
    K(&f),
-   M_full(nullptr),
-   K_full(nullptr),
-   M(nullptr),
-   K(nullptr),
-   A(nullptr),
-   M_e(nullptr),
-   K_e(nullptr),
-   A_e(nullptr),
-   rhs(height),
-   mass_updated(false)
+   M_mat(nullptr),
+   K_mat(nullptr),
+   A_mat(nullptr),
+   rhs(height)
 {
     double abs_tol = in_config.GetAbsTol();
     double rel_tol = in_config.GetRelTol();
@@ -61,11 +55,14 @@ LinearConductionOperator::LinearConductionOperator(const Config &in_config, cons
     
     // Initialize mass
     M.AddDomainIntegrator(new MassIntegrator(rho_C));
-    ReassembleMass();
+    ReassembleM();
 
     // Initialize stiffness
-    K.AddDomainIntegrator(new DiffusionIntegrator(k_prop->GetCoeffRef()));
-    ReassembleStiffness();
+    K.AddDomainIntegrator(new DiffusionIntegrator(k_prop.GetCoeffRef()));
+    ReassembleK();
+
+    // Initialize A
+    ReassembleA();
 
     // Instantiate ODESolver
     ode_solver = Factory::GetODESolver(in_config.GetTimeSchemeLabel());
@@ -76,72 +73,60 @@ LinearConductionOperator::LinearConductionOperator(const Config &in_config, cons
 
 void LinearConductionOperator::ReassembleM()
 {
-    delete M_full;
-    delete M;
-    delete M_e;
+    delete M_mat;
+    M_mat = nullptr;
 
-    M_full = nullptr;
-    M = nullptr;
-    M_e = nullptr;
+    M.Update(); // delete old data (M and M_e) if anything changed
 
-    m->Update(); // delete old data (M and M_e) if anything changed
+    M.Assemble(0); // keep sparsity pattern of m and k the same
+    M.Finalize(0);
 
-    m->Assemble(0); // keep sparsity pattern of m and k the same
-    m->Finalize(0);
+    M_mat = M.ParallelAssemble();
 
-    // Create full mass matrix w/o removed essential DOFs
-    M_full = m->ParallelAssemble();
-    M = new HypreParMatrix(*M_full);
-    
-    // Create mass matrix w/ removed essential DOFs + save eliminated portion
-    M_e = m->ParallelEliminateTDofs(ess_tdof_list, *M);
+    M_mat->EliminateBC(ess_tdof_list, Operator::DiagonalPolicy::DIAG_ONE);
 
-    // Flag mass updated (called if Mult called)
-    mass_updated = true;
+    // Reset operator for explicit solver
+    expl_solver->SetOperator(*M_mat);
 }
 
 void LinearConductionOperator::ReassembleK()
 {    
+    delete K_mat;
+    K_mat = nullptr;
 
-    delete K_full;
-    delete K;
-    delete K_e;
+    K.Update(); // delete old data (M and M_e) if conductivity changed
 
-    K_full = nullptr;
-    K = nullptr;
-    K_e = nullptr;
+    K.Assemble(0);
+    K.Finalize(0);
+    
 
-
-    k.Update(); // delete old data (M and M_e) if conductivity changed
-
-    k.Assemble(0);
-    k.Finalize(0);
-
-    // Create full stiffness matrix w/o removed essential DOFs
-    K_full = K.ParallelAssemble();
-    K = new HypreParMatrix(*K_full);
-
-    // Create stiffness matrix w/ removed essential DOFs
-    K_e = K.ParallelEliminateTDofs(ess_tdof_list, *K);
-
-
+    K_mat = K.ParallelAssemble();
+    // Notably, do NOT apply any elimination of BCs to K
 }
 
 void LinearConductionOperator::ReassembleA()
 {
+    delete A_mat;
+    A_mat = nullptr;
 
+     // Mixing of eliminated + non-eliminated BCs OK here as neither M nor K not multiplied by anything
+    A_mat = Add(1.0, *M_mat, dt, *K_mat);
+
+    A_mat->EliminateBC(ess_tdof_list, Operator::DiagonalPolicy::DIAG_ONE);
+
+    impl_solver->SetOperator(*A_mat);
 }
 
 void LinearConductionOperator::CalculateRHS(const Vector &u, Vector &y) const
 {   
 
-    // Complete multiplication of HypreParMatrix with primal vector for dual vector z
-    K_full->Mult(u, y);
+    // Complete multiplication of K with primal tvector for dual tvector z
+    K_mat->Mult(u, y);
 
-    y.Neg(); // z = -z
+    y.Neg(); // -Ku
 
     // Add Neumann vector term
-    y.Add(1, b_vec_full);
+    y.Add(1.0, b_vec);
 }
 
 void LinearConductionOperator::Mult(const Vector &u, Vector &du_dt) const
@@ -149,24 +134,15 @@ void LinearConductionOperator::Mult(const Vector &u, Vector &du_dt) const
     // Compute:
     //    du/dt = M^{-1}(-Ku + boundary_terms)
     // for du_dt
-
-    // If mass matrix updated, reset operator
-    if (mass_updated)
-    {
-        expl_solver->SetOperator(*M);
-        mass_updated = false;
-    }
     
-    // Calculate RHS pre-essential update
+    // Calculate RHS
     CalculateRHS(u, rhs);
 
-    du_dt.SetSubVector(ess_tdof_list, 0.0); // **Assume essential DOFs du_dt = 0.0
-
-    // Apply elimination of essential BCs to rhs vector
-    EliminateBC(*M, *M_e, ess_tdof_list, du_dt, rhs);
+    // Zero out essential DOF rows -- as we want du_p/dt = 0
+    rhs.SetSubVector(ess_tdof_list, 0.0);
 
     // Solve for M^-1 * rhs
-    expl_solver->Mult(rhs, du_dt);   
+    expl_solver->Mult(rhs, du_dt);
 
 }
 
@@ -175,38 +151,26 @@ void LinearConductionOperator::ImplicitSolve(const double dt,
                                        const Vector &u, Vector &du_dt)
 {
     // Solve the equation:
-    //    du_dt = M^{-1}*[-K(u + dt*du_dt)]
+    //    M*du_dt = [-K(u + dt*du_dt) + N]
+    // (M + dt*K)*du_dt = -Ku + N
     // for du_dt, where K is linearized by using u from the previous timestep
-
-    // Deallocate any previous A, A_e
-    delete A;
-    delete A_e;
 
     // Calculate RHS pre-essential update
     CalculateRHS(u, rhs);
 
-    // Calculate LHS w/o essential DOFs eliminated at first
-    A = Add(1.0, *M, dt, *K);
-
-    impl_solver->SetOperator(*A);
-
-    // Calculate LHS eliminated part using already calculated M_e's from the individual bilinear forms
-    A_e = Add(1.0, *M_e, dt, *K_e);
-
-    du_dt.SetSubVector(ess_tdof_list, 0.0); // **Assume essential DOFs du_dt = 0.0
-                                            // Could this above be the issue^^?
-
-    // Eliminate BCs from RHS given LHS
-    A->EliminateBC(*A_e, ess_tdof_list, du_dt, rhs);
+    // Zero out essential DOF rows -- as we want du_p/dt = 0
+    rhs.SetSubVector(ess_tdof_list, 0.0);
 
     // Solve for du_dt
     impl_solver->Mult(rhs, du_dt);
-    }
+
+}
 
 void LinearConductionOperator::Iterate(Vector& u)
 {
     // Step in time
     ode_solver->Step(u, time, dt);
+    // TODO: verification of no dt change!
 }
 
 void LinearConductionOperator::ProcessMatPropUpdate(MATERIAL_PROPERTY mp)
@@ -215,10 +179,12 @@ void LinearConductionOperator::ProcessMatPropUpdate(MATERIAL_PROPERTY mp)
     {
         case MATERIAL_PROPERTY::DENSITY:
         case MATERIAL_PROPERTY::SPECIFIC_HEAT:
-            ReassembleMass();
+            ReassembleM();
+            ReassembleA();
             break;
         case MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY:
-            ReassembleStiffness();
+            ReassembleK();
+            ReassembleA();
             break;
     }
     }
@@ -229,17 +195,7 @@ LinearConductionOperator::~LinearConductionOperator()
     delete expl_solver;
     delete impl_solver;
 
-    delete m;
-    delete k;
-
-    delete M_full;
-    delete K_full;
-    
-    delete M;
-    delete K;
-    delete A;
-
-    delete M_e;
-    delete K_e;
-    delete A_e;
+    delete M_mat;
+    delete K_mat;
+    delete A_mat;
 }

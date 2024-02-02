@@ -34,11 +34,9 @@ protected:
 
 	HypreParMatrix *M_mat;
 	HypreParMatrix *K_mat;
-
 	HypreParMatrix *A_mat; // Operator for implicit time integration (A = M + dt K)
 	
-	mutable Vector rhs; // = -KT + Neumann
-	mutable bool mass_updated;
+	mutable Vector rhs; // used for = -Ku + N
 
 	void CalculateRHS(const Vector &u, Vector &y) const;
 
