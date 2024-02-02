@@ -42,6 +42,9 @@ int main(int argc, char **argv)
 
     int exit;
     
+    // Parse input
+    Config input("Reinert_B1_preCICE.ini");
+
     if (color == 0)
     {
         // Create Dummy Mesh as single point @ x = 0.01
@@ -53,18 +56,14 @@ int main(int argc, char **argv)
         // Create lambda function for constant send of 500K temperature
         function<double(const Vector&, double)> Constant_Temp = [=](const Vector&x, double t) -> double { return 500; };
         
-        // Get config file
-        stringstream configFile;
-        configFile << SOURCE_DIR << "/tests/unsteady_heat/Reinert_B1_preCICE_config.xml";
-
-        exit = preCICE_Dummy_Analytical_Test(configFile.str(), "Heat-Flux", "Temperature", vertices, Constant_Temp, Reinert_B1_Analytical_HF, 100, subRank, subSize, subComm);
+        exit = preCICE_Dummy_Analytical_Test(input.GetPreciceConfigFile(), "Heat-Flux", "Temperature", vertices, Constant_Temp, Reinert_B1_Analytical_HF, 100, subRank, subSize, subComm);
         if (exit == 1)
             MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
     else
     {
         // Run JOTS
-        exit = RunTestConfig("Reinert_B1_preCICE.ini", subRank, subSize, subComm);
+        exit = RunTestConfig(input, subRank, subSize, subComm);
         if (exit == 1)
             MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
