@@ -85,7 +85,7 @@ Operator& ReducedSystemOperatorR::GetGradient(const Vector &k) const
     add(*u_n, *dt, k, z);
     Jacobian = Add(1.0, M_mat, -1.0*(*dt), static_cast<HypreParMatrix&>(A.GetGradient(z)));
     HypreParMatrix* Je = Jacobian->EliminateRowsCols(ess_tdof_list);
-    delete Je; // ^Not sure if above is necessary -- TODO
+    delete Je;
     return *Jacobian;
 }
 

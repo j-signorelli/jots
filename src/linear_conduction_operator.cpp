@@ -169,8 +169,10 @@ void LinearConductionOperator::ImplicitSolve(const double dt,
 void LinearConductionOperator::Iterate(Vector& u)
 {
     // Step in time
+    double dt_ = dt;
     ode_solver->Step(u, time, dt);
-    // TODO: verification of no dt change!
+    MFEM_VERIFY(dt_ == dt, "JOTS does not support time integration shemes that implicitly change dt!");
+    t = time;
 }
 
 void LinearConductionOperator::ProcessMatPropUpdate(MATERIAL_PROPERTY mp)
