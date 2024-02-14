@@ -1,8 +1,8 @@
 # Unsteady Heat Transfer
 
-JOTS utilizes Approach #2 due to it's simplicity in defining an $A$ operator that can be used for both explicit and implicit time integration. Note that, currently, JOTS *always* solves using Newton-Raphson iterations on the nonlinear formulation, which may be slower for problems that are linear. A future release may include linear solve capabilities/operators.
+JOTS has two options for solving the unsteady heat equation: a linearized approach and a Newton-Raphson nonlinear approach.
 
-## Approach #1
+## Linearized Approach
 
 ### Weak Formulation Derivation
 
@@ -76,11 +76,7 @@ or
 
 $$M_{ij}\dfrac{du_j}{dt} = -K_{ij}u_j + N_i$$
 
-Note that $\vec{N}=\vec{N}(t)$. For linear cases (where all material properties are uniform) the above form with matrices holds. However, generally $\mathbf{M}=\mathbf{M}(\vec{u})$ and $\mathbf{K}=\mathbf{K}(\vec{u})$. Thus, to account for these cases, the equation must be rewritten with nonlinear operators as
-
-$$M\left(\vec{u},\dfrac{d\vec{u}}{dt}\right) =-K(\vec{u}) + N(t)$$
-
-where $M\left(\vec{u},\dfrac{d\vec{u}}{dt}\right)=\mathbf{M}(\vec{u})\dfrac{d\vec{u}}{dt}$ and $K(\vec{u})=\mathbf{K}(\vec{u})\vec{u}$.
+Note that $\vec{N}=\vec{N}(t)$. For linear cases (where all material properties are uniform) the above form with matrices holds. However, generally $\mathbf{M}=\mathbf{M}(\vec{u})$ and $\mathbf{K}=\mathbf{K}(\vec{u})$.
 
 ### Time-Integration
 
@@ -94,13 +90,13 @@ $$\vec{u}_{n+1} = \vec{u}_n + \Delta t\left.\dfrac{d \vec{u}}{dt}\right|_n$$
 
 where $\left.\dfrac{d \vec{u}}{dt}\right|_n$ is the one that solves 
 
-$$M\left(\vec{u}_n,\left.\dfrac{d \vec{u}}{dt}\right|_n\right) =-K(\vec{u}_n) + N(t_n)$$
+$$\mathbf{M}(\vec{u}_n)\left.\dfrac{d \vec{u}}{dt}\right|_n=-\mathbf{K}(\vec{u}_n)\vec{u_n} + N(t_n)$$
 
-Writing out the nonlinear mass operator, the following holds:
+Thus:
 
-$$\left.\dfrac{d \vec{u}}{dt}\right|_n =\mathbf{M}_n^{-1}\left[-K(\vec{u}_n) + N(t_n)\right]$$
+$$\left.\dfrac{d \vec{u}}{dt}\right|_n =\mathbf{M}(\vec{u}_n)^{-1}\left[-\mathbf{K}(\vec{u}_n)\vec{u_n} + N(t_n)\right]$$
 
-where $\mathbf{M}_n$ is the previously defined mass matrix evaluated using the solution vector at the previous timestep $t_n$.
+
 
 #### Implicit
 
@@ -110,33 +106,38 @@ $$\vec{u}_{n+1} = \vec{u}_n + \Delta t\left.\dfrac{d \vec{u}}{dt}\right|_{n+1}$$
 
 where
 
-$$M\left(\vec{u}_{n+1},\left.\dfrac{d \vec{u}}{dt}\right|_{n+1}\right) =-K(\vec{u}_{n+1}) + N(t_{n+1})$$
+$$\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}=\bold{M}^{-1}(\vec{u}_{n+1})\left[\bold{K}(\vec{u}_{n+1})\vec{u}_{n+1} + \vec{N}(t_{n+1})\right]$$
 
-Plugging in the above equation for $\vec{u}_{n+1}$ and $t_{n+1}=t_n + \Delta t$, and writing $\vec{k}_{n+1}=\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}$
+Plugging in the above equation for $\vec{u}_{n+1}$:
 
-$$M(\vec{u}_n + \Delta t\vec{k}_{n+1}, \vec{k}_{n+1})=-K(\vec{u}_n + \Delta t\vec{k}_{n+1}) + N(t_n + \Delta t)$$
+$$\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}=\bold{M}^{-1}(\vec{u}_{n+1})\left[\bold{K}(\vec{u}_{n+1})\left(\vec{u}_{n} + \Delta t\left.\dfrac{d \vec{u}}{dt}\right|_{n+1}\right) + \vec{N}(t_{n+1})\right]$$
 
 Rearranging this yields:
 
-$$R(\vec{k}_{n+1}) = M(\vec{u}_n + \Delta t\vec{k}_{n+1}, \vec{k}_{n+1})+K(\vec{u}_n +\Delta t\vec{k}_{n+1}) - N(t_n + \Delta t)=0$$
+$$\left[\bold{M}(\vec{u}_{n+1})+\Delta t \bold{K}(\vec{u}_{n+1})\right]\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}=\bold{K}(\vec{u}_{n+1})\vec{u}_{n}+\vec{N}(t_{n+1})$$
 
-Newton iterations must be employed to solve this generally nonlinear system. For Jacobian evaluation, it is useful to write out $M$ as:
+Thus:
 
-$$R(\vec{k}_{n+1}) = \mathbf{M}(\vec{u}_n + \Delta t\vec{k}_{n+1})\vec{k}_{n+1}+K(\vec{u}_n +\Delta t\vec{k}_{n+1}) - N(t_n + \Delta t)=0$$
+$$\left.\dfrac{d\vec{u}}{dt}\right|_{n+1}=\left[\bold{M}(\vec{u}_{n+1})+\Delta t \bold{K}(\vec{u}_{n+1})\right]^{-1}\left[\bold{K}(\vec{u}_{n+1})\vec{u}_{n}+\vec{N}(t_{n+1})\right]$$
 
-Then the Jacobian of $R$ is then given by:
+The mass and stiffness matrices' Taylor expansions are taken about the previous timestep:
 
-$$\dfrac{\partial R(\vec{k}_{n+1})}{\partial \vec{k}}=\mathbf{M}_{n+1} + \Delta t\left.\dfrac{\partial \mathbf{M}}{\partial \vec{u}}\right|_{n+1}\vec{k}_{n+1} + \Delta t \left.\dfrac{\partial K}{\partial \vec{u}}\right|_{n+1} +N(t_n+\Delta t)$$
+$$\bold{M}(\vec{u}_{n+1})=\bold{M}(\vec{u}_{n}) + \left.\dfrac{\partial \bold{M}}{\partial \vec{u}}\right|_n\left[ \vec{u}_{n+1} - \vec{u}_{n}\right] + \dfrac{1}{2}\left.\dfrac{\partial^2 \bold{M}}{\partial \vec{u}^2}\right|_n\left[ \vec{u}_{n+1} - \vec{u}_{n}\right]^2 + \dotsb$$
 
-To be clear, note that, because of the implicit dependence of the $\vec{u}$ argument in $M(\vec{u},\vec{k})$ on $\vec{k}$ here, it must be accounted for in Jacobian calculation, as
+$$\bold{K}(\vec{u}_{n+1})=\bold{K}(\vec{u}_{n}) + \left.\dfrac{\partial \bold{K}}{\partial \vec{u}}\right|_n\left[ \vec{u}_{n+1} - \vec{u}_{n}\right] + \dfrac{1}{2}\left.\dfrac{\partial^2 \bold{K}}{\partial \vec{u}^2}\right|_n\left[ \vec{u}_{n+1} - \vec{u}_{n}\right]^2 + \dotsb$$
 
-$$M(\vec{u}(\vec{k}),\vec{k})=\mathbf{M}(\vec{u}(\vec{k}))\vec{k}$$
+Neglecting higher order terms, it is presumed that:
 
-$$\dfrac{\partial M}{\partial \vec{k}}=\mathbf{M}(\vec{u}(\vec{k})) + \dfrac{\partial \mathbf{M}}{\partial \vec{u}} \dfrac{\partial \vec{u}}{\partial \vec{k}} $$
+$$\bold{M}(\vec{u}_{n+1})=\bold{M}(\vec{u}_{n})$$
 
-and $\partial\vec{u}/\partial\vec{k}=\Delta t$. This means that $\Delta t$ must be given to any nonlinear form integrator that implements it (or must be accounted for if these terms are manually included/accounted for in the $R$ operator).
+and
 
-## Approach #2
+$$\bold{K}(\vec{u}_{n+1})=\bold{K}(\vec{u}_{n})$$
+
+
+## Nonlinear Approach
+
+It was decided to pursue the below approach, involving division of $\rho C$, due to convenience and simplicity of implementation. The math written out using a similar approach as above can be found in the README.md in commit 2d1b577. 
 
 ### Weak Formulation Derivation
 
@@ -279,7 +280,7 @@ Some boundary conditions have an analytical expression, so $\dfrac{d\vec{u}_D}{d
 However, for now to maintain consistency, the above assumptions are applied uniformly across JOTS. As $\Delta t \rightarrow0$, the error in the assumptions above also approach zero.
 
 # Steady Heat Transfer
-As with unsteady heat transfer, again: JOTS *always* solves using Newton-Raphson iterations on the nonlinear formulation, which may be slower for problems that are linear. 
+JOTS currently *always* solves steady heat transfer using Newton-Raphson iterations on the nonlinear formulation, which may be slower for problems that are linear. 
 
 ## Weak Formulation Derivation
 The following assumptions are made:
