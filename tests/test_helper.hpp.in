@@ -4,7 +4,6 @@
 #pragma once
 #include "jots_driver.hpp"
 
-// TEMPORARY FOR CONVERGENCE TESTING 02/12/2024
 #include <fstream>
 
 using namespace mfem;
