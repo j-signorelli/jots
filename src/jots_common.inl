@@ -54,6 +54,43 @@ inline ODESolver* GetODESolver(string time_scheme_label)
     return nullptr;
 }
 
+inline IterativeSolver::PrintLevel CreatePrintLevel(std::vector<std::string> print_level_settings)
+{
+    IterativeSolver::PrintLevel pl;
+    for (size_t i = 0; i < print_level_settings.size(); i++)
+    {
+        switch (Print_Level_Map.at(print_level_settings[i]))
+        {
+            case PRINT_LEVEL::NONE:
+                pl.None();
+                break;
+            case PRINT_LEVEL::WARNINGS:
+                pl.Warnings();
+                break;
+            case PRINT_LEVEL::ERRORS:
+                pl.Errors();
+                break;
+            case PRINT_LEVEL::ITERATIONS:
+                pl.Iterations();
+                break;
+            case PRINT_LEVEL::FIRSTANDLAST:
+                pl.FirstAndLast();
+                break;
+            case PRINT_LEVEL::SUMMARY:
+                pl.Summary();
+                break;
+            case PRINT_LEVEL::ALL:
+                pl.All();
+                break;
+            default:
+                break;
+        }
+    }
+    return pl;
+
+}
+
+
 }
 
 namespace Helper

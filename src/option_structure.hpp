@@ -108,3 +108,22 @@ enum class PRECONDITIONER
 
 static const std::map<std::string, PRECONDITIONER> Preconditioner_Map = {{"Jacobi", PRECONDITIONER::JACOBI},
                                                                          {"Chebyshev", PRECONDITIONER::CHEBYSHEV}};
+
+enum class PRINT_LEVEL
+{
+  NONE=0,
+  WARNINGS=1,
+  ERRORS=2,
+  ITERATIONS=3,
+  FIRSTANDLAST=4,
+  SUMMARY=5,
+  ALL=6
+};
+
+static const std::map<std::string, PRINT_LEVEL> Print_Level_Map = {{"None", PRINT_LEVEL::NONE},
+                                                                    {"Warnings", PRINT_LEVEL::WARNINGS},
+                                                                    {"Errors", PRINT_LEVEL::ERRORS},
+                                                                    {"Iterations", PRINT_LEVEL::ITERATIONS},
+                                                                    {"FirstAndLast", PRINT_LEVEL::FIRSTANDLAST},
+                                                                    {"Summary", PRINT_LEVEL::SUMMARY},
+                                                                    {"All", PRINT_LEVEL::ALL}};
