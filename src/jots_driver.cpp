@@ -77,7 +77,7 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
     // Print LinearSolverSettings
     PrintLinearSolverSettings();
     //----------------------------------------------------------------------
-    // Print NewtonSolverSettings (if using)
+    // Print NewtonSolverSettings
     if (user_input.UsingNewton())
         PrintNewtonSolverSettings();
     
@@ -85,6 +85,17 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
     // Print Output settings (if unsteady)
     if (user_input.UsingTimeIntegration())
         PrintOutput();
+
+    //----------------------------------------------------------------------
+    // Initialize material properties w/ solution field (only pertinent for non-uniform non-constant ones)
+    if (rank == 0)
+        cout << "Initializing material properties field...";
+
+    UpdateMatProps(false);
+
+    if (rank == 0)
+        cout << " Done!" << endl;
+
     //---------------------------------------------------------------------
     // Create JOTSIterator object/s
     if (rank == 0)
@@ -94,13 +105,24 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
     }
     switch (Simulation_Type_Map.at(user_input.GetSimTypeLabel()))
     {
-        case SIMULATION_TYPE::UNSTEADY:
-            jots_iterator = new ConductionOperator(user_input,
+        case SIMULATION_TYPE::LINEARIZED_UNSTEADY:
+            jots_iterator = new LinearConductionOperator(user_input,
                                              boundary_conditions,
                                              all_bdr_attr_markers,
-                                             mat_props[MATERIAL_PROPERTY::DENSITY],
-                                             mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT],
-                                             mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY],
+                                             *mat_props[MATERIAL_PROPERTY::DENSITY],
+                                             *mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT],
+                                             *mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY],
+                                             *fespace,
+                                             time,
+                                             dt);
+            break;
+        case SIMULATION_TYPE::NONLINEAR_UNSTEADY:
+            jots_iterator = new NonlinearConductionOperator(user_input,
+                                             boundary_conditions,
+                                             all_bdr_attr_markers,
+                                             *mat_props[MATERIAL_PROPERTY::DENSITY],
+                                             *mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT],
+                                             *mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY],
                                              *fespace,
                                              time,
                                              dt);
@@ -116,16 +138,6 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
     //----------------------------------------------------------------------
     if (rank == 0)
         cout << "Done!" << endl;
-    //----------------------------------------------------------------------
-
-    // Initialize material properties w/ solution field (only pertinent for non-uniform non-constant ones)
-    if (rank == 0)
-        cout << "Initializing material properties field...";
-
-    UpdateAndApplyMatProps();
-
-    if (rank == 0)
-        cout << " Done!" << endl;
 }
 
 void JOTSDriver::ProcessFiniteElementSetup()
@@ -305,7 +317,8 @@ void JOTSDriver::ProcessMaterialProperties()
         vector<string> mp_info = user_input.GetMaterialPropertyInfo(label);
         vector<double> poly_coeffs;
 
-        switch (Material_Model_Map.at(mp_info[0]))
+        MATERIAL_MODEL mm = Material_Model_Map.at(mp_info[0]);
+        switch (mm)
         {
             case MATERIAL_MODEL::UNIFORM: // Uniform
                 mat_props[mp] = new UniformProperty(stod(mp_info[1].c_str()));
@@ -578,6 +591,10 @@ void JOTSDriver::Run()
         // Update and Apply BCs
         UpdateAndApplyBCs();
 
+        // Update MPs + apply changes through to iterator 
+        // (note that some may have been changed by non-constant DBCs)
+        UpdateMatProps(true);
+
         // Iterate
         Iteration();
 
@@ -597,7 +614,6 @@ void JOTSDriver::Run()
                 time = precice_saved_time;
                 it_num = precice_saved_it_num;
                 adapter->ReloadOldState(u);
-                UpdateAndApplyMatProps(); // Update material props w/ reloaded field
                 adapter->Interface()->markActionFulfilled(PreciceAdapter::coric);
                 continue; // skip printing of timestep info AND outputting
             }
@@ -613,18 +629,19 @@ void JOTSDriver::Run()
 
 }
 
-void JOTSDriver::UpdateAndApplyMatProps()
+void JOTSDriver::UpdateMatProps(const bool apply_changes)
 {
     for (size_t i = 0; i < Material_Property_Map.size(); i++)
     {
         MATERIAL_PROPERTY mp = MATERIAL_PROPERTY(i);
         if (mat_props[mp] != nullptr && !mat_props[mp]->IsConstant())
         {
-            // Update coefficient using current solution field, ie: k=k(T)
-            mat_props[mp]->UpdateCoeff(u);
+            // Update coefficients using current solution field, ie: k=k(T)
+            mat_props[mp]->UpdateAllCoeffs(u);
             
             // Update any BLFs affected by changed coefficient (Apply)
-            jots_iterator->ProcessMatPropUpdate(mp);
+            if (apply_changes)
+                jots_iterator->ProcessMatPropUpdate(mp);
         }
     }
 }
@@ -681,9 +698,6 @@ void JOTSDriver::Iteration()
     // NOTE: Do NOT use ANY ODE-Solvers that update dt
     jots_iterator->Iterate(u);
     it_num++; // increment it_num - universal metric
-    
-    // Update material properties with new solution field - important to do before preCICE writes
-    UpdateAndApplyMatProps();
 }
 
 void JOTSDriver::PostprocessIteration()
@@ -707,6 +721,8 @@ void JOTSDriver::PostprocessIteration()
     // If steady, then output ONLY IF viz_freq and restart_freq != 0
     if (!user_input.UsingTimeIntegration())
     {
+        // End of simulation reached. Update MPs prior to output w/ most recent solution field.
+        UpdateMatProps(false);
         if (user_input.GetVisFreq() != 0)
         {
             if (rank == 0)
@@ -732,20 +748,25 @@ void JOTSDriver::PostprocessIteration()
         bool res_out = user_input.GetRestartFreq() != 0 && it_num % user_input.GetRestartFreq() == 0;
         if (viz_out || res_out)
         {
+            // Update MPs prior to output w/ most recent solution field.
+            UpdateMatProps(false);
             if (rank == 0)
+            {    
                 cout << LINE << endl;
-                
+                cout << "Cycle: " << it_num << endl;
+                cout << "Time: " << time << endl;
+            }    
             if (viz_out)
             {
                 if (rank == 0)
-                    cout << "Saving Paraview Data: Cycle " << it_num << endl;
+                    cout << "Saving Paraview Data..." <<endl;
                 output->WriteVizOutput(it_num, time);
             }
 
             if (res_out)
             {
                 if (rank == 0)
-                    cout << "Saving Restart File: Cycle " << it_num << endl;
+                    cout << "Saving Restart File..." << endl;
                 output->WriteRestartOutput(it_num, time);
             }
 

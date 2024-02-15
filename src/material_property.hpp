@@ -13,19 +13,23 @@ class MaterialProperty
     protected:
         mfem::Coefficient* coeff;
         mfem::Coefficient* dcoeffdu;
-
+        mfem::Coefficient* d2coeffdu2;
     public:
-        MaterialProperty() : coeff(nullptr), dcoeffdu(nullptr) {};
+        MaterialProperty() : coeff(nullptr), dcoeffdu(nullptr), d2coeffdu2(nullptr) {};
         mfem::Coefficient& GetCoeffRef() const { return *coeff; }; // To be used only for assigning to linear/bilinear forms or projecting coeff, so declared const
         mfem::Coefficient& GetDCoeffRef() const { return *dcoeffdu; };
+        mfem::Coefficient& GetD2CoeffRef() const { return *d2coeffdu2; };
+
+        void UpdateAllCoeffs(const mfem::Vector& u_ref) { UpdateCoeff(u_ref); UpdateDCoeff(u_ref); UpdateD2Coeff(u_ref); };
+
         virtual bool IsConstant() const = 0; // true if dcoeffdu = 0
         virtual void UpdateCoeff(const mfem::Vector& u_ref) = 0;
-        virtual void UpdateCoeff(const mfem::Vector& u_ref_e, const mfem::Array<int>& dofs) = 0; // Both vectors same size; if none, then assume global
-        virtual void UpdateDCoeff(const mfem::Vector& u_ref_e, const mfem::Array<int>& dofs) = 0;
-        
+        virtual void UpdateDCoeff(const mfem::Vector& u_ref) = 0;
+        virtual void UpdateD2Coeff(const mfem::Vector& u_ref) = 0;
+
         virtual std::string GetInitString() const = 0;
         virtual double GetLocalValue(double u_local) const = 0;
-        virtual ~MaterialProperty() { delete coeff; delete dcoeffdu; };
+        virtual ~MaterialProperty() { delete coeff; delete dcoeffdu; delete d2coeffdu2; };
 };
 
 class UniformProperty : public MaterialProperty
@@ -37,8 +41,8 @@ class UniformProperty : public MaterialProperty
         UniformProperty(const double& in_mp);
         bool IsConstant() const { return true; }
         void UpdateCoeff(const mfem::Vector& u_ref) {};
-        void UpdateCoeff(const mfem::Vector& u_ref_e, const mfem::Array<int>& dofs) {};
-        void UpdateDCoeff(const mfem::Vector& u_ref_e, const mfem::Array<int>& dofs) {};
+        void UpdateDCoeff(const mfem::Vector& u_ref) {};
+        void UpdateD2Coeff(const mfem::Vector& u_ref) {};
         std::string GetInitString() const;
         
         double GetLocalValue(double u_local) const { return mp_val; };
@@ -51,15 +55,15 @@ class PolynomialProperty : public MaterialProperty
         const std::vector<double> poly_coeffs;
         mfem::ParGridFunction mp_gf; // PGF for coeff
         mfem::ParGridFunction dmpdu_gf; // PGF for dcoeffdu
-        
-        mutable mfem::ParGridFunction u_gf;
-        mutable mfem::ParGridFunction z;
+        mfem::ParGridFunction d2mpdu2_gf; // PGF for d2coeffdu2
+
+        mutable mfem::Vector z1, z2;
     public:
         PolynomialProperty(const std::vector<double>& in_poly_coeffs, mfem::ParFiniteElementSpace& f);
         bool IsConstant() const { return false; };
         void UpdateCoeff(const mfem::Vector& u_ref);
-        void UpdateCoeff(const mfem::Vector& u_ref_e, const mfem::Array<int>& dofs);
-        void UpdateDCoeff(const mfem::Vector& u_ref_e, const mfem::Array<int>& dofs);
+        void UpdateDCoeff(const mfem::Vector& u_ref);
+        void UpdateD2Coeff(const mfem::Vector& u_ref);
 
         std::string GetInitString() const;
         double GetLocalValue(double u_local) const;

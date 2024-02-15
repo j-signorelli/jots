@@ -9,7 +9,7 @@
 #include "boost/algorithm/string.hpp"
 
 #include "option_structure.hpp"
-#include "helper_functions.hpp"
+#include "jots_common.hpp"
 
 class Config
 {
@@ -50,7 +50,7 @@ class Config
         double abs_tol;               /*!< \brief Solver absolute tolerance */
         double rel_tol;               /*!< \brief Solver relative tolerance */
         int max_iter;                 /*!< \brief Maximum solver iterations */
-
+        
         bool using_newton;
         double newton_abs_tol;               /*!< \brief Solver absolute tolerance */
         double newton_rel_tol;               /*!< \brief Solver relative tolerance */
@@ -181,8 +181,8 @@ class Config
         void SetRelTol(double in_tol) { rel_tol = in_tol; };
 
         bool UsingNewton() const { return using_newton; };
-
-        void SetNewton(bool in_using) { using_newton = in_using; };
+        
+        void SetNewton(bool in_newton) { using_newton = in_newton; };
 
         int GetNewtonMaxIter() const { return newton_max_iter; };
 
