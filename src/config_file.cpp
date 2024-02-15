@@ -117,6 +117,7 @@ void Config::ReadTimeInt()
         time_scheme_label = "Euler_Implicit";
         dt = 0.1;
         max_timesteps = 100;
+        time_print_freq = 1;
     }
     else
     {
@@ -124,6 +125,7 @@ void Config::ReadTimeInt()
         time_scheme_label = property_tree.get("TimeIntegration.Time_Scheme", "Euler_Implicit");
         dt = property_tree.get("TimeIntegration.Delta_Time", 0.1);
         max_timesteps = property_tree.get("TimeIntegration.Max_Timesteps", 100);
+        time_print_freq = property_tree.get("TimeIntegration.Print_Freq", 1);
     }
 }
 

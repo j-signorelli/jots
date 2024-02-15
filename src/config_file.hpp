@@ -44,6 +44,7 @@ class Config
         std::string time_scheme_label;      /*!< \brief Time integration scheme to use */
         int max_timesteps;             /*!< \brief Delta time, timestep */
         double dt;                    /*!< \brief Delta time, timestep */
+        int time_print_freq;
 
         std::string solver_label;                /*!< \brief Linear system solver type */
         std::string prec_label;          /*!< \brief Preconditioner to use */
@@ -160,6 +161,10 @@ class Config
 
         void Setdt(double in_dt) { dt = in_dt; };
 
+        int GetTimePrintFreq() const { return time_print_freq; };
+
+        void SetTimePrintFreq(int in_freq) { time_print_freq = in_freq; };
+        
         std::string GetSolverLabel() const { return solver_label; };
 
         void SetSolverLabel(std::string in_solver) { solver_label = in_solver; };

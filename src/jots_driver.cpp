@@ -355,7 +355,7 @@ void JOTSDriver::ProcessTimeIntegration()
         cout << "Time Scheme: " << user_input.GetTimeSchemeLabel() << endl;
         cout << "Time Step: " << user_input.Getdt() << endl;
         cout << "Max Timesteps: " << user_input.GetMaxTimesteps() << endl;
-    
+        cout << "Time Print Frequency: " << user_input.GetTimePrintFreq() << endl;
     }
     //----------------------------------------------------------------------
     // Set dt and max timesteps
@@ -703,10 +703,12 @@ void JOTSDriver::Iteration()
 void JOTSDriver::PostprocessIteration()
 {   
 
-    // Print current timestep information if using TimeIntegration:
-    if (rank == 0 && user_input.UsingTimeIntegration())
+    // Print timestep information if using TimeIntegration:
+    bool time_out = user_input.UsingTimeIntegration() && it_num % user_input.GetTimePrintFreq() == 0;
+    if (time_out)
     {
-        printf("Step #%10i || Time: %1.6e out of %-1.6e || dt: %1.6e \n", it_num, time, dt*max_timesteps, dt);
+        if (rank == 0)
+            printf("Step #%10i || Time: %1.6e out of %-1.6e || dt: %1.6e \n", it_num, time, dt*max_timesteps, dt);
     }
     
     // Check if blow up
