@@ -16,7 +16,7 @@ JOTS is a simple thermal conduction solver designed for either standalone heat t
 ## Dependencies
 
 ### MFEM
-MFEM is the heart and soul of JOTS. JOTS was developed using MFEM v4.5.2. Detailed build instructions for MFEM can be found here: https://mfem.org/building/.
+MFEM is the heart and soul of JOTS. JOTS requires MFEM v4.7. Detailed build instructions for MFEM can be found here: https://mfem.org/building/.
 
 Note that you *must* build MFEM with `MFEM_USE_MPI=YES`. If you want compressed VisIt/Restart files as opposed to ASCII, build MFEM with `MFEM_USE_ZLIB=YES`.
 
@@ -51,11 +51,8 @@ To enable regression testing using ctest, include `-DENABLE_TESTING=ON` in the `
 
 ## Running Simulations
 
-JOTS using a .ini file as an input file. All boundary conditions and settings for this input file can be found in thh *unsteady_config_template.ini* file. The *tests/* folder also showcasing all different configurations of JOTS.
+JOTS using a .ini file as an input file. All boundary conditions and settings can be found in the template config files.
 
 To run JOTS with 10 procs:
 
         mpirun -np 10 jots -i config_file.ini
-
-
-Note that steady-state thermal simulations have not yet been implemented.
