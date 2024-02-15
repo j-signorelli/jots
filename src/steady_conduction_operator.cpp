@@ -13,6 +13,7 @@ SteadyConductionOperator::SteadyConductionOperator(const Config& in_config, cons
     lin_solver->SetAbsTol(in_config.GetAbsTol());
     lin_solver->SetRelTol(in_config.GetRelTol());
     lin_solver->SetMaxIter(in_config.GetMaxIter());
+    lin_solver->SetPrintLevel(Factory::CreatePrintLevel(in_config.GetLinSolPrintLevel()));
 
     // Add nonlinear diffusion
     k.AddDomainIntegrator(new JOTSNonlinearDiffusionIntegrator(&f_, k_prop.GetCoeffRef(), k_prop.GetDCoeffRef()));
@@ -26,6 +27,7 @@ SteadyConductionOperator::SteadyConductionOperator(const Config& in_config, cons
     newton.SetAbsTol(in_config.GetNewtonAbsTol());
     newton.SetRelTol(in_config.GetNewtonRelTol());
     newton.SetMaxIter(in_config.GetNewtonMaxIter());
+    newton.SetPrintLevel(Factory::CreatePrintLevel(in_config.GetNewtonPrintLevel()));
 
 }
 
