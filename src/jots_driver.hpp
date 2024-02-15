@@ -69,7 +69,7 @@ class JOTSDriver
     public:
         JOTSDriver(const Config& input, const int myid, const int num_procs, MPI_Comm in_comm=MPI_COMM_WORLD);
         
-        void UpdateAndApplyMatProps();
+        void UpdateMatProps(const bool apply_changes);
 
         void UpdateAndApplyBCs();
 

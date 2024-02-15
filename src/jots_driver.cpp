@@ -91,7 +91,7 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
     if (rank == 0)
         cout << "Initializing material properties field...";
 
-    UpdateAndApplyMatProps();
+    UpdateMatProps(false);
 
     if (rank == 0)
         cout << " Done!" << endl;
@@ -590,8 +590,10 @@ void JOTSDriver::Run()
 
         // Update and Apply BCs
         UpdateAndApplyBCs();
-        
-        // TODO: re-update + apply material properties here ??? With BCs set?
+
+        // Update MPs + apply changes through to iterator 
+        // (note that some may have been changed by non-constant DBCs)
+        UpdateMatProps(true);
 
         // Iterate
         Iteration();
@@ -612,7 +614,6 @@ void JOTSDriver::Run()
                 time = precice_saved_time;
                 it_num = precice_saved_it_num;
                 adapter->ReloadOldState(u);
-                UpdateAndApplyMatProps(); // Update material props w/ reloaded field
                 adapter->Interface()->markActionFulfilled(PreciceAdapter::coric);
                 continue; // skip printing of timestep info AND outputting
             }
@@ -628,7 +629,7 @@ void JOTSDriver::Run()
 
 }
 
-void JOTSDriver::UpdateAndApplyMatProps()
+void JOTSDriver::UpdateMatProps(const bool apply_changes)
 {
     for (size_t i = 0; i < Material_Property_Map.size(); i++)
     {
@@ -639,7 +640,7 @@ void JOTSDriver::UpdateAndApplyMatProps()
             mat_props[mp]->UpdateAllCoeffs(u);
             
             // Update any BLFs affected by changed coefficient (Apply)
-            if (jots_iterator)
+            if (apply_changes)
                 jots_iterator->ProcessMatPropUpdate(mp);
         }
     }
@@ -697,9 +698,6 @@ void JOTSDriver::Iteration()
     // NOTE: Do NOT use ANY ODE-Solvers that update dt
     jots_iterator->Iterate(u);
     it_num++; // increment it_num - universal metric
-    
-    // Update material properties with new solution field - important to do before preCICE writes
-    UpdateAndApplyMatProps();
 }
 
 void JOTSDriver::PostprocessIteration()
@@ -723,6 +721,8 @@ void JOTSDriver::PostprocessIteration()
     // If steady, then output ONLY IF viz_freq and restart_freq != 0
     if (!user_input.UsingTimeIntegration())
     {
+        // End of simulation reached. Update MPs prior to output w/ most recent solution field.
+        UpdateMatProps(false);
         if (user_input.GetVisFreq() != 0)
         {
             if (rank == 0)
@@ -748,6 +748,8 @@ void JOTSDriver::PostprocessIteration()
         bool res_out = user_input.GetRestartFreq() != 0 && it_num % user_input.GetRestartFreq() == 0;
         if (viz_out || res_out)
         {
+            // Update MPs prior to output w/ most recent solution field.
+            UpdateMatProps(false);
             if (rank == 0)
             {    
                 cout << LINE << endl;
