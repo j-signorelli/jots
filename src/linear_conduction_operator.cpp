@@ -42,6 +42,7 @@ LinearConductionOperator::LinearConductionOperator(const Config &in_config, cons
     expl_solver->SetPrintLevel(0);
     expl_prec.SetType(Factory::GetPrec(in_config.GetPrecLabel())); 
     expl_solver->SetPreconditioner(expl_prec);
+    expl_solver->SetPrintLevel(Factory::CreatePrintLevel(in_config.GetLinSolPrintLevel()));
 
     // Prepare implicit solver
     impl_solver = Factory::GetSolver(in_config.GetSolverLabel(), fespace.GetComm());
@@ -52,6 +53,7 @@ LinearConductionOperator::LinearConductionOperator(const Config &in_config, cons
     impl_solver->SetPrintLevel(0);
     impl_prec.SetType(Factory::GetPrec(in_config.GetPrecLabel()));
     impl_solver->SetPreconditioner(impl_prec);
+    impl_solver->SetPrintLevel(Factory::CreatePrintLevel(in_config.GetLinSolPrintLevel()));
     
     // Initialize mass
     M.AddDomainIntegrator(new MassIntegrator(rho_C));

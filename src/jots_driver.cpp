@@ -89,7 +89,7 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
     //----------------------------------------------------------------------
     // Initialize material properties w/ solution field (only pertinent for non-uniform non-constant ones)
     if (rank == 0)
-        cout << "Initializing material properties field...";
+        cout << "\nInitializing material properties field...";
 
     UpdateMatProps(false);
 
@@ -355,7 +355,7 @@ void JOTSDriver::ProcessTimeIntegration()
         cout << "Time Scheme: " << user_input.GetTimeSchemeLabel() << endl;
         cout << "Time Step: " << user_input.Getdt() << endl;
         cout << "Max Timesteps: " << user_input.GetMaxTimesteps() << endl;
-    
+        cout << "Time Print Frequency: " << user_input.GetTimePrintFreq() << endl;
     }
     //----------------------------------------------------------------------
     // Set dt and max timesteps
@@ -517,6 +517,16 @@ void JOTSDriver::PrintLinearSolverSettings()
         cout << "Max Iterations: " << user_input.GetMaxIter() << endl;
         cout << "Absolute Tolerance: " << user_input.GetAbsTol() << endl;
         cout << "Relative Tolerance: " << user_input.GetRelTol() << endl;
+        cout << "Print Level: ";
+        vector<string> pl = user_input.GetLinSolPrintLevel();
+        for (size_t i = 0; i < pl.size(); i++)
+        {
+            cout << pl[i];
+            if (i + 1 < pl.size())
+                cout << ',';
+            else
+                cout << endl;
+        }
     }
 }
 
@@ -530,6 +540,17 @@ void JOTSDriver::PrintNewtonSolverSettings()
         cout << "Max Iterations: " << user_input.GetNewtonMaxIter() << endl;
         cout << "Absolute Tolerance: " << user_input.GetNewtonAbsTol() << endl;
         cout << "Relative Tolerance: " << user_input.GetNewtonRelTol() << endl;
+        cout << "Print Level: ";
+        vector<string> pl = user_input.GetNewtonPrintLevel();
+        for (size_t i = 0; i < pl.size(); i++)
+        {
+            cout << pl[i];
+            if (i + 1 < pl.size())
+                cout << ',';
+            else
+                cout << endl;
+        }
+
     }
 }
 
@@ -703,10 +724,12 @@ void JOTSDriver::Iteration()
 void JOTSDriver::PostprocessIteration()
 {   
 
-    // Print current timestep information if using TimeIntegration:
-    if (rank == 0 && user_input.UsingTimeIntegration())
+    // Print timestep information if using TimeIntegration:
+    bool time_out = user_input.UsingTimeIntegration() && it_num % user_input.GetTimePrintFreq() == 0;
+    if (time_out)
     {
-        printf("Step #%10i || Time: %1.6e out of %-1.6e || dt: %1.6e \n", it_num, time, dt*max_timesteps, dt);
+        if (rank == 0)
+            printf("Step #%10i || Time: %1.6e out of %-1.6e || dt: %1.6e \n", it_num, time, dt*max_timesteps, dt);
     }
     
     // Check if blow up

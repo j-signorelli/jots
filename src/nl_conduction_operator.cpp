@@ -251,6 +251,7 @@ NonlinearConductionOperator::NonlinearConductionOperator(const Config& in_config
 	lin_solver->SetPrintLevel(0); // Print all information about detected issues
 	lin_prec.SetType(Factory::GetPrec(in_config.GetPrecLabel())); // Set type of preconditioning (relaxation type) 
 	lin_solver->SetPreconditioner(lin_prec); // Set preconditioner to matrix inversion solver
+    lin_solver->SetPrintLevel(Factory::CreatePrintLevel(in_config.GetLinSolPrintLevel()));
 
 	//----------------------------------------------------------------
 	// Prepare the NewtonSolver
@@ -266,6 +267,7 @@ NonlinearConductionOperator::NonlinearConductionOperator(const Config& in_config
     newton.SetAbsTol(in_config.GetNewtonAbsTol());
     newton.SetRelTol(in_config.GetNewtonRelTol());
     newton.SetMaxIter(in_config.GetNewtonMaxIter());
+    newton.SetPrintLevel(Factory::CreatePrintLevel(in_config.GetNewtonPrintLevel()));
 
 	//----------------------------------------------------------------
 	// Instantiate ODESolver

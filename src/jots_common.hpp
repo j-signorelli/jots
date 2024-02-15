@@ -14,6 +14,8 @@ mfem::HypreSmoother::Type GetPrec(std::string prec_label);
 
 mfem::ODESolver* GetODESolver(std::string time_scheme_label);
 
+mfem::IterativeSolver::PrintLevel CreatePrintLevel(std::vector<std::string> print_level_settings);
+
 }
 
 template<typename Key, typename Value>
