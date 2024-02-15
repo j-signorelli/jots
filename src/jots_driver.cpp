@@ -89,7 +89,7 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
     //----------------------------------------------------------------------
     // Initialize material properties w/ solution field (only pertinent for non-uniform non-constant ones)
     if (rank == 0)
-        cout << "Initializing material properties field...";
+        cout << "\nInitializing material properties field...";
 
     UpdateMatProps(false);
 
@@ -517,6 +517,16 @@ void JOTSDriver::PrintLinearSolverSettings()
         cout << "Max Iterations: " << user_input.GetMaxIter() << endl;
         cout << "Absolute Tolerance: " << user_input.GetAbsTol() << endl;
         cout << "Relative Tolerance: " << user_input.GetRelTol() << endl;
+        cout << "Print Level: ";
+        vector<string> pl = user_input.GetLinSolPrintLevel();
+        for (size_t i = 0; i < pl.size(); i++)
+        {
+            cout << pl[i];
+            if (i + 1 < pl.size())
+                cout << ',';
+            else
+                cout << endl;
+        }
     }
 }
 
@@ -530,6 +540,17 @@ void JOTSDriver::PrintNewtonSolverSettings()
         cout << "Max Iterations: " << user_input.GetNewtonMaxIter() << endl;
         cout << "Absolute Tolerance: " << user_input.GetNewtonAbsTol() << endl;
         cout << "Relative Tolerance: " << user_input.GetNewtonRelTol() << endl;
+        cout << "Print Level: ";
+        vector<string> pl = user_input.GetNewtonPrintLevel();
+        for (size_t i = 0; i < pl.size(); i++)
+        {
+            cout << pl[i];
+            if (i + 1 < pl.size())
+                cout << ',';
+            else
+                cout << endl;
+        }
+
     }
 }
 

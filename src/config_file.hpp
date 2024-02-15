@@ -51,11 +51,13 @@ class Config
         double abs_tol;               /*!< \brief Solver absolute tolerance */
         double rel_tol;               /*!< \brief Solver relative tolerance */
         int max_iter;                 /*!< \brief Maximum solver iterations */
-        
+        std::vector<std::string> ls_print_level;
+
         bool using_newton;
         double newton_abs_tol;               /*!< \brief Solver absolute tolerance */
         double newton_rel_tol;               /*!< \brief Solver relative tolerance */
         int newton_max_iter;                 /*!< \brief Maximum solver iterations */
+        std::vector<std::string> newton_print_level;
 
         int restart_freq;             /*!< \brief Frequency to output restart files (iterations per output) */
         int vis_freq;                 /*!< \brief Frequency to output Paraview files (iterations per output) */
@@ -177,6 +179,10 @@ class Config
 
         void SetMaxIter(int in_iter) { max_iter = in_iter; };
 
+        std::vector<std::string> GetLinSolPrintLevel() const { return ls_print_level; };
+
+        void SetLinSolPrintLevel(std::vector<std::string> in_print_level) { ls_print_level = in_print_level; };
+
         double GetAbsTol() const { return abs_tol; };
 
         void SetAbsTol(double in_tol) { abs_tol = in_tol; };
@@ -192,6 +198,10 @@ class Config
         int GetNewtonMaxIter() const { return newton_max_iter; };
 
         void SetNewtonMaxIter(int in_iter) { newton_max_iter = in_iter; };
+
+        std::vector<std::string> GetNewtonPrintLevel() const { return newton_print_level; };
+
+        void SetNewtonPrintLevel(std::vector<std::string> in_print_level) { newton_print_level = in_print_level; };
 
         double GetNewtonAbsTol() const { return newton_abs_tol; };
 

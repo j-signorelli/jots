@@ -137,6 +137,8 @@ void Config::ReadLinSolSettings()
     abs_tol = property_tree.get("LinearSolverSettings.Absolute_Tolerance", 1e-16);
     rel_tol = property_tree.get("LinearSolverSettings.Relative_Tolerance", 1e-10);
     max_iter = property_tree.get("LinearSolverSettings.Max_Iterations", 100);
+    string print_level = property_tree.get("LinearSolverSettings.Print_Level", "Errors, Warnings");
+    SetInputStringVector(print_level, ls_print_level);
 }
 
 void Config::ReadNewtonSettings()
@@ -148,6 +150,7 @@ void Config::ReadNewtonSettings()
         newton_max_iter = 0;
         newton_abs_tol = 1e-16;
         newton_rel_tol = 1e-10;
+        SetInputStringVector("Errors, Warnings, Iterations", newton_print_level);
     }
     else
     {
@@ -155,6 +158,8 @@ void Config::ReadNewtonSettings()
         newton_max_iter = property_tree.get("NewtonSolverSettings.Max_Iterations", 100);
         newton_abs_tol = property_tree.get("NewtonSolverSettings.Absolute_Tolerance", 1e-16);
         newton_rel_tol = property_tree.get("NewtonSolverSettings.Relative_Tolerance", 1e-10);
+        string print_level = property_tree.get("NewtonSolverSettings.Print_Level", "Errors, Warnings, Iterations");
+        SetInputStringVector(print_level, newton_print_level);
     }
 }
 
