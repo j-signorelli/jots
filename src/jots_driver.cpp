@@ -15,7 +15,7 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
   dt(0.0),
   max_timesteps(0),
   jots_iterator(nullptr),
-  adapter(nullptr),
+  precice_interface(nullptr),
   user_input(input),
   boundary_conditions(nullptr),
   all_bdr_attr_markers(nullptr),
@@ -374,9 +374,9 @@ void JOTSDriver::ProcessPrecice()
         cout << "preCICE Config File: " << user_input.GetPreciceConfigFile() << endl;
     }
 
-    adapter = new PreciceAdapter(user_input.GetPreciceParticipantName(), user_input.GetPreciceConfigFile(), rank, size, comm);
+    precice_interface = new JOTSSolverInterface(user_input.GetPreciceParticipantName(), user_input.GetPreciceConfigFile(), rank, size, comm);
 
-    if (adapter->GetDimension() != dim)
+    if (precice_interface->getDimensions() != dim)
     {
         MFEM_ABORT("preCICE dimensions and mesh file dimensions are not the same!");
         return;
@@ -480,9 +480,9 @@ void JOTSDriver::ProcessBoundaryConditions()
         }
     }
     //----------------------------------------------------------------------
-    // Send precice bcs to adapter
+    // Send precice bcs to precice_interface
     if (user_input.UsingPrecice())
-        adapter->SetPreciceBCs(boundary_conditions, precice_bc_indices);
+        precice_interface->SetPreciceBCs(boundary_conditions, precice_bc_indices);
     //----------------------------------------------------------------------
     // Prepare BC attr arrays for applying coefficients
     all_bdr_attr_markers = new Array<int>[user_input.GetBCCount()];
@@ -573,37 +573,36 @@ void JOTSDriver::Run()
         output->WriteVizOutput(it_num, time);
 
     // If using precice: initialize + get/send initial data if needed
-    // Make actual precice interface calls directly here for readability/clarity
     if (user_input.UsingPrecice())
     {
-        precice_dt = adapter->Interface().initialize();
-        if (adapter->Interface().isActionRequired(PreciceAdapter::cowid))
+        precice_dt = precice_interface->initialize();
+        if (precice_interface->isActionRequired(JOTSSolverInterface::cowid))
         {
             u_0_gf->SetFromTrueDofs(u);
-            adapter->WriteData(*u_0_gf);
-            adapter->Interface().markActionFulfilled(PreciceAdapter::cowid);
+            precice_interface->WriteData(*u_0_gf);
+            precice_interface->markActionFulfilled(JOTSSolverInterface::cowid);
         }
-        adapter->Interface().initializeData();
+        precice_interface->initializeData();
     }
     
     while ((!user_input.UsingPrecice() && it_num < max_timesteps) 
-    || (user_input.UsingPrecice() && adapter->Interface().isCouplingOngoing())) // use short-circuiting
+    || (user_input.UsingPrecice() && precice_interface->isCouplingOngoing())) // use short-circuiting
     {
         // Handle preCICE calls
         if (user_input.UsingPrecice())
         {
             // Implicit coupling: save state
-            if (adapter->Interface().isActionRequired(PreciceAdapter::cowic))
+            if (precice_interface->isActionRequired(JOTSSolverInterface::cowic))
             {
                 precice_saved_time = time;
                 precice_saved_it_num = it_num;
-                adapter->SaveOldState(u);
-                adapter->Interface().markActionFulfilled(PreciceAdapter::cowic);
+                precice_interface->SaveOldState(u);
+                precice_interface->markActionFulfilled(JOTSSolverInterface::cowic);
             }
 
             // Get read data
-            if (adapter->Interface().isReadDataAvailable())
-                adapter->GetReadData();
+            if (precice_interface->isReadDataAvailable())
+                precice_interface->GetReadData();
 
             // Update timestep if needed
             if (precice_dt < dt)
@@ -623,23 +622,23 @@ void JOTSDriver::Run()
         // Write any preCICE data, reload state if needed
         if (user_input.UsingPrecice())
         {
-            if (adapter->Interface().isWriteDataRequired(dt))
+            if (precice_interface->isWriteDataRequired(dt))
             {
                 u_0_gf->SetFromTrueDofs(u);
                 // Note: HF is calculated using k.GetLocalValue(), so no UpdateMatProps needed
-                adapter->WriteData(*u_0_gf);
+                precice_interface->WriteData(*u_0_gf);
             }
             // Advance preCICE
-            adapter->Interface().advance(dt);
+            precice_interface->advance(dt);
 
 
             // Implicit coupling
-            if (adapter->Interface().isActionRequired(PreciceAdapter::coric))
+            if (precice_interface->isActionRequired(JOTSSolverInterface::coric))
             {
                 time = precice_saved_time;
                 it_num = precice_saved_it_num;
-                adapter->ReloadOldState(u);
-                adapter->Interface().markActionFulfilled(PreciceAdapter::coric);
+                precice_interface->ReloadOldState(u);
+                precice_interface->markActionFulfilled(JOTSSolverInterface::coric);
                 continue; // skip printing of timestep info AND outputting
             }
         }
@@ -649,7 +648,7 @@ void JOTSDriver::Run()
     
     // Finalize preCICE if used
     if (user_input.UsingPrecice())
-        adapter->Interface().finalize();
+        precice_interface->finalize();
 
 
 }
@@ -806,7 +805,7 @@ void JOTSDriver::PostprocessIteration()
 JOTSDriver::~JOTSDriver()
 {
     delete jots_iterator;
-    delete adapter;
+    delete precice_interface;
     for (size_t i = 0; i < Material_Property_Map.size(); i++)
         delete mat_props[MATERIAL_PROPERTY(i)];
     delete[] mat_props;

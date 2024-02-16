@@ -47,7 +47,7 @@ class JOTSDriver
         JOTSIterator* jots_iterator;
         mfem::Vector u;
 
-        PreciceAdapter* adapter;
+        JOTSSolverInterface* precice_interface;
 
         const Config& user_input;
 

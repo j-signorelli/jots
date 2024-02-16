@@ -106,7 +106,7 @@ class UniformSinusoidalHeatFluxBC : public UniformSinusoidalBC
 
 class PreciceBC : public BoundaryCondition
 {
-    friend class PreciceAdapter; // Allow PreciceAdapter access to everything
+    friend class JOTSSolverInterface; // Allow JOTSSolverInterface access to everything
 
     private:
     protected:
