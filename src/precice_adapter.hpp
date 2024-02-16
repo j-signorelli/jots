@@ -9,18 +9,14 @@
 class PreciceAdapter
 {
     private:
-        precice::SolverInterface* interface;
+        precice::SolverInterface interface;
         
         PreciceBC** precice_bcs; // Individual BC ptrs not allocated here
         size_t num_bcs;
         
-        const std::string participant_name;
-        const std::string config_file;
-        const int rank;
-        const int size;
         int dim;
 
-        mfem::Vector old_state_T;
+        mfem::Vector old_state_u;
 
     public:
 
@@ -30,17 +26,17 @@ class PreciceAdapter
 
         PreciceAdapter(const std::string in_part_name, const std::string in_config, const int r, const int s, MPI_Comm comm=MPI_COMM_WORLD);
 
-        void AddPreciceBCs(BoundaryCondition** in_bcs, std::vector<int> precice_bc_indices);
+        void SetPreciceBCs(BoundaryCondition** in_bcs, std::vector<int> precice_bc_indices);
         
-        precice::SolverInterface* Interface() { return interface; };
+        precice::SolverInterface& Interface() { return interface; };
 
         void GetReadData();
 
-        void WriteData(const mfem::Vector T, const MaterialProperty* k_prop);
+        void WriteData(const mfem::ParGridFunction &u_gf);
 
-        void SaveOldState(const mfem::Vector T);
+        void SaveOldState(const mfem::Vector u);
 
-        void ReloadOldState(mfem::Vector& T) const;
+        void ReloadOldState(mfem::Vector& u) const;
 
         int GetDimension() const { return dim; };
 

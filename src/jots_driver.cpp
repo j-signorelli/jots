@@ -451,7 +451,7 @@ void JOTSDriver::ProcessBoundaryConditions()
             case BOUNDARY_CONDITION::PRECICE_ISOTHERMAL:
                 mesh_name = bc_info[1];
                 value = stod(bc_info[2].c_str());
-                boundary_conditions[i] =  new PreciceIsothermalBC(attr, *fespace, mesh_name, value);
+                boundary_conditions[i] =  new PreciceIsothermalBC(attr, *fespace, mesh_name, value, *mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY]);
                 precice_bc_indices.push_back(i);
                 break;
             case BOUNDARY_CONDITION::PRECICE_HEATFLUX:
@@ -482,7 +482,7 @@ void JOTSDriver::ProcessBoundaryConditions()
     //----------------------------------------------------------------------
     // Send precice bcs to adapter
     if (user_input.UsingPrecice())
-        adapter->AddPreciceBCs(boundary_conditions, precice_bc_indices);
+        adapter->SetPreciceBCs(boundary_conditions, precice_bc_indices);
     //----------------------------------------------------------------------
     // Prepare BC attr arrays for applying coefficients
     all_bdr_attr_markers = new Array<int>[user_input.GetBCCount()];
@@ -576,32 +576,33 @@ void JOTSDriver::Run()
     // Make actual precice interface calls directly here for readability/clarity
     if (user_input.UsingPrecice())
     {
-        precice_dt = adapter->Interface()->initialize();
-        if (adapter->Interface()->isActionRequired(PreciceAdapter::cowid))
+        precice_dt = adapter->Interface().initialize();
+        if (adapter->Interface().isActionRequired(PreciceAdapter::cowid))
         {
-            adapter->WriteData(u, mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY]);
-            adapter->Interface()->markActionFulfilled(PreciceAdapter::cowid);
+            u_0_gf->SetFromTrueDofs(u);
+            adapter->WriteData(*u_0_gf);
+            adapter->Interface().markActionFulfilled(PreciceAdapter::cowid);
         }
-        adapter->Interface()->initializeData();
+        adapter->Interface().initializeData();
     }
     
     while ((!user_input.UsingPrecice() && it_num < max_timesteps) 
-    || (user_input.UsingPrecice() && adapter->Interface()->isCouplingOngoing())) // use short-circuiting
+    || (user_input.UsingPrecice() && adapter->Interface().isCouplingOngoing())) // use short-circuiting
     {
         // Handle preCICE calls
         if (user_input.UsingPrecice())
         {
             // Implicit coupling: save state
-            if (adapter->Interface()->isActionRequired(PreciceAdapter::cowic))
+            if (adapter->Interface().isActionRequired(PreciceAdapter::cowic))
             {
                 precice_saved_time = time;
                 precice_saved_it_num = it_num;
                 adapter->SaveOldState(u);
-                adapter->Interface()->markActionFulfilled(PreciceAdapter::cowic);
+                adapter->Interface().markActionFulfilled(PreciceAdapter::cowic);
             }
 
             // Get read data
-            if (adapter->Interface()->isReadDataAvailable())
+            if (adapter->Interface().isReadDataAvailable())
                 adapter->GetReadData();
 
             // Update timestep if needed
@@ -622,20 +623,22 @@ void JOTSDriver::Run()
         // Write any preCICE data, reload state if needed
         if (user_input.UsingPrecice())
         {
-            if (adapter->Interface()->isWriteDataRequired(dt))
-                adapter->WriteData(u, mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY]);
-
+            if (adapter->Interface().isWriteDataRequired(dt))
+            {
+                u_0_gf->SetFromTrueDofs(u);
+                adapter->WriteData(*u_0_gf);
+            }
             // Advance preCICE
-            adapter->Interface()->advance(dt);
+            adapter->Interface().advance(dt);
 
 
             // Implicit coupling
-            if (adapter->Interface()->isActionRequired(PreciceAdapter::coric))
+            if (adapter->Interface().isActionRequired(PreciceAdapter::coric))
             {
                 time = precice_saved_time;
                 it_num = precice_saved_it_num;
                 adapter->ReloadOldState(u);
-                adapter->Interface()->markActionFulfilled(PreciceAdapter::coric);
+                adapter->Interface().markActionFulfilled(PreciceAdapter::coric);
                 continue; // skip printing of timestep info AND outputting
             }
         }
@@ -645,7 +648,7 @@ void JOTSDriver::Run()
     
     // Finalize preCICE if used
     if (user_input.UsingPrecice())
-        adapter->Interface()->finalize();
+        adapter->Interface().finalize();
 
 
 }
