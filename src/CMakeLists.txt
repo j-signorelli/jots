@@ -7,7 +7,7 @@ add_library(jotsLib
                 config_file.cpp
                 boundary_condition.cpp
                 material_property.cpp
-                precice_adapter.cpp
+                jots_precice.cpp
                 output_manager.cpp
                 jots_driver.cpp
                 jots_nlfis.cpp)

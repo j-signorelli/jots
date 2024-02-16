@@ -1,4 +1,4 @@
-#include "precice_adapter.hpp"
+#include "jots_precice.hpp"
 
 using namespace std;
 using namespace precice;
