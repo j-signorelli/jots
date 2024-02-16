@@ -626,6 +626,7 @@ void JOTSDriver::Run()
             if (adapter->Interface().isWriteDataRequired(dt))
             {
                 u_0_gf->SetFromTrueDofs(u);
+                // Note: HF is calculated using k.GetLocalValue(), so no UpdateMatProps needed
                 adapter->WriteData(*u_0_gf);
             }
             // Advance preCICE
