@@ -106,51 +106,39 @@ class UniformSinusoidalHeatFluxBC : public UniformSinusoidalBC
 
 class PreciceBC : public BoundaryCondition
 {
-    friend class PreciceAdapter; // Allow PreciceAdapter access to everything
+    friend class JOTSSolverInterface; // Allow JOTSSolverInterface access to everything
 
     private:
     protected:
-
-        //const std::string TEMPERATURE = "Temperature";
-        //const std::string HEATFLUX = "Heat-Flux";
-
-        mfem::ParFiniteElementSpace& fespace;
-
         const std::string mesh_name;
         const double default_value;
         const std::string read_data_name;
         const std::string write_data_name;
         const int dim;
-        
-        mfem::Array<int> bdr_elem_indices;
-        mfem::Array<int> bdr_dof_indices; // Includes non-true DOFs
-        double* coords;
+        bool update_flag;
+
         int num_dofs;
 
+        double* coords;
         double* read_data_arr;
         double* write_data_arr;
-
-        mfem::Array<double> coeff_dof_values;
-        mfem::ParGridFunction* coeff_gf;
-
-        bool update_flag;
 
         // Set by adapter:
         int mesh_id;
         int* vertex_ids;
         int read_data_id;
         int write_data_id;
-    
 
-        static void GetBdrTemperatures(const mfem::ParGridFunction* T_gf, const mfem::Array<int> in_bdr_elem_indices, double* nodal_temperatures); // Precondition: in_bdr_elem_indices length is correct
-        static void GetBdrWallHeatFlux(const mfem::ParGridFunction* T_gf, const MaterialProperty* k_prop, const mfem::Array<int> in_bdr_elem_indices, double* nodal_wall_heatfluxes); // Precondition same above
-        mutable mfem::ParGridFunction* temp_gf;
+        mfem::Array<int> bdr_elem_indices;
+        mfem::Array<int> bdr_dof_indices; // Includes non-true DOFs
+        mfem::ParGridFunction coeff_gf;
+
     public:
         PreciceBC(const int attr, mfem::ParFiniteElementSpace& f, const std::string in_mesh, const double in_value, const std::string in_read, const std::string in_write);
         bool IsConstant() const { return false; };
         void UpdateCoeff(const double time);
 
-        virtual void RetrieveWriteData(const mfem::Vector T, const MaterialProperty* k_prop) = 0;
+        virtual void RetrieveWriteData(const mfem::ParGridFunction &u_gf) = 0;
 
 
         virtual bool IsEssential() const = 0;
@@ -163,11 +151,11 @@ class PreciceBC : public BoundaryCondition
 class PreciceIsothermalBC : public PreciceBC
 {
     private:
-
+        const MaterialProperty& k_prop; // Retain k model for sending HF
     protected:
     public:
-        PreciceIsothermalBC(const int attr, mfem::ParFiniteElementSpace& f, const std::string in_mesh, const double in_value) : PreciceBC(attr, f, in_mesh, in_value, "Temperature", "Heat-Flux") {};
-        void RetrieveWriteData(const mfem::Vector T, const MaterialProperty* k_prop);
+        PreciceIsothermalBC(const int attr, mfem::ParFiniteElementSpace& f, const std::string in_mesh, const double in_value, const MaterialProperty &in_k) : PreciceBC(attr, f, in_mesh, in_value, "Temperature", "Heat-Flux"), k_prop(in_k) {};
+        void RetrieveWriteData(const mfem::ParGridFunction &u_gf);
         std::string GetInitString() const;
 
         bool IsEssential() const { return true; };
@@ -176,12 +164,10 @@ class PreciceIsothermalBC : public PreciceBC
 class PreciceHeatFluxBC : public PreciceBC
 {
     private:
-    
     protected:
-
     public:
         PreciceHeatFluxBC(const int attr, mfem::ParFiniteElementSpace& f, const std::string in_mesh, const double in_value) : PreciceBC(attr, f, in_mesh, in_value, "Heat-Flux", "Temperature") {};
-        void RetrieveWriteData(const mfem::Vector T, const MaterialProperty* k_prop);
+        void RetrieveWriteData(const mfem::ParGridFunction &u_gf);
         std::string GetInitString() const;
 
         bool IsEssential() const { return false; };

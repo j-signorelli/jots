@@ -76,166 +76,106 @@ void UniformSinusoidalBC::UpdateCoeff(const double time)
 
 PreciceBC::PreciceBC(const int attr, ParFiniteElementSpace& f, const string in_mesh, const double in_value, const string in_read, const string in_write) 
 : BoundaryCondition(attr),
-  fespace(f),
   mesh_name(in_mesh),
   default_value(in_value),
   read_data_name(in_read),
   write_data_name(in_write),
   dim(f.GetMesh()->Dimension()),
+  update_flag(false),
   coords(nullptr),
   read_data_arr(nullptr),
   write_data_arr(nullptr),
-  coeff_dof_values(),
-  coeff_gf(nullptr),
-  update_flag(false),
-  vertex_ids(nullptr)
+  vertex_ids(nullptr),
+  coeff_gf(&f)
 
 {
-    // Method from GridFunction::AccumulateAndCountBdrValues used
     // Get and save coordinate array of all vertices, all bdr elements, and all bdr dof indices
-
     const FiniteElement *fe;
     ElementTransformation *transf;
 
     Array<double> coords_temp(0);
+
     // Loop through all boundary elements
-    for (int i = 0; i < fespace.GetNBE(); i++)
-    {   
+    for (size_t i = 0; i < f.GetNBE(); i++)
+    {
         // Skip over elements not on this BCs boundary
-        if (fespace.GetBdrAttribute(i) != attr)
+        if (f.GetBdrAttribute(i) != attr)
             continue;
-        
+
         // Save boundary element index
         bdr_elem_indices.Append(i);
-
-        fe = fespace.GetBE(i); // Get bdr element used at this boundary face i
-        transf = fespace.GetBdrElementTransformation(i); // Get bdr elem transformation - the actual definition of this particular BE
-
-        const IntegrationRule &ir = fe->GetNodes(); // Get nodes of the bdr element
+        fe = f.GetBE(i);
+        transf = f.GetBdrElementTransformation(i);
+        const IntegrationRule &ir = fe->GetNodes(); // Get the nodal DOFs in reference coords
 
         Array<int> bdr_elem_dofs;
-        fespace.GetBdrElementDofs(i, bdr_elem_dofs); // Get bdr element dofs
+        f.GetBdrElementDofs(i, bdr_elem_dofs);
 
         // Append bdr_elem_dofs to bdr_dof_indices member variable
         bdr_dof_indices.Append(bdr_elem_dofs);
 
         // Loop through all bdr element dofs
-        for (int j = 0; j < fe->GetDof(); j++)
+        // In this case: fe->GetDof == ir.GetNPoints
+        for (size_t j = 0; j < fe->GetDof(); j++)
         {
             const IntegrationPoint &ip = ir.IntPoint(j);
-
             // Set x,y,z of each dof into respective arrays
             Vector coord(3);
-            transf->Transform(ip, coord);
+            transf->Transform(ip, coord); // Transform the integration point from reference to physical coords
             coords_temp.Append(coord[0]);
             coords_temp.Append(coord[1]);
             if (dim > 2)
             {
                 coords_temp.Append(coord[2]);
             }
-
         }
     }
 
     // Get coordinates as single double* array
     coords = new double[coords_temp.Size()];
-    for (int i = 0; i < coords_temp.Size(); i++)
+    for (size_t i = 0; i < coords_temp.Size(); i++)
         coords[i] = coords_temp[i];
 
     num_dofs = bdr_dof_indices.Size();
 
-    // Create arrays for everything else needed
+    // Create arrays for vertex ids, read data, and write data
     vertex_ids = new int[num_dofs];
     read_data_arr = new double[num_dofs];
     write_data_arr = new double[num_dofs];
-    
-
-    // Set coeff_values to initialization value for now
-    // If data sent from other participant, this will be updated in first call to UpdateCoeff
-    coeff_dof_values.SetSize(num_dofs);
-    coeff_dof_values = default_value;
-
-    // Create grid function for coefficient
-    coeff_gf = new ParGridFunction(&fespace);
-
-    // Create auxiliary GF on fespace
-    temp_gf = new ParGridFunction(&fespace);
 
     // Initialize coefficient
-    coeff = new GridFunctionCoefficient(coeff_gf);
+    coeff = new GridFunctionCoefficient(&coeff_gf);
 }
 
 void PreciceBC::UpdateCoeff(const double time)
 {   
-
     if (update_flag) // If flagged for update by adapter, update gf linked to coefficient
     {
         // Update the GridFunction bdr values
-        coeff_gf->SetSubVector(bdr_dof_indices, read_data_arr);
+        coeff_gf.SetSubVector(bdr_dof_indices, read_data_arr);
         update_flag = false;
     }
 }
 
-void PreciceIsothermalBC::RetrieveWriteData(const mfem::Vector T, const MaterialProperty* k_prop)
+void PreciceIsothermalBC::RetrieveWriteData(const ParGridFunction &u_gf)
 {
-    temp_gf->SetFromTrueDofs(T);
-    GetBdrWallHeatFlux(temp_gf, k_prop, bdr_elem_indices, write_data_arr);
-}
-
-
-void PreciceHeatFluxBC::RetrieveWriteData(const mfem::Vector T, const MaterialProperty* k_prop)
-{
-    temp_gf->SetFromTrueDofs(T);
-    GetBdrTemperatures(temp_gf, bdr_elem_indices, write_data_arr);
-}
-
-void PreciceBC::GetBdrTemperatures(const ParGridFunction* T_gf, const Array<int> in_bdr_elem_indices, double* nodal_temperatures)
-{   
-    ParFiniteElementSpace* fespace = T_gf->ParFESpace();
-
+    // Need to get gradient of solution --> more involved!
     const FiniteElement *fe;
     ElementTransformation *transf;
+    const ParFiniteElementSpace& fespace = *(u_gf.ParFESpace());
 
-    int nodal_index = 0;
-    for (int i = 0; i < in_bdr_elem_indices.Size(); i++)
+    // Loop through boundary elements
+    int node_index = 0;
+    for (size_t i = 0; i < bdr_elem_indices.Size(); i++)
     {
-        fe = fespace->GetBE(in_bdr_elem_indices[i]); // Get FiniteElement
-        transf = fespace->GetBdrElementTransformation(in_bdr_elem_indices[i]); //Get this associated ElementTransformation from the mesh object
-        // ^Above is same as just calling GetBdrElementTransformation from Mesh
+        fe = fespace.GetBE(bdr_elem_indices[i]);
+        transf = fespace.GetBdrElementTransformation(bdr_elem_indices[i]);
 
         const IntegrationRule &ir = fe->GetNodes(); // Get nodes of the bdr element
 
         // Loop through this bdr element's DOFs
-        for (int j = 0; j < fe->GetDof(); j++)
-        {
-            const IntegrationPoint &ip = ir.IntPoint(j);
-
-            // Set the value
-            nodal_temperatures[nodal_index] = T_gf->GetValue(*transf, ip);       
-            nodal_index++;
-        }
-    }
-}
-
-void PreciceBC::GetBdrWallHeatFlux(const mfem::ParGridFunction* T_gf, const MaterialProperty* k_prop, const mfem::Array<int> in_bdr_elem_indices, double* nodal_wall_heatfluxes)
-{
-
-    ParFiniteElementSpace* fespace = T_gf->ParFESpace();
-
-    const FiniteElement *fe;
-    ElementTransformation *transf;
-
-    int nodal_index = 0;
-    for (int i = 0; i < in_bdr_elem_indices.Size(); i++)
-    {
-        fe = fespace->GetBE(in_bdr_elem_indices[i]); // Get FiniteElement
-        transf = fespace->GetBdrElementTransformation(in_bdr_elem_indices[i]); //Get this associated ElementTransformation from the mesh object
-        // ^Above is same as just calling GetBdrElementTransformation from Mesh
-
-        const IntegrationRule &ir = fe->GetNodes(); // Get nodes of the bdr element
-
-        // Loop through this bdr element's DOFs
-        for (int j = 0; j < fe->GetDof(); j++)
+        // Again, fe->GetDof == ir.GetNPoints
+        for (size_t j = 0; j < fe->GetDof(); j++)
         {
             const IntegrationPoint &ip = ir.IntPoint(j);
             transf->SetIntPoint(&ip); // Set integration pt to get appropriate Jacobian
@@ -244,20 +184,25 @@ void PreciceBC::GetBdrWallHeatFlux(const mfem::ParGridFunction* T_gf, const Mate
             Vector normal(transf->Jacobian().Height());
             CalcOrtho(transf->Jacobian(), normal);
 
-            // Get the gradient of temperature
+            // Get the gradient of temperature at the given nodal value for this bdr element
             Vector grad_T(normal.Size());
-            T_gf->GetGradient(*transf, grad_T);
+            u_gf.GetGradient(*transf, grad_T);
 
             // Get local thermal conductivity (NOTE: assumed here again of isotropic thermal conductivity)
-            double k_loc = k_prop->GetLocalValue(T_gf->GetValue(*transf, ip));
+            double k_loc = k_prop.GetLocalValue(u_gf.GetValue(*transf, ip));
 
             // Calculate + set value of heat
-            nodal_wall_heatfluxes[nodal_index] = - k_loc * (grad_T * normal) / normal.Norml2();
-
-
-            nodal_index++;
+            write_data_arr[node_index] = - k_loc * (grad_T * normal) / normal.Norml2();
+            node_index++;
         }
     }
+}
+
+
+void PreciceHeatFluxBC::RetrieveWriteData(const ParGridFunction &u_gf)
+{
+    // Just get solution data @ bdr
+    u_gf.GetSubVector(bdr_dof_indices, write_data_arr);
 }
 
 PreciceBC::~PreciceBC()
@@ -266,6 +211,4 @@ PreciceBC::~PreciceBC()
     delete[] vertex_ids;
     delete[] read_data_arr;
     delete[] write_data_arr;
-    delete coeff_gf;
-    delete temp_gf;
 }

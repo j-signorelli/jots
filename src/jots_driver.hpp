@@ -7,7 +7,7 @@
 #include "option_structure.hpp"
 #include "config_file.hpp"
 #include "material_property.hpp"
-#include "precice_adapter.hpp"
+#include "jots_precice.hpp"
 #include "output_manager.hpp"
 #include "jots_iterator.hpp"
 #include "linear_conduction_operator.hpp"
@@ -47,7 +47,7 @@ class JOTSDriver
         JOTSIterator* jots_iterator;
         mfem::Vector u;
 
-        PreciceAdapter* adapter;
+        JOTSSolverInterface* precice_interface;
 
         const Config& user_input;
 
