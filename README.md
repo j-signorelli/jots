@@ -16,7 +16,9 @@ JOTS is a heat transfer solver designed for either standalone heat transfer nume
 ## Dependencies
 
 ### MFEM
-JOTS requires MFEM v4.7. Detailed build instructions for MFEM can be found here: https://mfem.org/building/.
+JOTS requires an install of MFEM with boundary integration capabilities for NonlinearForm's, which was implemented in the nlf-boundaryintegrators-dev branch on the main repo -- this should be included in MFEM v4.7.
+
+Detailed build instructions for MFEM can be found here: https://mfem.org/building/.
 
 Note that you *must* build MFEM with `MFEM_USE_MPI=YES`. If you want compressed VisIt/Restart files as opposed to ASCII, build MFEM with `MFEM_USE_ZLIB=YES`.
 
