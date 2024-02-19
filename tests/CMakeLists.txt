@@ -4,8 +4,6 @@ message(STATUS "Testing with MPI using: ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_
 
 configure_file(test_helper.hpp.in test_helper.hpp)
 
-set()
-
 function(add_parallel_reg_test test_name test_category)
     configure_file(${test_name}.ini.in ${test_name}.ini @ONLY)
     add_executable(${test_name} ${test_name}.cpp)
