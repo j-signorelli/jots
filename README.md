@@ -1,4 +1,4 @@
-# JOTS v2.0: MFEM-Based Thermal Solver w/ preCICE Coupling
+# JOTS v2.0.0: MFEM-Based Thermal Solver w/ preCICE Coupling
 JOTS is a heat transfer solver designed for either standalone heat transfer numerical simulations or conjugate heat transfer analyses coupled using preCICE.
 
 ## Contents
