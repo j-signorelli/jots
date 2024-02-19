@@ -9,7 +9,7 @@
 #include "boost/algorithm/string.hpp"
 
 #include "option_structure.hpp"
-#include "helper_functions.hpp"
+#include "jots_common.hpp"
 
 class Config
 {
@@ -44,12 +44,20 @@ class Config
         std::string time_scheme_label;      /*!< \brief Time integration scheme to use */
         int max_timesteps;             /*!< \brief Delta time, timestep */
         double dt;                    /*!< \brief Delta time, timestep */
+        int time_print_freq;
 
         std::string solver_label;                /*!< \brief Linear system solver type */
         std::string prec_label;          /*!< \brief Preconditioner to use */
         double abs_tol;               /*!< \brief Solver absolute tolerance */
         double rel_tol;               /*!< \brief Solver relative tolerance */
         int max_iter;                 /*!< \brief Maximum solver iterations */
+        std::vector<std::string> ls_print_level;
+
+        bool using_newton;
+        double newton_abs_tol;               /*!< \brief Solver absolute tolerance */
+        double newton_rel_tol;               /*!< \brief Solver relative tolerance */
+        int newton_max_iter;                 /*!< \brief Maximum solver iterations */
+        std::vector<std::string> newton_print_level;
 
         int restart_freq;             /*!< \brief Frequency to output restart files (iterations per output) */
         int vis_freq;                 /*!< \brief Frequency to output Paraview files (iterations per output) */
@@ -63,10 +71,13 @@ class Config
         void ReadBCs();
         void ReadTimeInt();
         void ReadLinSolSettings();
+        void ReadNewtonSettings();
         void ReadOutput();
 
     public:
         Config(const char* in_file);
+
+        Config(const std::string in_file) : Config(in_file.c_str()) {};
 
         std::string GetInputFile() const { return input_file; };
 
@@ -152,6 +163,10 @@ class Config
 
         void Setdt(double in_dt) { dt = in_dt; };
 
+        int GetTimePrintFreq() const { return time_print_freq; };
+
+        void SetTimePrintFreq(int in_freq) { time_print_freq = in_freq; };
+        
         std::string GetSolverLabel() const { return solver_label; };
 
         void SetSolverLabel(std::string in_solver) { solver_label = in_solver; };
@@ -164,6 +179,10 @@ class Config
 
         void SetMaxIter(int in_iter) { max_iter = in_iter; };
 
+        std::vector<std::string> GetLinSolPrintLevel() const { return ls_print_level; };
+
+        void SetLinSolPrintLevel(std::vector<std::string> in_print_level) { ls_print_level = in_print_level; };
+
         double GetAbsTol() const { return abs_tol; };
 
         void SetAbsTol(double in_tol) { abs_tol = in_tol; };
@@ -171,6 +190,26 @@ class Config
         double GetRelTol() const { return rel_tol; };
 
         void SetRelTol(double in_tol) { rel_tol = in_tol; };
+
+        bool UsingNewton() const { return using_newton; };
+        
+        void SetNewton(bool in_newton) { using_newton = in_newton; };
+
+        int GetNewtonMaxIter() const { return newton_max_iter; };
+
+        void SetNewtonMaxIter(int in_iter) { newton_max_iter = in_iter; };
+
+        std::vector<std::string> GetNewtonPrintLevel() const { return newton_print_level; };
+
+        void SetNewtonPrintLevel(std::vector<std::string> in_print_level) { newton_print_level = in_print_level; };
+
+        double GetNewtonAbsTol() const { return newton_abs_tol; };
+
+        void SetNewtonAbsTol(double in_tol) { newton_abs_tol = in_tol; };
+
+        double GetNewtonRelTol() const { return newton_rel_tol; };
+
+        void SetNewtonRelTol(double in_tol) { newton_rel_tol = in_tol; };
 
         int GetRestartFreq() const { return restart_freq; };
 

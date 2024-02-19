@@ -1,11 +1,16 @@
 # Add the library target for jots
-add_library(jotsLib conduction_operator.cpp
-			  config_file.cpp
-			  boundary_condition.cpp
-			  material_property.cpp
-			  precice_adapter.cpp
-			  output_manager.cpp
-			  jots_driver.cpp)
+add_library(jotsLib 
+                jots_iterator.cpp
+                linear_conduction_operator.cpp
+                nl_conduction_operator.cpp
+                steady_conduction_operator.cpp
+                config_file.cpp
+                boundary_condition.cpp
+                material_property.cpp
+                jots_precice.cpp
+                output_manager.cpp
+                jots_driver.cpp
+                jots_nlfis.cpp)
 
 target_include_directories(jotsLib INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 

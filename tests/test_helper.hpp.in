@@ -4,6 +4,7 @@
 #pragma once
 #include "jots_driver.hpp"
 
+#include <fstream>
 
 using namespace mfem;
 using namespace std;
@@ -12,40 +13,13 @@ using namespace precice::constants;
 
 const int N_REINERT = 1000; // Inclusive end of summation over terms of analytical solution infinite series to include
 
-Config GetConfig(string in_file)
-{
-    // Parse the config file from the test directory
-    stringstream input_file;
-    input_file << SOURCE_DIR << "/tests/" << in_file;
-
-    Config input(input_file.str().c_str());
-
-    // Update the mesh file location generalized to any build dir
-    stringstream mesh_file;
-    mesh_file << SOURCE_DIR << "/examples/meshes/" << input.GetMeshFile();
-    input.SetMeshFile(mesh_file.str().c_str());
-
-    // If using preCICE, update the config file location as well
-    if (input.UsingPrecice())
-    {
-        stringstream config_file;
-        config_file << SOURCE_DIR << "/tests/" << input.GetPreciceConfigFile();
-        input.SetPreciceConfigFile(config_file.str().c_str());
-    }
-
-    return input;
-}
-
 // No checking or anything, just run a given input file in tests directory to completion
 // It is presumed that MPI is initialized prior to this function call for generality
-int RunTestConfig(string input_file, int rank, int size, MPI_Comm comm=MPI_COMM_WORLD)
+int RunTestConfig(Config input, int rank, int size, MPI_Comm comm=MPI_COMM_WORLD)
 {
     // Initialize HYPRE.
     Hypre::Init();
 
-    // Parse the config file
-    Config input = GetConfig(input_file);
-    
     // Create new JOTSDriver
     JOTSDriver* driver = new JOTSDriver(input, rank, size, comm);
 
@@ -58,11 +32,8 @@ int RunTestConfig(string input_file, int rank, int size, MPI_Comm comm=MPI_COMM_
     return 0;
 }
 
-// Run to end with comparison against analytical solution at end
-int Analytical_Reg_Test(string input_file, std::function<double(const Vector &, double)> Analytical)
+int Analytical_Parametric_dt_Error(string input_file, std::function<double(const Vector &, double)> Analytical, std::vector<double> dts, const double max_time)
 {
-    const double EPSILON = 1e-5;
-
     // Initialize MPI and HYPRE.
     Mpi::Init();
     int num_procs = Mpi::WorldSize();
@@ -70,7 +41,79 @@ int Analytical_Reg_Test(string input_file, std::function<double(const Vector &, 
     Hypre::Init();
 
     // Parse the config file
-    Config input = GetConfig(input_file);
+    Config input(input_file);
+
+    // Prepare writing of data to file
+    fstream file; 
+    file.open("data.txt", ios::out); 
+    string line; 
+
+    for (int i = 0; i < dts.size(); i++)
+    {
+        // Set dt in input
+        input.Setdt(dts[i]);
+
+        // Update max time in input
+        input.SetMaxTimesteps((int)(max_time/dts[i]+0.5)); // addition of 0.5 before casting performs function of rounding to nearest int
+
+
+        // Run driver
+        JOTSDriver driver(input, myid, num_procs);
+        driver.Run();
+
+        // Define exact solution coefficient
+        FunctionCoefficient u_exact_coeff(Analytical);
+        u_exact_coeff.SetTime(input.GetMaxTimesteps()*input.Getdt());
+
+        ParGridFunction u_h = *(driver.GetOutputManager()->GetVectorPGF("Temperature"));
+        ParGridFunction u_exact(u_h);
+        u_exact.ProjectCoefficient(u_exact_coeff);
+
+        // Get the finite-element approximation solution
+        // Compute absolute forward error
+        double error = u_h.ComputeL2Error(u_exact_coeff);
+
+        // Print info + error to file
+        if (myid == 0)
+        {
+            file << "------------------------------------------" << endl;
+            file << "dt = " << dts[i] << endl;
+            file << "Max Time = " << input.GetMaxTimesteps()*input.Getdt() << endl;
+            file << "Error = " << error << endl;
+            file << "Num Exceptionals = " << u_h.CheckFinite() << endl;
+        }
+
+        if (u_h.CheckFinite())
+        {
+            file << "EXCEPTIONALS!!" << endl;
+        }
+        stringstream fname;
+        fname << "data_dt." << dts[i];
+
+        ParaViewDataCollection pvdc(fname.str(),u_h.ParFESpace()->GetParMesh());
+        pvdc.SetLevelsOfDetail(input.GetFEOrder());
+        pvdc.SetDataFormat(VTKFormat::BINARY);
+        pvdc.SetHighOrderOutput(true);
+        pvdc.RegisterField("Temperature", &u_h);
+        pvdc.Save();
+    }
+
+    file.close();
+
+    return 0;
+}
+
+// Run to end with comparison against analytical solution at end
+int Analytical_Reg_Test(string input_file, std::function<double(const Vector &, double)> Analytical, const double EPSILON=1e-10)
+{
+    // Initialize MPI and HYPRE.
+    Mpi::Init();
+    int num_procs = Mpi::WorldSize();
+    int myid = Mpi::WorldRank();
+    Hypre::Init();
+
+    // Parse the config file
+    Config input(input_file);
 
     // Create new JOTSDriver
     JOTSDriver* driver = new JOTSDriver(input, myid, num_procs);
@@ -79,11 +122,16 @@ int Analytical_Reg_Test(string input_file, std::function<double(const Vector &, 
     driver->Run();
 
     // Define exact solution coefficient
-    FunctionCoefficient u_exact(Analytical);
-    u_exact.SetTime(input.GetMaxTimesteps()*input.Getdt());
+    FunctionCoefficient u_exact_coeff(Analytical);
+    u_exact_coeff.SetTime(input.GetMaxTimesteps()*input.Getdt());
+
+    ParGridFunction u_h = *(driver->GetOutputManager()->GetVectorPGF("Temperature"));
+    ParGridFunction u_exact(u_h);
+    u_exact.ProjectCoefficient(u_exact_coeff);
 
     // Get the finite-element approximation solution
-    double error = driver->GetOutputManager()->GetVectorPGF("Temperature")->ComputeL2Error(u_exact);
+    // Compute relative forward error
+    double error = u_h.ComputeL2Error(u_exact_coeff) / GlobalLpNorm(2.0, u_exact.Norml2(), MPI_COMM_WORLD);
 
     if (myid == 0)
         cout << "Error: " << error;
@@ -122,13 +170,9 @@ int preCICE_Dummy_Analytical_Test(string in_configFile, string dataReadName, str
     const string solverName = "Dummy";
     const string meshName = "Dummy-Mesh";
 
-    // Get config file
-    stringstream configFile;
-    configFile << SOURCE_DIR << "/tests/" << in_configFile;
+    cout << "DUMMY (" << rank << "): Running solver dummy with preCICE config file \"" << in_configFile << "\"and participant name.\"" << solverName << "\".\n";
 
-    cout << "DUMMY (" << rank << "): Running solver dummy with preCICE config file \"" << configFile.str() << "\"and participant name.\"" << solverName << "\".\n";
-
-    SolverInterface interface(solverName, configFile.str(), rank, size, &comm);
+    SolverInterface interface(solverName, in_configFile, rank, size, &comm);
 
     int meshID = interface.getMeshID(meshName);
     int dimensions = interface.getDimensions();
@@ -316,5 +360,17 @@ double Reinert_B3_Analytical(const Vector& x, double time)
     double c = D*pow(T1,2.0) - T1 - theta;
 
     return (-b+pow(pow(b,2.0)-4*a*c,0.5))/(2*a);
+
+}
+
+double Danish_Model1_Analytical(const Vector& x, double time)
+{
+    // Ignore time. Doesn't matter for steady.
+    // Values already nondimensionalized in Config
+
+    double beta = 50;
+    double theta = 0;
+
+    return (-1 + pow((1+2*beta*x[0]+pow(beta,2.0)*x[0]), 0.5))/beta;
 
 }

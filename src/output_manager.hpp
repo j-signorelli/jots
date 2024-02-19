@@ -4,7 +4,7 @@
 
 #include "config_file.hpp"
 #include "material_property.hpp"
-#include "helper_functions.hpp"
+#include "jots_common.hpp"
 
 struct CoefficientOutput
 {

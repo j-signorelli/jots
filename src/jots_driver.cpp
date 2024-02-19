@@ -15,7 +15,7 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
   dt(0.0),
   max_timesteps(0),
   jots_iterator(nullptr),
-  adapter(nullptr),
+  precice_interface(nullptr),
   user_input(input),
   boundary_conditions(nullptr),
   all_bdr_attr_markers(nullptr),
@@ -40,7 +40,7 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
                                     
                                     
 
-        )" << endl << "MFEM-Based Thermal Solver w/ preCICE" << endl << "Version 1.2" << endl << LINE << endl;
+        )" << endl << "MFEM-Based Thermal Solver w/ preCICE" << endl << "Version 2.0" << endl << LINE << endl;
     }
     //----------------------------------------------------------------------
     // Print config file
@@ -55,7 +55,17 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
     //----------------------------------------------------------------------
     // Process TimeIntegration (if using (required for unsteady))
     if (user_input.UsingTimeIntegration())
+    {
         ProcessTimeIntegration();
+    }
+    else // otherwise set cycle to -2, max timesteps to -1
+    {
+        it_num = -2;
+        max_timesteps = -1;
+        // Ensures output appropriate for time-independent runs, as MFEM requires cycle = -1
+        // Time-independent runs only complete inner iterations w/ a single outer iteration
+        // As opposed to time-dependent runs having outer-iterations being a timestep
+    }
     //----------------------------------------------------------------------
     // Process preCICE (if using)
     if (user_input.UsingPrecice())
@@ -67,8 +77,25 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
     // Print LinearSolverSettings
     PrintLinearSolverSettings();
     //----------------------------------------------------------------------
-    // Print Output settings
-    PrintOutput();
+    // Print NewtonSolverSettings
+    if (user_input.UsingNewton())
+        PrintNewtonSolverSettings();
+    
+    //----------------------------------------------------------------------
+    // Print Output settings (if unsteady)
+    if (user_input.UsingTimeIntegration())
+        PrintOutput();
+
+    //----------------------------------------------------------------------
+    // Initialize material properties w/ solution field (only pertinent for non-uniform non-constant ones)
+    if (rank == 0)
+        cout << "\nInitializing material properties field...";
+
+    UpdateMatProps(false);
+
+    if (rank == 0)
+        cout << " Done!" << endl;
+
     //---------------------------------------------------------------------
     // Create JOTSIterator object/s
     if (rank == 0)
@@ -78,40 +105,46 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
     }
     switch (Simulation_Type_Map.at(user_input.GetSimTypeLabel()))
     {
-        case SIMULATION_TYPE::UNSTEADY:
-            jots_iterator = new ConductionOperator(user_input,
+        case SIMULATION_TYPE::LINEARIZED_UNSTEADY:
+            jots_iterator = new LinearConductionOperator(user_input,
                                              boundary_conditions,
                                              all_bdr_attr_markers,
-                                             mat_props[MATERIAL_PROPERTY::DENSITY],
-                                             mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT],
-                                             mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY],
+                                             *mat_props[MATERIAL_PROPERTY::DENSITY],
+                                             *mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT],
+                                             *mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY],
+                                             *fespace,
+                                             time,
+                                             dt);
+            break;
+        case SIMULATION_TYPE::NONLINEAR_UNSTEADY:
+            jots_iterator = new NonlinearConductionOperator(user_input,
+                                             boundary_conditions,
+                                             all_bdr_attr_markers,
+                                             *mat_props[MATERIAL_PROPERTY::DENSITY],
+                                             *mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT],
+                                             *mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY],
                                              *fespace,
                                              time,
                                              dt);
             break;
         case SIMULATION_TYPE::STEADY:
+            jots_iterator = new SteadyConductionOperator(user_input, 
+                                                    boundary_conditions,
+                                                    all_bdr_attr_markers,
+                                                    *mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY],
+                                                    *fespace);
             break;
     }
     //----------------------------------------------------------------------
     if (rank == 0)
         cout << "Done!" << endl;
-    //----------------------------------------------------------------------
-
-    // Initialize material properties w/ solution field (only pertinent for non-uniform non-constant ones)
-    if (rank == 0)
-        cout << "Initializing material properties field...";
-
-    UpdateAndApplyMatProps();
-
-    if (rank == 0)
-        cout << " Done!" << endl;
 }
 
 void JOTSDriver::ProcessFiniteElementSetup()
 {
     // Print appropriate solver type + get required material properties, add them to map
     if (rank == 0)
-        cout << "Simulation Type: ";
+        cout << "Simulation Type: " << user_input.GetSimTypeLabel() << endl;
 
     // If not restart, refine mesh and initialize; else load VisItDataCollection
     if (!user_input.UsesRestart())
@@ -159,7 +192,7 @@ void JOTSDriver::ProcessFiniteElementSetup()
         //----------------------------------------------------------------------
         // Define parallel FE space on parallel mesh
         fe_coll = new H1_FECollection(user_input.GetFEOrder(), dim);
-
+        
         fespace = new ParFiniteElementSpace(pmesh, fe_coll);
         
         //----------------------------------------------------------------------
@@ -284,7 +317,8 @@ void JOTSDriver::ProcessMaterialProperties()
         vector<string> mp_info = user_input.GetMaterialPropertyInfo(label);
         vector<double> poly_coeffs;
 
-        switch (Material_Model_Map.at(mp_info[0]))
+        MATERIAL_MODEL mm = Material_Model_Map.at(mp_info[0]);
+        switch (mm)
         {
             case MATERIAL_MODEL::UNIFORM: // Uniform
                 mat_props[mp] = new UniformProperty(stod(mp_info[1].c_str()));
@@ -321,7 +355,7 @@ void JOTSDriver::ProcessTimeIntegration()
         cout << "Time Scheme: " << user_input.GetTimeSchemeLabel() << endl;
         cout << "Time Step: " << user_input.Getdt() << endl;
         cout << "Max Timesteps: " << user_input.GetMaxTimesteps() << endl;
-    
+        cout << "Time Print Frequency: " << user_input.GetTimePrintFreq() << endl;
     }
     //----------------------------------------------------------------------
     // Set dt and max timesteps
@@ -340,9 +374,9 @@ void JOTSDriver::ProcessPrecice()
         cout << "preCICE Config File: " << user_input.GetPreciceConfigFile() << endl;
     }
 
-    adapter = new PreciceAdapter(user_input.GetPreciceParticipantName(), user_input.GetPreciceConfigFile(), rank, size, comm);
+    precice_interface = new JOTSSolverInterface(user_input.GetPreciceParticipantName(), user_input.GetPreciceConfigFile(), rank, size, comm);
 
-    if (adapter->GetDimension() != dim)
+    if (precice_interface->getDimensions() != dim)
     {
         MFEM_ABORT("preCICE dimensions and mesh file dimensions are not the same!");
         return;
@@ -417,7 +451,7 @@ void JOTSDriver::ProcessBoundaryConditions()
             case BOUNDARY_CONDITION::PRECICE_ISOTHERMAL:
                 mesh_name = bc_info[1];
                 value = stod(bc_info[2].c_str());
-                boundary_conditions[i] =  new PreciceIsothermalBC(attr, *fespace, mesh_name, value);
+                boundary_conditions[i] =  new PreciceIsothermalBC(attr, *fespace, mesh_name, value, *mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY]);
                 precice_bc_indices.push_back(i);
                 break;
             case BOUNDARY_CONDITION::PRECICE_HEATFLUX:
@@ -446,9 +480,9 @@ void JOTSDriver::ProcessBoundaryConditions()
         }
     }
     //----------------------------------------------------------------------
-    // Send precice bcs to adapter
+    // Send precice bcs to precice_interface
     if (user_input.UsingPrecice())
-        adapter->AddPreciceBCs(boundary_conditions, precice_bc_indices);
+        precice_interface->SetPreciceBCs(boundary_conditions, precice_bc_indices);
     //----------------------------------------------------------------------
     // Prepare BC attr arrays for applying coefficients
     all_bdr_attr_markers = new Array<int>[user_input.GetBCCount()];
@@ -483,6 +517,40 @@ void JOTSDriver::PrintLinearSolverSettings()
         cout << "Max Iterations: " << user_input.GetMaxIter() << endl;
         cout << "Absolute Tolerance: " << user_input.GetAbsTol() << endl;
         cout << "Relative Tolerance: " << user_input.GetRelTol() << endl;
+        cout << "Print Level: ";
+        vector<string> pl = user_input.GetLinSolPrintLevel();
+        for (size_t i = 0; i < pl.size(); i++)
+        {
+            cout << pl[i];
+            if (i + 1 < pl.size())
+                cout << ',';
+            else
+                cout << endl;
+        }
+    }
+}
+
+void JOTSDriver::PrintNewtonSolverSettings()
+{
+    // Print Newton solver settings
+    if (rank == 0)
+    {
+        cout << "\n";
+        cout << "Newton Solver" << endl;
+        cout << "Max Iterations: " << user_input.GetNewtonMaxIter() << endl;
+        cout << "Absolute Tolerance: " << user_input.GetNewtonAbsTol() << endl;
+        cout << "Relative Tolerance: " << user_input.GetNewtonRelTol() << endl;
+        cout << "Print Level: ";
+        vector<string> pl = user_input.GetNewtonPrintLevel();
+        for (size_t i = 0; i < pl.size(); i++)
+        {
+            cout << pl[i];
+            if (i + 1 < pl.size())
+                cout << ',';
+            else
+                cout << endl;
+        }
+
     }
 }
 
@@ -505,36 +573,36 @@ void JOTSDriver::Run()
         output->WriteVizOutput(it_num, time);
 
     // If using precice: initialize + get/send initial data if needed
-    // Make actual precice interface calls directly here for readability/clarity
     if (user_input.UsingPrecice())
     {
-        precice_dt = adapter->Interface()->initialize();
-        if (adapter->Interface()->isActionRequired(PreciceAdapter::cowid))
+        precice_dt = precice_interface->initialize();
+        if (precice_interface->isActionRequired(JOTSSolverInterface::cowid))
         {
-            adapter->WriteData(u, mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY]);
-            adapter->Interface()->markActionFulfilled(PreciceAdapter::cowid);
+            u_0_gf->SetFromTrueDofs(u);
+            precice_interface->WriteData(*u_0_gf);
+            precice_interface->markActionFulfilled(JOTSSolverInterface::cowid);
         }
-        adapter->Interface()->initializeData();
+        precice_interface->initializeData();
     }
     
     while ((!user_input.UsingPrecice() && it_num < max_timesteps) 
-    || (user_input.UsingPrecice() && adapter->Interface()->isCouplingOngoing())) // use short-circuiting
+    || (user_input.UsingPrecice() && precice_interface->isCouplingOngoing())) // use short-circuiting
     {
         // Handle preCICE calls
         if (user_input.UsingPrecice())
         {
             // Implicit coupling: save state
-            if (adapter->Interface()->isActionRequired(PreciceAdapter::cowic))
+            if (precice_interface->isActionRequired(JOTSSolverInterface::cowic))
             {
                 precice_saved_time = time;
                 precice_saved_it_num = it_num;
-                adapter->SaveOldState(u);
-                adapter->Interface()->markActionFulfilled(PreciceAdapter::cowic);
+                precice_interface->SaveOldState(u);
+                precice_interface->markActionFulfilled(JOTSSolverInterface::cowic);
             }
 
             // Get read data
-            if (adapter->Interface()->isReadDataAvailable())
-                adapter->GetReadData();
+            if (precice_interface->isReadDataAvailable())
+                precice_interface->GetReadData();
 
             // Update timestep if needed
             if (precice_dt < dt)
@@ -544,27 +612,33 @@ void JOTSDriver::Run()
         // Update and Apply BCs
         UpdateAndApplyBCs();
 
+        // Update MPs + apply changes through to iterator 
+        // (note that some may have been changed by non-constant DBCs)
+        UpdateMatProps(true);
+
         // Iterate
         Iteration();
 
         // Write any preCICE data, reload state if needed
         if (user_input.UsingPrecice())
         {
-            if (adapter->Interface()->isWriteDataRequired(dt))
-                adapter->WriteData(u, mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY]);
-
+            if (precice_interface->isWriteDataRequired(dt))
+            {
+                u_0_gf->SetFromTrueDofs(u);
+                // Note: HF is calculated using k.GetLocalValue(), so no UpdateMatProps needed
+                precice_interface->WriteData(*u_0_gf);
+            }
             // Advance preCICE
-            adapter->Interface()->advance(dt);
+            precice_interface->advance(dt);
 
 
             // Implicit coupling
-            if (adapter->Interface()->isActionRequired(PreciceAdapter::coric))
+            if (precice_interface->isActionRequired(JOTSSolverInterface::coric))
             {
                 time = precice_saved_time;
                 it_num = precice_saved_it_num;
-                adapter->ReloadOldState(u);
-                UpdateAndApplyMatProps(); // Update material props w/ reloaded field
-                adapter->Interface()->markActionFulfilled(PreciceAdapter::coric);
+                precice_interface->ReloadOldState(u);
+                precice_interface->markActionFulfilled(JOTSSolverInterface::coric);
                 continue; // skip printing of timestep info AND outputting
             }
         }
@@ -574,23 +648,24 @@ void JOTSDriver::Run()
     
     // Finalize preCICE if used
     if (user_input.UsingPrecice())
-        adapter->Interface()->finalize();
+        precice_interface->finalize();
 
 
 }
 
-void JOTSDriver::UpdateAndApplyMatProps()
+void JOTSDriver::UpdateMatProps(const bool apply_changes)
 {
     for (size_t i = 0; i < Material_Property_Map.size(); i++)
     {
         MATERIAL_PROPERTY mp = MATERIAL_PROPERTY(i);
         if (mat_props[mp] != nullptr && !mat_props[mp]->IsConstant())
         {
-            // Update coefficient using current solution field, ie: k=k(T)
-            mat_props[mp]->UpdateCoeff(u);
+            // Update coefficients using current solution field, ie: k=k(T)
+            mat_props[mp]->UpdateAllCoeffs(u);
             
             // Update any BLFs affected by changed coefficient (Apply)
-            jots_iterator->ProcessMatPropUpdate(mp);
+            if (apply_changes)
+                jots_iterator->ProcessMatPropUpdate(mp);
         }
     }
 }
@@ -647,18 +722,17 @@ void JOTSDriver::Iteration()
     // NOTE: Do NOT use ANY ODE-Solvers that update dt
     jots_iterator->Iterate(u);
     it_num++; // increment it_num - universal metric
-    
-    // Update material properties with new solution field - important to do before preCICE writes
-    UpdateAndApplyMatProps();
 }
 
 void JOTSDriver::PostprocessIteration()
 {   
 
-    // Print current timestep information:
-    if (rank == 0)
+    // Print timestep information if using TimeIntegration:
+    bool time_out = user_input.UsingTimeIntegration() && it_num % user_input.GetTimePrintFreq() == 0;
+    if (time_out)
     {
-        printf("Step #%10i || Time: %1.6e out of %-1.6e || dt: %1.6e \n", it_num, time, dt*max_timesteps, dt);
+        if (rank == 0)
+            printf("Step #%10i || Time: %1.6e out of %-1.6e || dt: %1.6e \n", it_num, time, dt*max_timesteps, dt);
     }
     
     // Check if blow up
@@ -669,36 +743,69 @@ void JOTSDriver::PostprocessIteration()
     }
 
     // Write any output files if required
-    bool viz_out = user_input.GetVisFreq() != 0 && it_num % user_input.GetVisFreq() == 0;
-    bool res_out = user_input.GetRestartFreq() != 0 && it_num % user_input.GetRestartFreq() == 0;
-    if (viz_out || res_out)
+    // If unsteady simulation, then output at input frequencies
+    // If steady, then output ONLY IF viz_freq and restart_freq != 0
+    if (!user_input.UsingTimeIntegration())
     {
-        if (rank == 0)
-            cout << LINE << endl;
-            
-        if (viz_out)
+        // End of simulation reached. Update MPs prior to output w/ most recent solution field.
+        UpdateMatProps(false);
+        if (user_input.GetVisFreq() != 0)
         {
             if (rank == 0)
-                cout << "Saving Paraview Data: Cycle " << it_num << endl;
+            {
+                cout << LINE << endl;
+                cout << "Saving Paraview Data..." << endl;
+            }
             output->WriteVizOutput(it_num, time);
         }
-
-        if (res_out)
+        if (user_input.GetRestartFreq() != 0)
         {
             if (rank == 0)
-                cout << "Saving Restart File: Cycle " << it_num << endl;
+            {
+                cout << "Saving Restart File..." << endl;
+                cout << LINE << endl;
+            }
             output->WriteRestartOutput(it_num, time);
         }
+    }
+    else
+    {
+        bool viz_out = user_input.GetVisFreq() != 0 && it_num % user_input.GetVisFreq() == 0;
+        bool res_out = user_input.GetRestartFreq() != 0 && it_num % user_input.GetRestartFreq() == 0;
+        if (viz_out || res_out)
+        {
+            // Update MPs prior to output w/ most recent solution field.
+            UpdateMatProps(false);
+            if (rank == 0)
+            {    
+                cout << LINE << endl;
+                cout << "Cycle: " << it_num << endl;
+                cout << "Time: " << time << endl;
+            }    
+            if (viz_out)
+            {
+                if (rank == 0)
+                    cout << "Saving Paraview Data..." <<endl;
+                output->WriteVizOutput(it_num, time);
+            }
 
-        if (rank == 0)
-            cout << LINE << endl;
+            if (res_out)
+            {
+                if (rank == 0)
+                    cout << "Saving Restart File..." << endl;
+                output->WriteRestartOutput(it_num, time);
+            }
+
+            if (rank == 0)
+                cout << LINE << endl;
+        }
     }
 }
 
 JOTSDriver::~JOTSDriver()
 {
     delete jots_iterator;
-    delete adapter;
+    delete precice_interface;
     for (size_t i = 0; i < Material_Property_Map.size(); i++)
         delete mat_props[MATERIAL_PROPERTY(i)];
     delete[] mat_props;

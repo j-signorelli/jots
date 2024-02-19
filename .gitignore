@@ -1,7 +1,8 @@
 build/
-examples/*/ParaView/
 examples/*/*/ParaView/
-examples/*/*/precice-*
-examples/*/*/preCICE-output/
+examples/*/*/*/ParaView/
+examples/*/*/*/precice-*
+examples/*/*/*/preCICE-output/
 .vscode/
-examples/*/restart_*
+examples/*/*/restart*
+examples/*/*/*/restart*

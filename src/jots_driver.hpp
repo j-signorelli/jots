@@ -7,10 +7,12 @@
 #include "option_structure.hpp"
 #include "config_file.hpp"
 #include "material_property.hpp"
-#include "precice_adapter.hpp"
+#include "jots_precice.hpp"
 #include "output_manager.hpp"
 #include "jots_iterator.hpp"
-#include "conduction_operator.hpp"
+#include "linear_conduction_operator.hpp"
+#include "nl_conduction_operator.hpp"
+#include "steady_conduction_operator.hpp"
 
 class JOTSDriver
 {   
@@ -22,6 +24,7 @@ class JOTSDriver
         void ProcessPrecice();
         void ProcessBoundaryConditions();
         void PrintLinearSolverSettings();
+        void PrintNewtonSolverSettings();
         void PrintOutput();
 
 
@@ -44,7 +47,7 @@ class JOTSDriver
         JOTSIterator* jots_iterator;
         mfem::Vector u;
 
-        PreciceAdapter* adapter;
+        JOTSSolverInterface* precice_interface;
 
         const Config& user_input;
 
@@ -66,7 +69,7 @@ class JOTSDriver
     public:
         JOTSDriver(const Config& input, const int myid, const int num_procs, MPI_Comm in_comm=MPI_COMM_WORLD);
         
-        void UpdateAndApplyMatProps();
+        void UpdateMatProps(const bool apply_changes);
 
         void UpdateAndApplyBCs();
 
