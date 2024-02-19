@@ -4,10 +4,13 @@ message(STATUS "Testing with MPI using: ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_
 
 configure_file(test_helper.hpp.in test_helper.hpp)
 
+set()
+
 function(add_parallel_reg_test test_name test_category)
     configure_file(${test_name}.ini.in ${test_name}.ini @ONLY)
     add_executable(${test_name} ${test_name}.cpp)
     target_link_libraries(${test_name} PUBLIC jotsLib)
+    target_include_directories(${test_name} PRIVATE ${CMAKE_CURRENT_BINARY_DIR}) # Access the test_helper.hpp file
     add_test(NAME ${test_category}/${test_name} COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} ${MPIEXEC_MAX_NUMPROCS} ./${test_name})
     set_tests_properties(${test_category}/${test_name} PROPERTIES LABELS ${test_category})
 endfunction()
