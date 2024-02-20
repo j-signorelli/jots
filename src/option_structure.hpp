@@ -88,14 +88,14 @@ enum class MATERIAL_MODEL
 static const std::map<std::string, MATERIAL_MODEL> Material_Model_Map = {{"Uniform", MATERIAL_MODEL::UNIFORM},
                                                                              {"Polynomial", MATERIAL_MODEL::POLYNOMIAL}};
                                                                     
-enum class SOLVER
+enum class LINEAR_SOLVER
 {
   CG=0,
   GMRES=1,
   FGMRES=2
 };
 
-static const std::map<std::string, SOLVER> Solver_Map = {{"CG", SOLVER::CG},
+static const std::map<std::string, LINEAR_SOLVER> Linear_Solver_Map = {{"CG", SOLVER::CG},
                                                          {"GMRES", SOLVER::GMRES},
                                                          {"FGMRES", SOLVER::FGMRES}};
 
@@ -109,7 +109,7 @@ enum class PRECONDITIONER
 static const std::map<std::string, PRECONDITIONER> Preconditioner_Map = {{"Jacobi", PRECONDITIONER::JACOBI},
                                                                          {"Chebyshev", PRECONDITIONER::CHEBYSHEV}};
 
-enum class PRINT_LEVEL
+enum class PRINT_LEVEL : int
 {
   NONE=0,
   WARNINGS=1,

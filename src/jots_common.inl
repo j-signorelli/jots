@@ -6,15 +6,15 @@ namespace Factory
 
 inline IterativeSolver* GetSolver(string solver_label, MPI_Comm comm_)
 {
-    switch (Solver_Map.at(solver_label))
+    switch (Linear_Solver_Map.at(solver_label))
     {
-        case SOLVER::CG:
+        case LINEAR_SOLVER::CG:
             return new CGSolver(comm_);
             break;
-        case SOLVER::GMRES:
+        case LINEAR_SOLVER::GMRES:
             return new GMRESSolver(comm_);
             break;
-        case SOLVER::FGMRES:
+        case LINEAR_SOLVER::FGMRES:
             return new FGMRESSolver(comm_);
             break;
     }
