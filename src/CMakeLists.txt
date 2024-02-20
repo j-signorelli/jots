@@ -5,7 +5,7 @@ add_library(jotsLib
                 nl_conduction_operator.cpp
                 steady_conduction_operator.cpp
                 config_file.cpp
-                boundary_condition.cpp
+                thermal_boundary_condition.cpp
                 material_property.cpp
                 jots_precice.cpp
                 output_manager.cpp
