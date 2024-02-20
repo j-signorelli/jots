@@ -109,9 +109,9 @@ class Config
 
         void SetMaterialPropertyInfo(std::string mat_prop_label, std::vector<std::string> info) { mat_prop_info_map[mat_prop_label] = info; };
 
-        bool UsesRestart() const { return use_restart; };
+        bool UsingRestart() const { return use_restart; };
 
-        void SetRestart(bool in_restart) { use_restart = in_restart; };
+        void EnableRestart(bool in_restart) { use_restart = in_restart; };
 
         std::string GetRestartPrefix() const { return restart_prefix; };
         
@@ -125,11 +125,9 @@ class Config
 
         void SetInitialTemp(double in_temp) { initial_temp = in_temp; };
 
-        int GetBCCount() const {return bc_info_map.size(); };
-
         bool UsingPrecice() const { return with_precice; };
 
-        void SetPrecice(bool in_precice) { with_precice = in_precice; };
+        void EnablePrecice(bool in_precice) { with_precice = in_precice; };
 
         std::string GetPreciceParticipantName() const { return precice_participant_name; };
         
@@ -149,7 +147,7 @@ class Config
         
         bool UsingTimeIntegration() const { return using_time_integration; };
 
-        void SetTimeIntegration(bool in_using) { using_time_integration = in_using; };
+        void EnableTimeIntegration(bool in_using) { using_time_integration = in_using; };
 
         void SetTimeSchemeLabel(std::string in_scheme) { time_scheme_label = in_scheme; };
 
@@ -193,7 +191,7 @@ class Config
 
         bool UsingNewton() const { return using_newton; };
         
-        void SetNewton(bool in_newton) { using_newton = in_newton; };
+        void EnableNewton(bool in_newton) { using_newton = in_newton; };
 
         int GetNewtonMaxIter() const { return newton_max_iter; };
 
