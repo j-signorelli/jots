@@ -37,11 +37,10 @@ class Config
         std::string precice_participant_name;
         std::string precice_config_file;
 
-        bool using_thermal_bcs;
-        std::map<int, std::vector<std::string>> thermal_bc_info_map; // Map where key is attribute, value is string vector for that BC
-        
-        bool using_structural_bcs;
-        std::map<int, std::vector<std::string>> structural_bc_info_map;
+        // Prefix is first-level key (________BoundaryConditions)
+        // Boundary attribute is second-level key
+        // Final value is vector<string> of individual values separated by commas in input file
+        std::map<std::string, std::map<int, std::vector<std::string>>> bc_info_map;
 
         bool using_time_integration;
         std::string time_scheme_label;      /*!< \brief Time integration scheme to use */
@@ -72,9 +71,7 @@ class Config
         void ReadIC();
         void ReadPrecice();
 
-        bool ReadBCs(std::string prefix, std::map<int, std::vector<std::string>> &bc_info_map);
-        void ReadThermalBCs() { using_thermal_bcs = ReadBCs("Thermal", thermal_bc_info_map); };
-        void ReadStructuralBCs() { using_structural_bcs = ReadBCs("Structural", structural_bc_info_map); };
+        bool ReadBCs();
         void ReadTimeInt();
         void ReadLinSolSettings();
         void ReadNewtonSettings();
@@ -143,36 +140,18 @@ class Config
     
         void SetPreciceConfigFile(std::string in_file) { precice_config_file = in_file; };
 
-        //int GetBCCount() const { return std::max(thermal_bc_info_map.size(), structural_bc_info_map.size())} // Return max of thermal + structural BC count
-
-        bool UsingThermalBCs() const { return using_thermal_bcs; };
-
-        void EnableThermalBCs(bool in_using) { using_thermal_bcs = in_using; };
-
-        int GetThermalBCCount() const {return thermal_bc_info_map.size(); };
-
-        std::vector<int> GetThermalBCKeys() const { return Helper::GetKeyVector(thermal_bc_info_map); };
-
-        std::vector<std::string> GetThermalBCInfo(int attr) const { return thermal_bc_info_map.at(attr); };
-
-        void SetThermalBCInfo(int attr, std::vector<std::string> in_bc) { thermal_bc_info_map[attr] = in_bc; };
-
-        void DeleteThermalBCInfo(int attr) { thermal_bc_info_map.erase(attr); };
+        std::vector<std::string> GetBCTypes() const { return Helper::GetKeyVector(bc_info_map); };
         
-        bool UsingStructuralBCs() const { return using_structural_bcs; };
+        int GetBCCount(std::string type) const {return bc_info_map[type].size(); };
 
-        void EnableStructuralBCs(bool in_using) { using_structural_bcs = in_using; };
+        std::vector<int> GetBCKeys(std::string type) const { return Helper::GetKeyVector(bc_info_map.at(type)); };
 
-        int GetStructuralBCCount() const {return structural_bc_info_map.size(); };
+        std::vector<std::string> GetBCInfo(std::string type, int attr) const { return bc_info_map.at(type).at(attr); };
 
-        std::vector<int> GetStructuralBCKeys() const { return Helper::GetKeyVector(structural_bc_info_map); };
+        void SetBCInfo(std::string type, int attr, std::vector<std::string> in_bc) { bc_info_map[type][attr] = in_bc; };
 
-        std::vector<std::string> GetStructuralBCInfo(int attr) const { return structural_bc_info_map.at(attr); };
+        void DeleteBCInfo(std::string type, int attr) { bc_info_map[type].erase(attr); };
 
-        void SetStructuralBCInfo(int attr, std::vector<std::string> in_bc) { structural_bc_info_map[attr] = in_bc; };
-
-        void DeleteStructuralBCInfo(int attr) { structural_bc_info_map.erase(attr); };
-        
         bool UsingTimeIntegration() const { return using_time_integration; };
 
         void EnableTimeIntegration(bool in_using) { using_time_integration = in_using; };

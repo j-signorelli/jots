@@ -84,33 +84,44 @@ void Config::ReadPrecice()
         precice_config_file = property_tree.get("preCICE.Config_File", "../precice-config.xml");
     }
 }
-bool Config::ReadBCs(string prefix, map<int, vector<string>> &bc_info_map)
+
+void Config::ReadBCs()
 {
-    stringstream label;
-    label << prefix << "BoundaryConditions";
+    // Read any section with "BoundaryConditions" existing in its header
 
-    if (property_tree.find(label.str()) == property_tree.not_found())
-        return false;
-    
-    // Read BoundaryConditions
-    BOOST_FOREACH(const bp::ptree::value_type &v , property_tree.get_child(label.str()))
-    {   
-        // Get the attribute, split by "_" and get the final element
-        vector<string> label;
-        boost::algorithm::split(label, v.first, boost::algorithm::is_any_of("_"));
+    BOOST_FOREACH(const pair<const string, bp::ptree>& rootNode : property_tree)
+    {
+        const string &root = rootNode.first;
+        size_t found = root.find("BoundaryConditions");
 
-        string s_attr = label.back();
-        int attr = stoi(s_attr);
-
-        // Get the BC type:
-        vector<string> single_bc_info;
-        SetInputStringVector(v.second.data(), single_bc_info);
+        if (found == string::npos)
+            continue;
         
-        // Add to bc_info_map
-        bc_info_map[attr] = single_bc_info;
-        
+        string type = root.substr(0, root.size() - found);
+        cout << "Type: " << type;
+
+        stringstream label;
+        label << type << "BoundaryConditions";
+        // Read "[__type__BoundaryConditions]"
+        BOOST_FOREACH(const bp::ptree::value_type &v , property_tree.get_child(label.str()))
+        {   
+            // Get the attribute, split by "_" and get the final element
+            vector<string> label;
+            boost::algorithm::split(label, v.first, boost::algorithm::is_any_of("_"));
+
+            string s_attr = label.back();
+            int attr = stoi(s_attr);
+
+            // Get the BC type:
+            vector<string> single_bc_info;
+            SetInputStringVector(v.second.data(), single_bc_info);
+            
+            // Add to bc_info_map
+            bc_info_map[type][attr] = single_bc_info;
+            
+        }
     }
-    return true;
+
 }
 
 void Config::ReadTimeInt()
