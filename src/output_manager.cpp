@@ -22,7 +22,7 @@ OutputManager::OutputManager(const int in_rank, ParFiniteElementSpace& f, const 
     //------------------------------------------------
     // Set up ParaView outputting
     paraview_dc = new ParaViewDataCollection("ParaView", fespace.GetParMesh());
-    paraview_dc->UseRestartMode(user_input.UsesRestart());
+    paraview_dc->UseRestartMode(user_input.UsingRestart());
     paraview_dc->SetLevelsOfDetail(user_input.GetFEOrder());
     paraview_dc->SetDataFormat(VTKFormat::BINARY);
     paraview_dc->SetHighOrderOutput(true);

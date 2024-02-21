@@ -147,7 +147,7 @@ void JOTSDriver::ProcessFiniteElementSetup()
         cout << "Simulation Type: " << user_input.GetSimTypeLabel() << endl;
 
     // If not restart, refine mesh and initialize; else load VisItDataCollection
-    if (!user_input.UsesRestart())
+    if (!user_input.UsingRestart())
     {
         if (rank == 0)
             cout << "Non-restart simulation..." << endl;

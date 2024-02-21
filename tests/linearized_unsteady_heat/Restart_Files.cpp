@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
 
     // Get new Config and update to make it a restarted version of previous
     Config input_r(input_file_0);
-    input_r.SetRestart(true);
+    input_r.EnableRestart(true);
     input_r.SetRestartCycle(input_0.GetRestartFreq());
     
     // Create restarted JOTSDriver
