@@ -13,7 +13,8 @@ Config::Config(const char* in_file) : input_file(in_file)
     ReadFESetup();
     ReadMatProps();
     ReadPrecice();
-    ReadBCs();
+    ReadThermalBCs();
+    ReadStructuralBCs();
     ReadTimeInt();
     ReadLinSolSettings();
     ReadNewtonSettings();
@@ -83,12 +84,16 @@ void Config::ReadPrecice()
         precice_config_file = property_tree.get("preCICE.Config_File", "../precice-config.xml");
     }
 }
-void Config::ReadBCs()
+bool Config::ReadBCs(string prefix, map<int, vector<string>> &bc_info_map)
 {
-    // Read BoundaryConditions
-    bc_count = property_tree.get_child("BoundaryConditions").size();
+    stringstream label;
+    label << prefix << "BoundaryConditions";
 
-    BOOST_FOREACH(const bp::ptree::value_type &v , property_tree.get_child("BoundaryConditions"))
+    if (property_tree.find(label.str()) == property_tree.not_found())
+        return false;
+    
+    // Read BoundaryConditions
+    BOOST_FOREACH(const bp::ptree::value_type &v , property_tree.get_child(label.str()))
     {   
         // Get the attribute, split by "_" and get the final element
         vector<string> label;
@@ -105,6 +110,7 @@ void Config::ReadBCs()
         bc_info_map[attr] = single_bc_info;
         
     }
+    return true;
 }
 
 void Config::ReadTimeInt()
