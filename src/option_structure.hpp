@@ -95,9 +95,9 @@ enum class LINEAR_SOLVER
   FGMRES=2
 };
 
-static const std::map<std::string, LINEAR_SOLVER> Linear_Solver_Map = {{"CG", SOLVER::CG},
-                                                         {"GMRES", SOLVER::GMRES},
-                                                         {"FGMRES", SOLVER::FGMRES}};
+static const std::map<std::string, LINEAR_SOLVER> Linear_Solver_Map = {{"CG", LINEAR_SOLVER::CG},
+                                                         {"GMRES", LINEAR_SOLVER::GMRES},
+                                                         {"FGMRES", LINEAR_SOLVER::FGMRES}};
 
 
 enum class PRECONDITIONER
