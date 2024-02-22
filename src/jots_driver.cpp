@@ -14,13 +14,14 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
   time(0.0),
   dt(0.0),
   max_timesteps(0),
-  jots_iterator(nullptr),
+  jots_iterator(), // initialize all ptrs to nullptr
+  u(),
   precice_interface(nullptr),
   user_input(input),
-  boundary_conditions(nullptr),
+  boundary_conditions(),
   all_bdr_attr_markers(nullptr),
   initialized_bcs(false),
-  mat_props(nullptr),
+  mat_props(),
   pmesh(nullptr),
   fe_coll(nullptr),
   fespace(nullptr),
@@ -103,10 +104,6 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
         cout << LINE << endl;
         cout << "Initializing iterator/s... ";
     }
-
-    jots_iterator = new JOTSIterator*[Iterator_Type_Map.size()];
-    for (size_t i = 0; i < Iterator_Type_Map.size(); i++)
-        jots_iterator[i] = nullptr;
 
     switch (Simulation_Type_Map.at(user_input.GetSimTypeLabel()))
     {
@@ -299,11 +296,6 @@ void JOTSDriver::ProcessMaterialProperties()
     if (rank == 0)
         cout << "\n";
 
-    // Instantiate material property array w/ max number of mat props
-    mat_props = new MaterialProperty*[Material_Property_Map.size()];
-    for (size_t i = 0; i < Material_Property_Map.size(); i++)
-        mat_props[i] = nullptr;
-
     // Loop over INPUT material property info map from Config
     // Get keys
     vector<string> in_mat_prop_labels = user_input.GetMaterialPropertyKeys();
@@ -390,12 +382,7 @@ void JOTSDriver::ProcessPrecice()
 
 void JOTSDriver::ProcessBoundaryConditions()
 {
-    boundary_conditions = new BoundaryCondition**[Iterator_Type_Map.size()];
-    for (size_t type_i = 0; type_i < Iterator_Type_Map.size(); type_i++)
-        boundary_conditions[type_i] = nullptr;
-    
     // Verify input config BCs appropriately match input mesh BCs
-
     // Loop through user input BCs
     vector<string> in_bc_types = user_input.GetBCTypes();
     for (size_t i = 0; i < in_bc_types.size(); i++)
@@ -689,7 +676,7 @@ void JOTSDriver::Run()
 
 void JOTSDriver::UpdateMatProps(const bool apply_changes)
 {
-    for (size_t mp = 0; mp < Material_Property_Map.size(); mp++)
+    for (size_t mp = 0; mp < MATERIAL_PROPERTY_SIZE; mp++)
     {
         if (mat_props[mp] != nullptr && !mat_props[mp]->IsConstant())
         {
@@ -699,10 +686,10 @@ void JOTSDriver::UpdateMatProps(const bool apply_changes)
             // Update any BLFs affected by changed coefficient (Apply)
             if (apply_changes)
             {
-                for (size_t it = 0; it < Iterator_Type_Map.size(); it++)
+                for (size_t it = 0; it < ITERATOR_TYPE_SIZE; it++)
                 {
                     if (jots_iterator[it])
-                        jots_iterator[it]->ProcessMatPropUpdate(mp);
+                        jots_iterator[it]->ProcessMatPropUpdate(MATERIAL_PROPERTY(mp));
                 }
             }
         }
@@ -716,9 +703,9 @@ void JOTSDriver::UpdateAndApplyBCs()
     u_0_gf->SetFromTrueDofs(u);
 
     // Loop over every iterator
-    for (size_t it = 0; it < Iterator_Type_Map.size(); it++)
+    for (size_t it = 0; it < ITERATOR_TYPE_SIZE; it++)
     {
-        if (boundary_conditions[it_type] == nullptr)
+        if (boundary_conditions[it] == nullptr)
             continue;
         
         bool n_changed = false;
@@ -728,15 +715,15 @@ void JOTSDriver::UpdateAndApplyBCs()
         for (int j = 0; j < pmesh->bdr_attributes.Size(); j++)
         {   
             // Update coefficients (could be preCICE calls, could be SetTime calls, etc.)
-            if (!boundary_conditions[it_type][j]->IsConstant() || !initialized_bcs) // If not constant in time or not yet initialized for first iteration
+            if (!boundary_conditions[it][j]->IsConstant() || !initialized_bcs) // If not constant in time or not yet initialized for first iteration
             {
-                boundary_conditions[it_type][j]->UpdateCoeff(time);
+                boundary_conditions[it][j]->UpdateCoeff(time);
 
-                if (boundary_conditions[it_type][j]->IsEssential())
+                if (boundary_conditions[it][j]->IsEssential())
                 {
                     // Project correct values on boundary for essential BCs
                     d_changed = true;
-                    u_0_gf->ProjectBdrCoefficient(boundary_conditions[it_type][j]->GetCoeffRef(), all_bdr_attr_markers[j]);
+                    u_0_gf->ProjectBdrCoefficient(boundary_conditions[it][j]->GetCoeffRef(), all_bdr_attr_markers[j]);
                 }
                 else
                 {
@@ -756,7 +743,7 @@ void JOTSDriver::UpdateAndApplyBCs()
 
         // If any non-constant Neumann terms, update Neumann linear form
         if (n_changed)
-            jots_iterator[it_type]->UpdateNeumann();
+            jots_iterator[it]->UpdateNeumann();
     }
     if (!initialized_bcs)
         initialized_bcs = true;
@@ -767,7 +754,7 @@ void JOTSDriver::Iteration()
 {
     // Step simulation
     // NOTE: Do NOT use ANY ODE-Solvers that update dt
-    for (size_t i = 0; i < Iterator_Type_Map.size(); i++)
+    for (size_t i = 0; i < ITERATOR_TYPE_SIZE; i++)
         if (jots_iterator[i])
             jots_iterator[i]->Iterate(u);
     it_num++; // increment it_num - universal metric
@@ -853,14 +840,12 @@ void JOTSDriver::PostprocessIteration()
 
 JOTSDriver::~JOTSDriver()
 {
-    for (size_t i = 0; i < Iterator_Type_Map.size(); i++)
+    for (size_t i = 0; i < ITERATOR_TYPE_SIZE; i++)
         delete jots_iterator[i];
-    delete[] jots_iterator;
     delete precice_interface;
-    for (size_t i = 0; i < Material_Property_Map.size(); i++)
+    for (size_t i = 0; i < MATERIAL_PROPERTY_SIZE; i++)
         delete mat_props[i];
-    delete[] mat_props;
-    for (int i = 0; i < Iterator_Type_Map.size(); i++)
+    for (int i = 0; i < ITERATOR_TYPE_SIZE; i++)
     {
         if (boundary_conditions[i])
         {
@@ -871,7 +856,6 @@ JOTSDriver::~JOTSDriver()
         else
             delete boundary_conditions[i];
     }
-    delete[] boundary_conditions;
     delete[] all_bdr_attr_markers;
     delete pmesh;
     delete fe_coll;

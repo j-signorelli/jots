@@ -44,18 +44,19 @@ class JOTSDriver
         double dt;
         int max_timesteps;
 
-        JOTSIterator** jots_iterator;
+        JOTSIterator* jots_iterator[ITERATOR_TYPE_SIZE];
+        //mfem::Vector* u[Iterator_Type_Map.size()];
         mfem::Vector u;
-
+        
         JOTSSolverInterface* precice_interface;
 
         const Config& user_input;
 
-        BoundaryCondition*** boundary_conditions;
+        BoundaryCondition** boundary_conditions[ITERATOR_TYPE_SIZE];
         Array<int>* all_bdr_attr_markers;
         bool initialized_bcs;
 
-        MaterialProperty** mat_props;
+        MaterialProperty* mat_props[MATERIAL_PROPERTY_SIZE];
 
         mfem::ParMesh* pmesh;
         mfem::FiniteElementCollection* fe_coll;

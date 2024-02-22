@@ -2,18 +2,26 @@
 #include <string>
 #include <map>
 
-// This idea for arranging settings below was taken from SU2 v6.0:
+// This idea for arranging settings below was taken from SU2 v6.0.
 
+// Because std::map::size() is not an integral-constant expression (evaluated at runtime), 
+// although the sizes and values of each map below are known at compile-time,
+// an alternative approach using the std::map iteration constructor is used for enum int types,
+// where a size is needed for initialization.
+
+// Pairs in each map are specified in an array
+// See https://stackoverflow.com/questions/65670462/elegant-way-to-ensure-a-stdmap-has-a-concrete-size-in-compilation-time
+// and https://stackoverflow.com/questions/2172053/c-can-i-statically-initialize-a-stdmap-at-compile-time
 
 enum class SIMULATION_TYPE
 {
-  LINEARIZED_UNSTEADY=0,
-  NONLINEAR_UNSTEADY=1,
-  STEADY=2 // Only Nonlinear Newton solver
+  LINEARIZED_UNSTEADY,
+  NONLINEAR_UNSTEADY,
+  STEADY
 };
 static const std::map<std::string, SIMULATION_TYPE> Simulation_Type_Map = {{"Linearized_Unsteady", SIMULATION_TYPE::LINEARIZED_UNSTEADY},
-                                                                           {"Nonlinear_Unsteady", SIMULATION_TYPE::NONLINEAR_UNSTEADY},
-                                                                           {"Steady", SIMULATION_TYPE::STEADY}};
+                                                                        {"Nonlinear_Unsteady", SIMULATION_TYPE::NONLINEAR_UNSTEADY},
+                                                                        {"Steady", SIMULATION_TYPE::STEADY}};
 
 
 enum MATERIAL_PROPERTY : int
@@ -22,36 +30,24 @@ enum MATERIAL_PROPERTY : int
   SPECIFIC_HEAT=1,
   THERMAL_CONDUCTIVITY=2
 };
+static const std::map<std::string, MATERIAL_PROPERTY>::value_type Material_Property_Pairs[] = {{"Density_rho", MATERIAL_PROPERTY::DENSITY},
+                                                                                               {"Specific_Heat_C", MATERIAL_PROPERTY::SPECIFIC_HEAT},
+                                                                                               {"Thermal_Conductivity_k", MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY}};
+static const int MATERIAL_PROPERTY_SIZE = end(Material_Property_Pairs) - begin(Material_Property_Pairs);
+static const std::map<std::string, MATERIAL_PROPERTY> Material_Property_Map(begin(Material_Property_Pairs), end(Material_Property_Pairs));
 
-static const std::map<std::string, MATERIAL_PROPERTY> Material_Property_Map = {{"Density_rho", MATERIAL_PROPERTY::DENSITY},
-                                                                               {"Specific_Heat_C", MATERIAL_PROPERTY::SPECIFIC_HEAT},
-                                                                               {"Thermal_Conductivity_k", MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY}};
+
 
 enum class TIME_SCHEME
 {
-
-    // Implicit L-stable methods
-    EULER_IMPLICIT = 0,
-    //case 2:  ode_solver = new SDIRK23Solver(2); break;
-    //case 3:  ode_solver = new SDIRK33Solver; break;
-
-    // Explicit methods
-    EULER_EXPLICIT = 1,
-    RK4 = 2
-    //case 12: ode_solver = new RK2Solver(0.5); break; // midpoint method
-    //case 13: ode_solver = new RK3SSPSolver; break;
-    //case 14: ode_solver = new RK4Solver; break;
-    //case 15: ode_solver = new GeneralizedAlphaSolver(0.5); break;
-
-    // Implicit A-stable methods (not L-stable)
-    //case 22: ode_solver = new ImplicitMidpointSolver; break;
-    //case 23: ode_solver = new SDIRK23Solver; break;
-    //case 24: ode_solver = new SDIRK34Solver; break;
+    EULER_IMPLICIT,
+    EULER_EXPLICIT,
+    RK4
 };
 
 static const std::map<std::string, TIME_SCHEME> Time_Scheme_Map = {{"Euler_Implicit", TIME_SCHEME::EULER_IMPLICIT},
-                                                         {"Euler_Explicit", TIME_SCHEME::EULER_EXPLICIT},
-                                                         {"RK4", TIME_SCHEME::RK4}};
+                                                                                 {"Euler_Explicit", TIME_SCHEME::EULER_EXPLICIT},
+                                                                                 {"RK4", TIME_SCHEME::RK4}};
 
 enum class BOUNDARY_CONDITION
 {
@@ -64,16 +60,16 @@ enum class BOUNDARY_CONDITION
 };
 
 static const std::map<std::string, BOUNDARY_CONDITION> Boundary_Condition_Map = {{"HeatFlux", BOUNDARY_CONDITION::HEATFLUX},
-                                                                       {"Isothermal", BOUNDARY_CONDITION::ISOTHERMAL},
-                                                                       {"Sinusoidal_Isothermal", BOUNDARY_CONDITION::SINUSOIDAL_ISOTHERMAL},
-                                                                       {"Sinusoidal_HeatFlux", BOUNDARY_CONDITION::SINUSOIDAL_HEATFLUX},
-                                                                       {"preCICE_HeatFlux",  BOUNDARY_CONDITION::PRECICE_HEATFLUX},
-                                                                       {"preCICE_Isothermal", BOUNDARY_CONDITION::PRECICE_ISOTHERMAL}};
+                                                                                            {"Isothermal", BOUNDARY_CONDITION::ISOTHERMAL},
+                                                                                            {"Sinusoidal_Isothermal", BOUNDARY_CONDITION::SINUSOIDAL_ISOTHERMAL},
+                                                                                            {"Sinusoidal_HeatFlux", BOUNDARY_CONDITION::SINUSOIDAL_HEATFLUX},
+                                                                                            {"preCICE_HeatFlux",  BOUNDARY_CONDITION::PRECICE_HEATFLUX},
+                                                                                            {"preCICE_Isothermal", BOUNDARY_CONDITION::PRECICE_ISOTHERMAL}};
 
 enum class BINARY_CHOICE
 {
-  NO = 0,
-  YES = 1
+  NO,
+  YES
 };
 
 static const std::map<std::string, BINARY_CHOICE> Binary_Choice_Map = {{"Yes", BINARY_CHOICE::YES},
@@ -81,8 +77,8 @@ static const std::map<std::string, BINARY_CHOICE> Binary_Choice_Map = {{"Yes", B
 
 enum class MATERIAL_MODEL
 {
-  UNIFORM=0,
-  POLYNOMIAL=1
+  UNIFORM,
+  POLYNOMIAL
 };
 
 static const std::map<std::string, MATERIAL_MODEL> Material_Model_Map = {{"Uniform", MATERIAL_MODEL::UNIFORM},
@@ -90,9 +86,9 @@ static const std::map<std::string, MATERIAL_MODEL> Material_Model_Map = {{"Unifo
                                                                     
 enum class LINEAR_SOLVER
 {
-  CG=0,
-  GMRES=1,
-  FGMRES=2
+  CG,
+  GMRES,
+  FGMRES
 };
 
 static const std::map<std::string, LINEAR_SOLVER> Linear_Solver_Map = {{"CG", LINEAR_SOLVER::CG},
@@ -102,22 +98,22 @@ static const std::map<std::string, LINEAR_SOLVER> Linear_Solver_Map = {{"CG", LI
 
 enum class PRECONDITIONER
 {
-  JACOBI=0,
-  CHEBYSHEV=16
+  JACOBI,
+  CHEBYSHEV
 };
 
 static const std::map<std::string, PRECONDITIONER> Preconditioner_Map = {{"Jacobi", PRECONDITIONER::JACOBI},
                                                                          {"Chebyshev", PRECONDITIONER::CHEBYSHEV}};
 
-enum class PRINT_LEVEL : int
+enum class PRINT_LEVEL
 {
-  NONE=0,
-  WARNINGS=1,
-  ERRORS=2,
-  ITERATIONS=3,
-  FIRSTANDLAST=4,
-  SUMMARY=5,
-  ALL=6
+  NONE,
+  WARNINGS,
+  ERRORS,
+  ITERATIONS,
+  FIRSTANDLAST,
+  SUMMARY,
+  ALL
 };
 
 static const std::map<std::string, PRINT_LEVEL> Print_Level_Map = {{"None", PRINT_LEVEL::NONE},
@@ -135,5 +131,7 @@ enum ITERATOR_TYPE : int
     STRUCTURAL=1
 };
 
-static const std::map<std::string, ITERATOR_TYPE> Iterator_Type_Map = {{"Thermal", ITERATOR_TYPE::THERMAL},
-                                                                       {"Structural", ITERATOR_TYPE::STRUCTURAL}};
+static const std::map<std::string, ITERATOR_TYPE>::value_type Iterator_Type_Pairs[] = {{"Thermal", ITERATOR_TYPE::THERMAL},
+                                                                                       {"Structural", ITERATOR_TYPE::STRUCTURAL}};
+static const int ITERATOR_TYPE_SIZE = end(Iterator_Type_Pairs) - begin(Iterator_Type_Pairs);
+static const std::map<std::string, ITERATOR_TYPE> Iterator_Type_Map(begin(Iterator_Type_Pairs), end(Iterator_Type_Pairs));
