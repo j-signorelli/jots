@@ -101,12 +101,17 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
     if (rank == 0)
     {
         cout << LINE << endl;
-        cout << "Initializing iterator... ";
+        cout << "Initializing iterator/s... ";
     }
+
+    jots_iterator = new JOTSIterator*[Iterator_Type_Map.size()];
+    for (size_t i = 0; i < Iterator_Type_Map.size(); i++)
+        jots_iterator[i] = nullptr;
+
     switch (Simulation_Type_Map.at(user_input.GetSimTypeLabel()))
     {
         case SIMULATION_TYPE::LINEARIZED_UNSTEADY:
-            jots_iterator = new LinearConductionOperator(user_input,
+            jots_iterator[ITERATOR_TYPE::THERMAL] = new LinearConductionOperator(user_input,
                                              boundary_conditions[ITERATOR_TYPE::THERMAL],
                                              all_bdr_attr_markers,
                                              *mat_props[MATERIAL_PROPERTY::DENSITY],
@@ -117,7 +122,7 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
                                              dt);
             break;
         case SIMULATION_TYPE::NONLINEAR_UNSTEADY:
-            jots_iterator = new NonlinearConductionOperator(user_input,
+            jots_iterator[ITERATOR_TYPE::THERMAL] = new NonlinearConductionOperator(user_input,
                                              boundary_conditions[ITERATOR_TYPE::THERMAL],
                                              all_bdr_attr_markers,
                                              *mat_props[MATERIAL_PROPERTY::DENSITY],
@@ -128,7 +133,7 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
                                              dt);
             break;
         case SIMULATION_TYPE::STEADY:
-            jots_iterator = new SteadyConductionOperator(user_input, 
+            jots_iterator[ITERATOR_TYPE::THERMAL] = new SteadyConductionOperator(user_input, 
                                                     boundary_conditions[ITERATOR_TYPE::THERMAL],
                                                     all_bdr_attr_markers,
                                                     *mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY],
@@ -694,7 +699,13 @@ void JOTSDriver::UpdateMatProps(const bool apply_changes)
             
             // Update any BLFs affected by changed coefficient (Apply)
             if (apply_changes)
-                jots_iterator->ProcessMatPropUpdate(mp);
+            {
+                for (size_t i = 0; i < Iterator_Type_Map.size(); i++)
+                {
+                    if (jots_iterator[i])
+                        jots_iterator[i]->ProcessMatPropUpdate(mp);
+                }
+            }
         }
     }
 }
@@ -747,7 +758,7 @@ void JOTSDriver::UpdateAndApplyBCs()
 
         // If any non-constant Neumann terms, update Neumann linear form
         if (n_changed)
-            jots_iterator->UpdateNeumann();
+            jots_iterator[it_type]->UpdateNeumann();
     }
     if (!initialized_bcs)
         initialized_bcs = true;
@@ -758,7 +769,9 @@ void JOTSDriver::Iteration()
 {
     // Step simulation
     // NOTE: Do NOT use ANY ODE-Solvers that update dt
-    jots_iterator->Iterate(u);
+    for (size_t i = 0; i < Iterator_Type_Map.size(); i++)
+        if (jots_iterator[i])
+            jots_iterator[i]->Iterate(u);
     it_num++; // increment it_num - universal metric
 }
 
@@ -842,10 +855,12 @@ void JOTSDriver::PostprocessIteration()
 
 JOTSDriver::~JOTSDriver()
 {
-    delete jots_iterator;
+    for (size_t i = 0; i < Iterator_Type_Map.size(); i++)
+        delete jots_iterator[i];
+    delete[] jots_iterator;
     delete precice_interface;
     for (size_t i = 0; i < Material_Property_Map.size(); i++)
-        delete mat_props[MATERIAL_PROPERTY(i)];
+        delete mat_props[i];
     delete[] mat_props;
     for (int i = 0; i < Iterator_Type_Map.size(); i++)
     {

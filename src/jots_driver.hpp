@@ -44,7 +44,7 @@ class JOTSDriver
         double dt;
         int max_timesteps;
 
-        JOTSIterator* jots_iterator;
+        JOTSIterator** jots_iterator;
         mfem::Vector u;
 
         JOTSSolverInterface* precice_interface;
