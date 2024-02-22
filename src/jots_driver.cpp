@@ -689,9 +689,8 @@ void JOTSDriver::Run()
 
 void JOTSDriver::UpdateMatProps(const bool apply_changes)
 {
-    for (size_t i = 0; i < Material_Property_Map.size(); i++)
+    for (size_t mp = 0; mp < Material_Property_Map.size(); mp++)
     {
-        MATERIAL_PROPERTY mp = MATERIAL_PROPERTY(i);
         if (mat_props[mp] != nullptr && !mat_props[mp]->IsConstant())
         {
             // Update coefficients using current solution field, ie: k=k(T)
@@ -700,10 +699,10 @@ void JOTSDriver::UpdateMatProps(const bool apply_changes)
             // Update any BLFs affected by changed coefficient (Apply)
             if (apply_changes)
             {
-                for (size_t i = 0; i < Iterator_Type_Map.size(); i++)
+                for (size_t it = 0; it < Iterator_Type_Map.size(); it++)
                 {
-                    if (jots_iterator[i])
-                        jots_iterator[i]->ProcessMatPropUpdate(mp);
+                    if (jots_iterator[it])
+                        jots_iterator[it]->ProcessMatPropUpdate(mp);
                 }
             }
         }
@@ -717,9 +716,8 @@ void JOTSDriver::UpdateAndApplyBCs()
     u_0_gf->SetFromTrueDofs(u);
 
     // Loop over every iterator
-    for (size_t i = 0; i < Iterator_Type_Map.size(); i++)
+    for (size_t it = 0; it < Iterator_Type_Map.size(); it++)
     {
-        ITERATOR_TYPE it_type = ITERATOR_TYPE(i);
         if (boundary_conditions[it_type] == nullptr)
             continue;
         
