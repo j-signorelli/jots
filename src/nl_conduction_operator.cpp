@@ -165,7 +165,7 @@ double NonlinearConductionOperator::dBetaCoefficient::Eval(ElementTransformation
 
 NonlinearConductionOperator::NonlinearConductionOperator(const Config& in_config, const BoundaryCondition* const* in_bcs, Array<int>* all_bdr_attr_markers, MaterialProperty& rho_prop, MaterialProperty& C_prop, MaterialProperty& k_prop, ParFiniteElementSpace &f, double& time_, double& dt_)
 :  TimeDependentOperator(f.GetTrueVSize(), time_),
-   JOTSIterator(f, in_bcs, all_bdr_attr_markers, in_config.GetBCCount()),
+   JOTSIterator(f, in_bcs, all_bdr_attr_markers, f.GetParMesh()->bdr_attributes.Size()),
    time(time_),
    dt(dt_),
    ode_solver(nullptr),

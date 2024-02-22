@@ -14,7 +14,7 @@ using namespace std;
  */
 LinearConductionOperator::LinearConductionOperator(const Config &in_config, const BoundaryCondition* const* in_bcs, mfem::Array<int>* all_bdr_attr_markers, const MaterialProperty &rho_prop, const MaterialProperty &C_prop, const MaterialProperty &k_prop, ParFiniteElementSpace &f, double &t_ref, double &dt_ref)
 :  TimeDependentOperator(f.GetTrueVSize(), t_ref),
-   JOTSIterator(f, in_bcs, all_bdr_attr_markers, in_config.GetBCCount()),
+   JOTSIterator(f, in_bcs, all_bdr_attr_markers, f.GetParMesh()->bdr_attributes.Size()),
    time(t_ref),
    dt(dt_ref), 
    rho_C(rho_prop.GetCoeffRef(), C_prop.GetCoeffRef()),
