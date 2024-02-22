@@ -71,7 +71,7 @@ class Config
         void ReadIC();
         void ReadPrecice();
 
-        bool ReadBCs();
+        void ReadBCs();
         void ReadTimeInt();
         void ReadLinSolSettings();
         void ReadNewtonSettings();
@@ -142,7 +142,7 @@ class Config
 
         std::vector<std::string> GetBCTypes() const { return Helper::GetKeyVector(bc_info_map); };
         
-        int GetBCCount(std::string type) const {return bc_info_map[type].size(); };
+        int GetBCCount(std::string type) const {return bc_info_map.at(type).size(); };
 
         std::vector<int> GetBCKeys(std::string type) const { return Helper::GetKeyVector(bc_info_map.at(type)); };
 

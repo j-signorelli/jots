@@ -13,8 +13,7 @@ Config::Config(const char* in_file) : input_file(in_file)
     ReadFESetup();
     ReadMatProps();
     ReadPrecice();
-    ReadThermalBCs();
-    ReadStructuralBCs();
+    ReadBCs();
     ReadTimeInt();
     ReadLinSolSettings();
     ReadNewtonSettings();
@@ -89,9 +88,9 @@ void Config::ReadBCs()
 {
     // Read any section with "BoundaryConditions" existing in its header
 
-    BOOST_FOREACH(const pair<const string, bp::ptree>& rootNode : property_tree)
+    for (bp::ptree::iterator it = property_tree.begin(); it != property_tree.end(); it++)
     {
-        const string &root = rootNode.first;
+        const string &root = it->first;
         size_t found = root.find("BoundaryConditions");
 
         if (found == string::npos)
