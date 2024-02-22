@@ -129,7 +129,7 @@ static const std::map<std::string, PRINT_LEVEL> Print_Level_Map = {{"None", PRIN
                                                                     {"All", PRINT_LEVEL::ALL}};
 
 
-enum class ITERATOR_TYPE : int
+enum ITERATOR_TYPE : int
 {
     THERMAL=0,
     STRUCTURAL=1
