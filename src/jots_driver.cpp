@@ -107,7 +107,7 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
     {
         case SIMULATION_TYPE::LINEARIZED_UNSTEADY:
             jots_iterator = new LinearConductionOperator(user_input,
-                                             boundary_conditions,
+                                             boundary_conditions[ITERATOR_TYPE::THERMAL],
                                              all_bdr_attr_markers,
                                              *mat_props[MATERIAL_PROPERTY::DENSITY],
                                              *mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT],
@@ -118,7 +118,7 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
             break;
         case SIMULATION_TYPE::NONLINEAR_UNSTEADY:
             jots_iterator = new NonlinearConductionOperator(user_input,
-                                             boundary_conditions,
+                                             boundary_conditions[ITERATOR_TYPE::THERMAL],
                                              all_bdr_attr_markers,
                                              *mat_props[MATERIAL_PROPERTY::DENSITY],
                                              *mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT],
@@ -129,7 +129,7 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
             break;
         case SIMULATION_TYPE::STEADY:
             jots_iterator = new SteadyConductionOperator(user_input, 
-                                                    boundary_conditions,
+                                                    boundary_conditions[ITERATOR_TYPE::THERMAL],
                                                     all_bdr_attr_markers,
                                                     *mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY],
                                                     *fespace);
@@ -385,124 +385,153 @@ void JOTSDriver::ProcessPrecice()
 
 void JOTSDriver::ProcessBoundaryConditions()
 {
-    // Verify input config BCs appropriately match input mesh BCs
-    if (rank == 0)
-        cout << "\n";
-
-    // Confirm user input matches mesh bdr_attributes size...
-    // Check count
-    if (pmesh->bdr_attributes.Size() != user_input.GetBCCount())
-    {
-        if (rank == 0)
-            MFEM_ABORT("Input file BC count and mesh BC counts do not match.");
-        return;
-    }
+    boundary_conditions = new BoundaryCondition**[Iterator_Type_Map.size()];
+    for (size_t type_i = 0; type_i < Iterator_Type_Map.size(); type_i++)
+        boundary_conditions[type_i] = nullptr;
     
-    // Check one-to-oneness
-    vector<int> bc_keys = user_input.GetBCKeys();
-    for (int i = 0; i < pmesh->bdr_attributes.Size(); i++)
-    {
-        int attr = pmesh->bdr_attributes[i];
-        bool one_to_one = false;
+    // Verify input config BCs appropriately match input mesh BCs
 
-        for (size_t j = 0; j < bc_keys.size(); j++)
+    // Loop through user input BCs
+    vector<string> in_bc_types = user_input.GetBCTypes();
+    for (size_t i = 0; i < in_bc_types.size(); i++)
+    {
+        string type = in_bc_types[i];
+
+        if (rank == 0)
+            cout << "\n" << type << " Boundary Conditions:" << endl;
+
+        ITERATOR_TYPE it_type = Iterator_Type_Map.at(type);
+
+        vector<int> bc_keys = user_input.GetBCKeys(type);
+
+        // Confirm user input matches mesh bdr_attributes size...
+        // Check count
+        if (pmesh->bdr_attributes.Size() != bc_keys.size())
         {
-            if (attr == bc_keys[j])
-            {
-                one_to_one = true;
-                j = bc_keys.size();
-            }
+            MFEM_ABORT("Input file BC count and mesh BC counts do not match.");
+            return;
         }
-        if (!one_to_one)
-        {   
-            if (rank == 0)
+
+        // Check one-to-oneness
+        for (int j = 0; j < pmesh->bdr_attributes.Size(); j++)
+        {
+            int attr = pmesh->bdr_attributes[j];
+            bool one_to_one = false;
+
+            for (size_t k = 0; k < bc_keys.size(); k++)
             {
+                if (attr == bc_keys[k])
+                {
+                    one_to_one = true;
+                    k = bc_keys.size();
+                }
+            }
+            if (!one_to_one)
+            {   
                 stringstream sstm;
                 sstm << "No matching boundary attribute in config file for attribute " << attr;
                 MFEM_ABORT(sstm.str());
-            }
-            return;
-        }
-    }
-    //----------------------------------------------------------------------
-    // Instantiate boundary conditions + save any precice bc indices
-    vector<int> precice_bc_indices;
-    boundary_conditions = new BoundaryCondition*[user_input.GetBCCount()];
-    for (int i = 0; i < user_input.GetBCCount(); i++)
-    {   
-        int attr = pmesh->bdr_attributes[i];
-        vector<string> bc_info = user_input.GetBCInfo(attr);
-        double value;
-        string mesh_name;
-        double amp;
-        double afreq;
-        double phase;
-        double shift;
-        switch (Boundary_Condition_Map.at(bc_info[0]))
-        {
-            case BOUNDARY_CONDITION::ISOTHERMAL:
-                value = stod(bc_info[1].c_str());
-                boundary_conditions[i] =  new UniformConstantIsothermalBC(attr, value);
-                break;
-            case BOUNDARY_CONDITION::HEATFLUX:
-                value = stod(bc_info[1].c_str());
-                boundary_conditions[i] =  new UniformConstantHeatFluxBC(attr, value);
-                break;
-            case BOUNDARY_CONDITION::PRECICE_ISOTHERMAL:
-                mesh_name = bc_info[1];
-                value = stod(bc_info[2].c_str());
-                boundary_conditions[i] =  new PreciceIsothermalBC(attr, *fespace, mesh_name, value, *mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY]);
-                precice_bc_indices.push_back(i);
-                break;
-            case BOUNDARY_CONDITION::PRECICE_HEATFLUX:
-                mesh_name = bc_info[1];
-                value = stod(bc_info[2].c_str());
-                boundary_conditions[i] =  new PreciceHeatFluxBC(attr, *fespace, mesh_name, value);
-                precice_bc_indices.push_back(i);
-                break;
-            case BOUNDARY_CONDITION::SINUSOIDAL_ISOTHERMAL:
-                amp = stod(bc_info[1].c_str());
-                afreq = stod(bc_info[2].c_str());
-                phase = stod(bc_info[3].c_str());
-                shift = stod(bc_info[4].c_str());
-                boundary_conditions[i] = new UniformSinusoidalIsothermalBC(attr, amp, afreq, phase, shift);
-                break;
-            case BOUNDARY_CONDITION::SINUSOIDAL_HEATFLUX:
-                amp = stod(bc_info[1].c_str());
-                afreq = stod(bc_info[2].c_str());
-                phase = stod(bc_info[3].c_str());
-                shift = stod(bc_info[4].c_str());
-                boundary_conditions[i] = new UniformSinusoidalHeatFluxBC(attr, amp, afreq, phase, shift);
-                break;
-            default:
-                MFEM_ABORT("Invalid/Unknown boundary condition specified: '" + bc_info[0] + "'");
                 return;
+            }
         }
-    }
-    //----------------------------------------------------------------------
-    // Send precice bcs to precice_interface
-    if (user_input.UsingPrecice())
-        precice_interface->SetPreciceBCs(boundary_conditions, precice_bc_indices);
-    //----------------------------------------------------------------------
-    // Prepare BC attr arrays for applying coefficients
-    all_bdr_attr_markers = new Array<int>[user_input.GetBCCount()];
-    for (int i = 0; i < user_input.GetBCCount(); i++)
-    {
-        Array<int> bdr_attr(user_input.GetBCCount());
-        bdr_attr = 0;
-        bdr_attr[i] = 1;
-        all_bdr_attr_markers[i] = bdr_attr;
-    }
-    //----------------------------------------------------------------------
-    // Print BCs
-    for (int i = 0; i < user_input.GetBCCount(); i++)
-    {   
-        BoundaryCondition* bc = boundary_conditions[i];
+        //----------------------------------------------------------------------
+        // At this point, have verified exact number + one-to-one matching of BCs in config + mesh
+        // (all bc_keys == pmesh->bdr_attributes essentially)
+        // Instantiate boundary conditions + save any precice bc indices
+        vector<int> precice_bc_indices;
+        boundary_conditions[it_type] = new BoundaryCondition*[pmesh->bdr_attributes.Size()];
+        for (int j = 0; j < pmesh->bdr_attributes.Size(); j++)
+        {   
+            int attr = pmesh->bdr_attributes[j];
+            vector<string> bc_info = user_input.GetBCInfo(type, attr);
 
-        if (rank == 0)
-        {
-            cout << "Boundary Attribute " << bc->GetBdrAttr() << ": " << bc->GetInitString() << endl;
+            // If these are thermal boundary conditions
+            if (it_type == ITERATOR_TYPE::THERMAL)
+            {
+                double value;
+                string mesh_name;
+                double amp;
+                double afreq;
+                double phase;
+                double shift;
+                switch (Boundary_Condition_Map.at(bc_info[0]))
+                {
+                    case BOUNDARY_CONDITION::ISOTHERMAL:
+                        value = stod(bc_info[1].c_str());
+                        boundary_conditions[it_type][j] =  new UniformConstantIsothermalBC(attr, value);
+                        break;
+                    case BOUNDARY_CONDITION::HEATFLUX:
+                        value = stod(bc_info[1].c_str());
+                        boundary_conditions[it_type][j] =  new UniformConstantHeatFluxBC(attr, value);
+                        break;
+                    case BOUNDARY_CONDITION::PRECICE_ISOTHERMAL:
+                        mesh_name = bc_info[1];
+                        value = stod(bc_info[2].c_str());
+                        boundary_conditions[it_type][j] =  new PreciceIsothermalBC(attr, *fespace, mesh_name, value, *mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY]);
+                        precice_bc_indices.push_back(j);
+                        break;
+                    case BOUNDARY_CONDITION::PRECICE_HEATFLUX:
+                        mesh_name = bc_info[1];
+                        value = stod(bc_info[2].c_str());
+                        boundary_conditions[it_type][j] =  new PreciceHeatFluxBC(attr, *fespace, mesh_name, value);
+                        precice_bc_indices.push_back(j);
+                        break;
+                    case BOUNDARY_CONDITION::SINUSOIDAL_ISOTHERMAL:
+                        amp = stod(bc_info[1].c_str());
+                        afreq = stod(bc_info[2].c_str());
+                        phase = stod(bc_info[3].c_str());
+                        shift = stod(bc_info[4].c_str());
+                        boundary_conditions[it_type][j] = new UniformSinusoidalIsothermalBC(attr, amp, afreq, phase, shift);
+                        break;
+                    case BOUNDARY_CONDITION::SINUSOIDAL_HEATFLUX:
+                        amp = stod(bc_info[1].c_str());
+                        afreq = stod(bc_info[2].c_str());
+                        phase = stod(bc_info[3].c_str());
+                        shift = stod(bc_info[4].c_str());
+                        boundary_conditions[it_type][j] = new UniformSinusoidalHeatFluxBC(attr, amp, afreq, phase, shift);
+                        break;
+                    default:
+                        MFEM_ABORT("Invalid/Unknown boundary condition specified: '" + bc_info[0] + "'");
+                        return;
+                }
+            }
+            else if (it_type == ITERATOR_TYPE::STRUCTURAL)
+            {
+                MFEM_ABORT("Structural BCs not yet implemented");
+                return;
+            }
+            else
+            {
+                MFEM_ABORT("Invalid/Unknown boundary condition type specified: '" + type + "'");
+                return;
+            }
         }
+        //----------------------------------------------------------------------
+        // Send precice bcs to precice_interface
+        if (user_input.UsingPrecice())
+            precice_interface->SetPreciceBCs(boundary_conditions[it_type], precice_bc_indices);
+        
+        //----------------------------------------------------------------------
+        // Print BCs
+        for (int i = 0; i < pmesh->bdr_attributes.Size(); i++)
+        {   
+            BoundaryCondition* bc = boundary_conditions[it_type][i];
+
+            if (rank == 0)
+            {
+                cout << "Boundary Attribute " << bc->GetBdrAttr() << ": " << bc->GetInitString() << endl;
+            }
+        }
+    }
+
+    // Prepare BC attr arrays for applying coefficients
+    all_bdr_attr_markers = new Array<int>[pmesh->bdr_attributes.Size()];
+    for (int j = 0; j < pmesh->bdr_attributes.Size(); j++)
+    {
+        Array<int> bdr_attr(pmesh->bdr_attributes.Size());
+        bdr_attr = 0;
+        bdr_attr[j] = 1;
+        all_bdr_attr_markers[j] = bdr_attr;
     }
 }
 
@@ -676,43 +705,52 @@ void JOTSDriver::UpdateAndApplyBCs()
     // Get GF from current solution
     u_0_gf->SetFromTrueDofs(u);
 
-    bool n_changed = false;
-    bool d_changed = false;
-    for (int i = 0; i < user_input.GetBCCount(); i++)
-    {   
-        // Update coefficients (could be preCICE calls, could be SetTime calls, etc.)
-        if (!boundary_conditions[i]->IsConstant() || !initialized_bcs) // If not constant in time or not yet initialized for first iteration
-        {
-            boundary_conditions[i]->UpdateCoeff(time);
+    // Loop over every iterator
+    for (size_t i = 0; i < Iterator_Type_Map.size(); i++)
+    {
+        ITERATOR_TYPE it_type = ITERATOR_TYPE(i);
+        if (boundary_conditions[it_type] == nullptr)
+            continue;
+        
+        bool n_changed = false;
+        bool d_changed = false;
 
-            if (boundary_conditions[i]->IsEssential())
+        // Update BCs for this given iterator
+        for (int j = 0; j < pmesh->bdr_attributes.Size(); j++)
+        {   
+            // Update coefficients (could be preCICE calls, could be SetTime calls, etc.)
+            if (!boundary_conditions[it_type][j]->IsConstant() || !initialized_bcs) // If not constant in time or not yet initialized for first iteration
             {
-                // Project correct values on boundary for essential BCs
-                d_changed = true;
-                u_0_gf->ProjectBdrCoefficient(boundary_conditions[i]->GetCoeffRef(), all_bdr_attr_markers[i]);
-            }
-            else
-            {
-                n_changed = true; // Flag that Neumann LF must be updated
+                boundary_conditions[it_type][j]->UpdateCoeff(time);
+
+                if (boundary_conditions[it_type][j]->IsEssential())
+                {
+                    // Project correct values on boundary for essential BCs
+                    d_changed = true;
+                    u_0_gf->ProjectBdrCoefficient(boundary_conditions[it_type][j]->GetCoeffRef(), all_bdr_attr_markers[j]);
+                }
+                else
+                {
+                    n_changed = true; // Flag that Neumann LF must be updated
+                }
             }
         }
-    }
 
+        if (d_changed)
+        {
+            // Apply changed Dirichlet BCs to u
+            u_0_gf->GetTrueDofs(u);
+            // Here is where can set tmp_du_dt to be used if HO wanted
+            // For higher-order, need T from n-1 timestep in addition to n timestep? is this worth doing?
+            // Need to save previous timestep temperature in restarts
+        }
+
+        // If any non-constant Neumann terms, update Neumann linear form
+        if (n_changed)
+            jots_iterator->UpdateNeumann();
+    }
     if (!initialized_bcs)
         initialized_bcs = true;
-
-    if (d_changed)
-    {
-        // Apply changed Dirichlet BCs to u
-        u_0_gf->GetTrueDofs(u);
-        // Here is where can set tmp_du_dt to be used if HO wanted
-        // For higher-order, need T from n-1 timestep in addition to n timestep? is this worth doing?
-        // Need to save previous timestep temperature in restarts
-    }
-
-    // If any non-constant Neumann terms, update Neumann linear form
-    if (n_changed)
-        jots_iterator->UpdateNeumann();
 }
 
 
@@ -809,8 +847,17 @@ JOTSDriver::~JOTSDriver()
     for (size_t i = 0; i < Material_Property_Map.size(); i++)
         delete mat_props[MATERIAL_PROPERTY(i)];
     delete[] mat_props;
-    for (int i = 0; i < user_input.GetBCCount(); i++)
-        delete boundary_conditions[i];
+    for (int i = 0; i < Iterator_Type_Map.size(); i++)
+    {
+        if (boundary_conditions[i])
+        {
+            for (int j = 0; j < pmesh->bdr_attributes.Size(); j++)
+                delete boundary_conditions[i][j];
+            delete[] boundary_conditions[i];
+        }
+        else
+            delete boundary_conditions[i];
+    }
     delete[] boundary_conditions;
     delete[] all_bdr_attr_markers;
     delete pmesh;

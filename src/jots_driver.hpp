@@ -51,7 +51,7 @@ class JOTSDriver
 
         const Config& user_input;
 
-        BoundaryCondition** boundary_conditions;
+        BoundaryCondition*** boundary_conditions;
         Array<int>* all_bdr_attr_markers;
         bool initialized_bcs;
 
