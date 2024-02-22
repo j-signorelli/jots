@@ -135,3 +135,6 @@ static const std::map<std::string, ITERATOR_TYPE>::value_type Iterator_Type_Pair
                                                                                        {"Structural", ITERATOR_TYPE::STRUCTURAL}};
 static const int ITERATOR_TYPE_SIZE = end(Iterator_Type_Pairs) - begin(Iterator_Type_Pairs);
 static const std::map<std::string, ITERATOR_TYPE> Iterator_Type_Map(begin(Iterator_Type_Pairs), end(Iterator_Type_Pairs));
+
+static const std::map<ITERATOR_TYPE, std::string> Solution_Names_Map = {{ITERATOR_TYPE::THERMAL, "Temperature"},
+                                                                        {ITERATOR_TYPE::STRUCTURAL, "Displacement"}};
