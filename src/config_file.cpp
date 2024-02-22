@@ -96,8 +96,7 @@ void Config::ReadBCs()
         if (found == string::npos)
             continue;
         
-        string type = root.substr(0, root.size() - found);
-        cout << "Type: " << type;
+        string type = root.substr(0, found);
 
         stringstream label;
         label << type << "BoundaryConditions";
