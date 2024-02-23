@@ -40,10 +40,22 @@ void Config::ReadFESetup()
     fe_order = property_tree.get("FiniteElementSetup.FE_Order", 1);
     serial_refine = property_tree.get("FiniteElementSetup.Serial_Refine", 0);
     parallel_refine = property_tree.get("FiniteElementSetup.Parallel_Refine", 0);
-    initial_temp = property_tree.get<double>("FiniteElementSetup.Initial_Temperature", 100.0);
     restart_prefix = property_tree.get("FiniteElementSetup.Restart_Prefix", "restart");
     restart_cycle = property_tree.get<int>("FiniteElementSetup.Restart_Cycle", 0);
 
+    // Look for any solution initializations
+    BOOST_FOREACH(const bp::ptree::value_type &v , property_tree.get_child("FiniteElementSetup"))
+    {
+        const string &label = v.first;
+        size_t found = label.find("_Initialization");
+
+        if (found == string::npos)
+            continue;
+
+        initialization_map[label.substr(0, found)] = boost::lexical_cast<double>(v.second.data());
+
+        
+    }
 }
 
 void Config::ReadMatProps()
@@ -62,9 +74,6 @@ void Config::ReadMatProps()
         mat_prop_info_map[label] = mat_prop_info;
         
     }
-    //density = property_tree.get("MaterialProperties.Density", 1.0);
-    //SetInputStringVector(property_tree.get("MaterialProperties.Specific_Heat_C", "Uniform, 1000"), specific_heat_info);
-    //SetInputStringVector(property_tree.get("MaterialProperties.Thermal_Conductivity_k", "Uniform, 100"), conductivity_info);
 }
 
 void Config::ReadPrecice()

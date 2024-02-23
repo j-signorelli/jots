@@ -7,6 +7,7 @@
 #include "boost/foreach.hpp"
 #include "boost/algorithm/string/trim.hpp"
 #include "boost/algorithm/string.hpp"
+#include "boost/lexical_cast.hpp"
 
 #include "option_structure.hpp"
 #include "jots_common.hpp"
@@ -31,7 +32,7 @@ class Config
         bool use_restart;             /*!< \brief Boolean indicating if restart file should be loaded up as initial condition */
         std::string restart_prefix;          /*!< \brief Restart file to load + use; only read if use_restart is true */
         int restart_cycle;
-        double initial_temp;          /*!< \brief Initial temperature field to set; only used if use_restart is false */
+        std::map<std::string, double> initialization_map;
 
         bool with_precice;
         std::string precice_participant_name;
@@ -106,7 +107,7 @@ class Config
 
         void SetParallelRefine(int in_ref) { parallel_refine = in_ref; };
 
-        std::vector<std::string> GetMaterialPropertyKeys() const { return Helper::GetKeyVector(mat_prop_info_map); };
+        std::vector<std::string> GetMaterialPropertyLabels() const { return Helper::GetKeyVector(mat_prop_info_map); };
 
         std::vector<std::string> GetMaterialPropertyInfo(std::string mat_prop_label) const { return mat_prop_info_map.at(mat_prop_label); };
 
@@ -124,9 +125,11 @@ class Config
 
         void SetRestartCycle(int in_cycle) { restart_cycle = in_cycle; };
 
-        double GetInitialTemp() const { return initial_temp; } ;
+        std::vector<std::string> GetInitializations() const { return Helper::GetKeyVector(initialization_map); };
 
-        void SetInitialTemp(double in_temp) { initial_temp = in_temp; };
+        double GetInitialValue(string solution) const { return initialization_map.at(solution); };
+
+        void SetInitialValue(string solution, double in_value) { initialization_map[solution] = in_value; };
 
         bool UsingPrecice() const { return with_precice; };
 
@@ -144,7 +147,7 @@ class Config
         
         int GetBCCount(std::string type) const {return bc_info_map.at(type).size(); };
 
-        std::vector<int> GetBCKeys(std::string type) const { return Helper::GetKeyVector(bc_info_map.at(type)); };
+        std::vector<int> GetBCAttributes(std::string type) const { return Helper::GetKeyVector(bc_info_map.at(type)); };
 
         std::vector<std::string> GetBCInfo(std::string type, int attr) const { return bc_info_map.at(type).at(attr); };
 
