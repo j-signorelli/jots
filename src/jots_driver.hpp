@@ -44,15 +44,14 @@ class JOTSDriver
         double dt;
         int max_timesteps;
 
-        JOTSIterator* jots_iterator[ITERATOR_TYPE_SIZE];
-        //mfem::Vector* u[Iterator_Type_Map.size()];
-        mfem::Vector u;
-        
+        JOTSIterator* jots_iterator[PHYSICS_TYPE_SIZE];
+        mfem::Vector* u[PHYSICS_TYPE_SIZE];
+
         JOTSSolverInterface* precice_interface;
 
         const Config& user_input;
 
-        BoundaryCondition** boundary_conditions[ITERATOR_TYPE_SIZE];
+        BoundaryCondition** boundary_conditions[PHYSICS_TYPE_SIZE];
         Array<int>* all_bdr_attr_markers;
         bool initialized_bcs;
 
@@ -60,12 +59,12 @@ class JOTSDriver
 
         mfem::ParMesh* pmesh;
         mfem::FiniteElementCollection* fe_coll;
-        mfem::ParFiniteElementSpace* fespace;
+        mfem::ParFiniteElementSpace* fespace[PHYSICS_TYPE_SIZE];
 
         OutputManager* output;
 
         
-        mutable mfem::ParGridFunction* u_0_gf;
+        mutable mfem::ParGridFunction* u_0_gf[PHYSICS_TYPE_SIZE];
 
     public:
         JOTSDriver(const Config& input, const int myid, const int num_procs, MPI_Comm in_comm=MPI_COMM_WORLD);

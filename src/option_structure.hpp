@@ -13,6 +13,21 @@
 // See https://stackoverflow.com/questions/65670462/elegant-way-to-ensure-a-stdmap-has-a-concrete-size-in-compilation-time
 // and https://stackoverflow.com/questions/2172053/c-can-i-statically-initialize-a-stdmap-at-compile-time
 
+
+enum PHYSICS_TYPE : int
+{
+    THERMAL=0,
+    STRUCTURAL=1
+};
+
+static const std::map<std::string, PHYSICS_TYPE>::value_type Physics_Type_Pairs[] = {{"Thermal", PHYSICS_TYPE::THERMAL},
+                                                                                       {"Structural", PHYSICS_TYPE::STRUCTURAL}};
+static const int PHYSICS_TYPE_SIZE = end(Physics_Type_Pairs) - begin(Physics_Type_Pairs);
+static const std::map<std::string, PHYSICS_TYPE> Physics_Type_Map(begin(Physics_Type_Pairs), end(Physics_Type_Pairs));
+
+static const std::map<PHYSICS_TYPE, std::string> Solution_Names_Map = {{PHYSICS_TYPE::THERMAL, "Temperature"},
+                                                                        {PHYSICS_TYPE::STRUCTURAL, "Displacement"}};
+
 enum class SIMULATION_TYPE
 {
   LINEARIZED_UNSTEADY,
@@ -123,18 +138,3 @@ static const std::map<std::string, PRINT_LEVEL> Print_Level_Map = {{"None", PRIN
                                                                     {"FirstAndLast", PRINT_LEVEL::FIRSTANDLAST},
                                                                     {"Summary", PRINT_LEVEL::SUMMARY},
                                                                     {"All", PRINT_LEVEL::ALL}};
-
-
-enum ITERATOR_TYPE : int
-{
-    THERMAL=0,
-    STRUCTURAL=1
-};
-
-static const std::map<std::string, ITERATOR_TYPE>::value_type Iterator_Type_Pairs[] = {{"Thermal", ITERATOR_TYPE::THERMAL},
-                                                                                       {"Structural", ITERATOR_TYPE::STRUCTURAL}};
-static const int ITERATOR_TYPE_SIZE = end(Iterator_Type_Pairs) - begin(Iterator_Type_Pairs);
-static const std::map<std::string, ITERATOR_TYPE> Iterator_Type_Map(begin(Iterator_Type_Pairs), end(Iterator_Type_Pairs));
-
-static const std::map<ITERATOR_TYPE, std::string> Solution_Names_Map = {{ITERATOR_TYPE::THERMAL, "Temperature"},
-                                                                        {ITERATOR_TYPE::STRUCTURAL, "Displacement"}};
