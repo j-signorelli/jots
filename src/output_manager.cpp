@@ -3,10 +3,13 @@
 using namespace std;
 using namespace mfem;
 
-OutputManager::OutputManager(const int in_rank, const Config &user_input, Mesh &mesh)
-: visit_dc(user_input.GetRestartPrefix(), &mesh),
-  paraview_dc("ParaView", &mesh),
-  rank_coeff(in_rank)
+OutputManager::OutputManager(const int in_rank, const Config &user_input, ParFiniteElementSpace& in_scalar_fes)
+: visit_dc(user_input.GetRestartPrefix(), in_scalar_fes.GetParMesh()),
+  paraview_dc("ParaView", in_scalar_fes.GetParMesh()),
+  pw_const_fec(0, in_scalar_fes.GetParMesh()->Dimension()),
+  pw_const_fes(in_scalar_fes.GetParMesh(), &pw_const_fec),
+  rank_pgf(&pw_const_fes),
+  scalar_fes(in_scalar_fes)
 {   
     //------------------------------------------------
     // Set up VisIt outputting (restarts)
@@ -26,10 +29,9 @@ OutputManager::OutputManager(const int in_rank, const Config &user_input, Mesh &
     //------------------------------------------------
     // Instantiate rank output
     // Rank:
-    // TODO: Temporarily removed until behavior for different ParFiniteElementSpace's in same DataCollection
-    //       is understood
-    //RegisterCoefficient("Rank", rank_coeff);
-
+    rank_pgf = in_rank;
+    paraview_dc.RegisterField("Rank", &rank_pgf);
+    visit_dc.RegisterField("Rank", &rank_pgf);
 }
 
 void OutputManager::RegisterCoefficient(const string output_name, Coefficient& coeff, ParFiniteElementSpace& f )

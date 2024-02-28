@@ -29,7 +29,13 @@ class OutputManager
         mfem::VisItDataCollection visit_dc;
         mfem::ParaViewDataCollection paraview_dc;
         
-        mfem::ConstantCoefficient rank_coeff;
+    // For visualizing parallel decomposition:
+    mfem::L2_FECollection pw_const_fec;
+    mfem::ParFiniteElementSpace pw_const_fes;
+    mfem::ParGridFunction rank_pgf;
+
+    // Scalar FESpace for Coefficient visualization
+        mfem::ParFiniteElementSpace& scalar_fes;
 
         std::map<std::string, CoefficientOutput*> coeff_output_map;
         std::map<std::string, VectorOutput*> vector_output_map;
@@ -38,7 +44,7 @@ class OutputManager
 
     protected:
     public:
-        OutputManager(const int in_rank, const Config &user_input, mfem::Mesh &mesh);
+        OutputManager(const int in_rank, const Config &user_input, mfem::ParFiniteElementSpace& in_scalar_fes);
         
         void RegisterCoefficient(const std::string output_name, mfem::Coefficient& coeff, mfem::ParFiniteElementSpace& f);
         void RegisterSolutionVector(const std::string output_name, const mfem::Vector& vec, mfem::ParFiniteElementSpace& f);
