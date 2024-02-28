@@ -345,13 +345,13 @@ void JOTSDriver::ProcessFiniteElementSetup()
     // Set solution vectors from IC
     for (int i = 0; i < PHYSICS_TYPE_SIZE; i++)
     {
-        if (u_0_gf[i])
-        {
-            u[i] = new Vector();
-            u_0_gf[i]->GetTrueDofs(*u[i]);
-            // Add solution vector to OutputManager
-            output->RegisterSolutionVector(Solution_Names_Map.at(PHYSICS_TYPE(i)), *u[i], *fespace[i]);
-        }
+        if (!u_0_gf[i])
+            continue;
+
+        u[i] = new Vector();
+        u_0_gf[i]->GetTrueDofs(*u[i]);
+        // Add solution vector to OutputManager
+        output->RegisterSolutionVector(Solution_Names_Map.at(PHYSICS_TYPE(i)), *u[i], *fespace[i]);
     }
     
 
@@ -756,8 +756,9 @@ void JOTSDriver::UpdateMatProps(const bool apply_changes)
             {
                 for (int i = 0; i < PHYSICS_TYPE_SIZE; i++)
                 {
-                    if (jots_iterator[i])
-                        jots_iterator[i]->ProcessMatPropUpdate(MATERIAL_PROPERTY(mp));
+                    if (!jots_iterator[i])
+                        continue;
+                    jots_iterator[i]->ProcessMatPropUpdate(MATERIAL_PROPERTY(mp));
                 }
             }
         }
@@ -772,7 +773,7 @@ void JOTSDriver::UpdateAndApplyBCs()
     // Loop over every physics solver
     for (int i = 0; i < PHYSICS_TYPE_SIZE; i++)
     {
-        if (boundary_conditions[i] == nullptr)
+        if (!boundary_conditions[i])
             continue;
         
         bool n_changed = false;
