@@ -59,6 +59,11 @@ class JOTSDriver
 
         mfem::ParMesh* pmesh;
         mfem::FiniteElementCollection* fe_coll;
+        mfem::ParFiniteElementSpace* scalar_fespace;
+        mfem::ParFiniteElementSpace* vector_fespace;
+
+        // Array associating each physics-type to its FESpace
+        // Pointers to either scalar_fespace or vector_fespace, or nullptr if not solving
         mfem::ParFiniteElementSpace* fespace[PHYSICS_TYPE_SIZE];
 
         OutputManager* output;

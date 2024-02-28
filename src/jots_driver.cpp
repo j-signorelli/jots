@@ -24,6 +24,8 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
   mat_props(),
   pmesh(nullptr),
   fe_coll(nullptr),
+  scalar_fespace(nullptr),
+  vector_fespace(nullptr),
   fespace(),
   u_0_gf()
 {   
@@ -195,6 +197,10 @@ void JOTSDriver::ProcessFiniteElementSetup()
         // Define H1-conforming FE collection
         fe_coll = new H1_FECollection(user_input.GetFEOrder(), dim);
         
+        // Initialize a scalar and vector ParFESpace using H1-conforming elements
+        scalar_fespace = new ParFiniteElementSpace(pmesh, fe_coll, 1);
+        vector_fespace = new ParFiniteElementSpace(pmesh, fe_coll, dim);
+
         // Initialize solution vector/s
         vector<string> soln_inits = user_input.GetInitializations();
         for (size_t i = 0; i < soln_inits.size(); i++)
@@ -203,24 +209,26 @@ void JOTSDriver::ProcessFiniteElementSetup()
             PHYSICS_TYPE phys = Physics_Type_Map.at(soln_inits[i]);
             string solution_name = Solution_Names_Map.at(phys);
 
-            // Create correct ParFiniteElementSpace for this solution name
+            // Initialize fespaces for this solution name / physics type
             switch (phys)
             {
                 case PHYSICS_TYPE::THERMAL:
-                    fespace[phys] = new ParFiniteElementSpace(pmesh, fe_coll, 1);
+                    fespace[phys] = scalar_fespace;
+                    break;
                 case PHYSICS_TYPE::STRUCTURAL:
-                    fespace[phys] = new ParFiniteElementSpace(pmesh, fe_coll, dim);
+                    fespace[phys] = vector_fespace;
+                    break;
                 default:
                     // This would not be reached as code would crash at Physics_Type_Map.at() call
                     break;
             }
-
+            
             u_0_gf[phys] = new ParGridFunction(fespace[phys]);
             ConstantCoefficient coeff_IC(user_input.GetInitialValue(soln_inits[i]));
             u_0_gf[phys]->ProjectCoefficient(coeff_IC);
 
             if (rank == 0)
-                cout << "Initial " << solution_name << ":" << user_input.GetInitialValue(soln_inits[i]) << endl;
+                cout << "Initial " << solution_name << ": " << user_input.GetInitialValue(soln_inits[i]) << endl;
         }
         
 
@@ -248,22 +256,44 @@ void JOTSDriver::ProcessFiniteElementSetup()
         dim = pmesh->Dimension();
 
         //----------------------------------------------------------------------
-        // For now, by default, just check all solution names in DC
+        // By default, just check all solution names in DC
         for (int i = 0; i < PHYSICS_TYPE_SIZE; i++)
         {
-            string soln_name = Solution_Names_Map.at(PHYSICS_TYPE(i));
-            u_0_gf[i] = temp_visit_dc.GetParField(soln_name);
-            if (!u_0_gf[i])
+            PHYSICS_TYPE phys = PHYSICS_TYPE(i);
+            string soln_name = Solution_Names_Map.at(phys);
+            u_0_gf[phys] = temp_visit_dc.GetParField(soln_name);
+            
+            // Skip if no PGF found
+            if (!u_0_gf[phys])
                 continue;
 
-            if (!fe_coll)
-                fe_coll = u_0_gf[i]->OwnFEC();
+            if (!fe_coll)// Same FECollection used for thermal + structural -- H1-conforming
+                fe_coll = u_0_gf[phys]->OwnFEC();
 
-            fespace[i] = u_0_gf[i]->ParFESpace();
-            u_0_gf[i]->MakeOwner(NULL);
+            // Save FESpace based on what type of physics it is modeling
+            switch (phys)
+            {
+                case PHYSICS_TYPE::THERMAL:
+                    scalar_fespace = u_0_gf[phys]->ParFESpace();
+                    fespace[phys] = scalar_fespace;
+                    break;
+                case PHYSICS_TYPE::STRUCTURAL:
+                    vector_fespace = u_0_gf[phys]->ParFESpace();
+                    fespace[phys] = vector_fespace;
+                    break;
+                default:
+                    break;
+            }
+            u_0_gf[phys]->MakeOwner(NULL);
             if (rank == 0)
                 cout << soln_name << " Loaded!" << endl;
         }
+
+        //  Ensure existence of both scalar and vector fespace
+        if (!scalar_fespace)
+            scalar_fespace = new ParFiniteElementSpace(pmesh, fe_coll, 1);
+        if (!vector_fespace)
+            vector_fespace = new ParFiniteElementSpace(pmesh, fe_coll, dim);
 
         // Now take ownership of mesh and fields
         // NOTE: If any further fields are added to restarts, they MUST be taken and deallocated here!!!!!
@@ -300,13 +330,16 @@ void JOTSDriver::ProcessFiniteElementSetup()
     // Print number of unknowns
     for (int i = 0; i < PHYSICS_TYPE_SIZE; i++)
     {
+        if (!fespace[i])
+            continue;
+        
         HYPRE_BigInt fe_size = fespace[i]->GlobalTrueVSize();
         if (rank == 0)
             cout << "Number of " << Solution_Names_Map.at(PHYSICS_TYPE(i)) << " DOFs: " << fe_size << endl;
     }
     //----------------------------------------------------------------------
     // Instantiate OutputManager
-    output = new OutputManager(rank, user_input, *pmesh);
+    output = new OutputManager(rank, user_input, *scalar_fespace);
 
     //----------------------------------------------------------------------
     // Set solution vectors from IC
@@ -320,6 +353,7 @@ void JOTSDriver::ProcessFiniteElementSetup()
             output->RegisterSolutionVector(Solution_Names_Map.at(PHYSICS_TYPE(i)), *u[i], *fespace[i]);
         }
     }
+    
 
 }
 
@@ -348,7 +382,7 @@ void JOTSDriver::ProcessMaterialProperties()
 
         MATERIAL_MODEL mm = Material_Model_Map.at(mp_info[0]);
         switch (mm)
-        {
+        {   
             case MATERIAL_MODEL::UNIFORM: // Uniform
                 mat_props[mp] = new UniformProperty(stod(mp_info[1].c_str()));
                 break;
@@ -357,7 +391,7 @@ void JOTSDriver::ProcessMaterialProperties()
                 for (size_t i = 1; i < mp_info.size(); i++)
                     poly_coeffs.push_back(stod(mp_info[i].c_str()));
 
-                mat_props[mp] = new PolynomialProperty(poly_coeffs, *fespace);
+                mat_props[mp] = new PolynomialProperty(poly_coeffs, *scalar_fespace);
                 break;
             default:
                 MFEM_ABORT("Unknown/Invalid material model specified");
@@ -491,13 +525,13 @@ void JOTSDriver::ProcessBoundaryConditions()
                     case BOUNDARY_CONDITION::PRECICE_ISOTHERMAL:
                         mesh_name = bc_info[1];
                         value = stod(bc_info[2].c_str());
-                        boundary_conditions[phys][j] =  new PreciceIsothermalBC(attr, *fespace, mesh_name, value, *mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY]);
+                        boundary_conditions[phys][j] =  new PreciceIsothermalBC(attr, *fespace[PHYSICS_TYPE::THERMAL], mesh_name, value, *mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY]);
                         precice_bc_indices.push_back(j);
                         break;
                     case BOUNDARY_CONDITION::PRECICE_HEATFLUX:
                         mesh_name = bc_info[1];
                         value = stod(bc_info[2].c_str());
-                        boundary_conditions[phys][j] =  new PreciceHeatFluxBC(attr, *fespace, mesh_name, value);
+                        boundary_conditions[phys][j] =  new PreciceHeatFluxBC(attr, *fespace[PHYSICS_TYPE::THERMAL], mesh_name, value);
                         precice_bc_indices.push_back(j);
                         break;
                     case BOUNDARY_CONDITION::SINUSOIDAL_ISOTHERMAL:
@@ -631,8 +665,9 @@ void JOTSDriver::Run()
         precice_dt = precice_interface->initialize();
         if (precice_interface->isActionRequired(JOTSSolverInterface::cowid))
         {
-            u_0_gf->SetFromTrueDofs(u);
-            precice_interface->WriteData(*u_0_gf);
+            // TODO: Only implemented for THERMAL problems presently
+            u_0_gf[PHYSICS_TYPE::THERMAL]->SetFromTrueDofs(*u[PHYSICS_TYPE::THERMAL]);
+            precice_interface->WriteData(*u_0_gf[PHYSICS_TYPE::THERMAL]);
             precice_interface->markActionFulfilled(JOTSSolverInterface::cowid);
         }
         precice_interface->initializeData();
@@ -649,7 +684,7 @@ void JOTSDriver::Run()
             {
                 precice_saved_time = time;
                 precice_saved_it_num = it_num;
-                precice_interface->SaveOldState(u);
+                precice_interface->SaveOldState(*u[PHYSICS_TYPE::THERMAL]);
                 precice_interface->markActionFulfilled(JOTSSolverInterface::cowic);
             }
 
@@ -677,9 +712,9 @@ void JOTSDriver::Run()
         {
             if (precice_interface->isWriteDataRequired(dt))
             {
-                u_0_gf->SetFromTrueDofs(u);
+                u_0_gf[PHYSICS_TYPE::THERMAL]->SetFromTrueDofs(*u[PHYSICS_TYPE::THERMAL]);
                 // Note: HF is calculated using k.GetLocalValue(), so no UpdateMatProps needed
-                precice_interface->WriteData(*u_0_gf);
+                precice_interface->WriteData(*u_0_gf[PHYSICS_TYPE::THERMAL]);
             }
             // Advance preCICE
             precice_interface->advance(dt);
@@ -690,7 +725,7 @@ void JOTSDriver::Run()
             {
                 time = precice_saved_time;
                 it_num = precice_saved_it_num;
-                precice_interface->ReloadOldState(u);
+                precice_interface->ReloadOldState(*u[PHYSICS_TYPE::THERMAL]);
                 precice_interface->markActionFulfilled(JOTSSolverInterface::coric);
                 continue; // skip printing of timestep info AND outputting
             }
@@ -713,12 +748,13 @@ void JOTSDriver::UpdateMatProps(const bool apply_changes)
         if (mat_props[mp] != nullptr && !mat_props[mp]->IsConstant())
         {
             // Update coefficients using current solution field, ie: k=k(T)
-            mat_props[mp]->UpdateAllCoeffs(u);
+            // TODO: just update using scalar thermal field for now
+            mat_props[mp]->UpdateAllCoeffs(*u[PHYSICS_TYPE::THERMAL]);
             
             // Update any BLFs affected by changed coefficient (Apply)
             if (apply_changes)
             {
-                for (int i = 0; i < PHYSICS_TYPE_SIZE; it++)
+                for (int i = 0; i < PHYSICS_TYPE_SIZE; i++)
                 {
                     if (jots_iterator[i])
                         jots_iterator[i]->ProcessMatPropUpdate(MATERIAL_PROPERTY(mp));
@@ -732,7 +768,6 @@ void JOTSDriver::UpdateAndApplyBCs()
 {
     // Update time-dependent/non-constant boundary condition coefficients
     // Get GF from current solution
-    u_0_gf->SetFromTrueDofs(u);
 
     // Loop over every physics solver
     for (int i = 0; i < PHYSICS_TYPE_SIZE; i++)
@@ -742,6 +777,8 @@ void JOTSDriver::UpdateAndApplyBCs()
         
         bool n_changed = false;
         bool d_changed = false;
+
+        u_0_gf[i]->SetFromTrueDofs(*u[i]);
 
         // Update BCs for this given physics solver
         for (int j = 0; j < pmesh->bdr_attributes.Size(); j++)
@@ -804,10 +841,15 @@ void JOTSDriver::PostprocessIteration()
     }
     
     // Check if blow up
-    if (u.Max() > 1e10)
+    for (int i = 0; i < PHYSICS_TYPE_SIZE; i++)
     {
-        MFEM_ABORT("JOTS has blown up");
-        return;
+        if (!u[i])
+            continue;
+        if (u[i]->Max() > 1e10)
+        {
+            MFEM_ABORT("JOTS has blown up");
+            return;
+        }
     }
 
     // Write any output files if required
@@ -873,12 +915,10 @@ void JOTSDriver::PostprocessIteration()
 JOTSDriver::~JOTSDriver()
 {
     for (int i = 0; i < PHYSICS_TYPE_SIZE; i++)
+    {   
         delete jots_iterator[i];
-    delete precice_interface;
-    for (int i = 0; i < MATERIAL_PROPERTY_SIZE; i++)
-        delete mat_props[i];
-    for (int i = 0; i < PHYSICS_TYPE_SIZE; i++)
-    {
+        delete u_0_gf[i];
+        delete u[i];
         if (boundary_conditions[i])
         {
             for (int j = 0; j < pmesh->bdr_attributes.Size(); j++)
@@ -888,11 +928,14 @@ JOTSDriver::~JOTSDriver()
         else
             delete boundary_conditions[i];
     }
+    for (int i = 0; i < MATERIAL_PROPERTY_SIZE; i++)
+        delete mat_props[i];
+    delete precice_interface;
     delete[] all_bdr_attr_markers;
     delete pmesh;
     delete fe_coll;
-    delete fespace;
+    delete scalar_fespace;
+    delete vector_fespace;
     delete output;
-    delete u_0_gf;
 
 }
