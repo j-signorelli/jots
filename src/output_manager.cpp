@@ -34,11 +34,11 @@ OutputManager::OutputManager(const int in_rank, const Config &user_input, ParFin
     visit_dc.RegisterField("Rank", &rank_pgf);
 }
 
-void OutputManager::RegisterCoefficient(const string output_name, Coefficient& coeff, ParFiniteElementSpace& f )
+void OutputManager::RegisterCoefficient(const string output_name, Coefficient& coeff)
 {
 
     // Create new CoefficientOutput + PGF for it
-    coeff_output_map[output_name] = new CoefficientOutput(coeff,f);
+    coeff_output_map[output_name] = new CoefficientOutput(coeff,scalar_fes);
 
     // Project coefficient onto it
     coeff_output_map[output_name]->pgf.ProjectCoefficient(coeff);
@@ -73,10 +73,10 @@ void OutputManager::UpdateGridFunctions()
 
 }
 
-const ParGridFunction& OutputManager::GetVectorPGF(string vec_label)
+const ParGridFunction* OutputManager::GetVectorPGF(string vec_label)
 {
     UpdateGridFunctions();
-    return vector_output_map[vec_label]->pgf;
+    return &(vector_output_map[vec_label]->pgf);
 }
 
 void OutputManager::WriteVizOutput(const int it_num, const double time)

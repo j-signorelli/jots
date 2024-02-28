@@ -28,13 +28,13 @@ class OutputManager
     private:
         mfem::VisItDataCollection visit_dc;
         mfem::ParaViewDataCollection paraview_dc;
-        
-    // For visualizing parallel decomposition:
-    mfem::L2_FECollection pw_const_fec;
-    mfem::ParFiniteElementSpace pw_const_fes;
-    mfem::ParGridFunction rank_pgf;
 
-    // Scalar FESpace for Coefficient visualization
+        // For visualizing parallel decomposition:
+        mfem::L2_FECollection pw_const_fec;
+        mfem::ParFiniteElementSpace pw_const_fes;
+        mfem::ParGridFunction rank_pgf;
+
+        // Scalar FESpace for Coefficient visualization
         mfem::ParFiniteElementSpace& scalar_fes;
 
         std::map<std::string, CoefficientOutput*> coeff_output_map;
@@ -46,13 +46,13 @@ class OutputManager
     public:
         OutputManager(const int in_rank, const Config &user_input, mfem::ParFiniteElementSpace& in_scalar_fes);
         
-        void RegisterCoefficient(const std::string output_name, mfem::Coefficient& coeff, mfem::ParFiniteElementSpace& f);
+        void RegisterCoefficient(const std::string output_name, mfem::Coefficient& coeff);
         void RegisterSolutionVector(const std::string output_name, const mfem::Vector& vec, mfem::ParFiniteElementSpace& f);
 
         void WriteVizOutput(const int it_num, const double time);
         void WriteRestartOutput(const int it_num, const double time);
 
-        const mfem::ParGridFunction& GetVectorPGF(std::string vec_label);
+        const mfem::ParGridFunction* GetVectorPGF(std::string vec_label);
 
         ~OutputManager();
 };
