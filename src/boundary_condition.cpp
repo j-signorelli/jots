@@ -4,31 +4,31 @@ using namespace std;
 using namespace mfem;
 using namespace precice;
 
-string UniformConstantIsothermalBC::GetInitString() const
+string UniformConstantDirichletBC::GetInitString() const
 {   
     stringstream sstm;
-    sstm << "Isothermal --- Value = " << uniform_value;
+    sstm << "Dirichlet --- u = " << uniform_value;
     return sstm.str();
 }
 
-string UniformConstantHeatFluxBC::GetInitString() const
+string UniformConstantNeumannBC::GetInitString() const
 {   
     stringstream sstm;
-    sstm << "Heat Flux --- Value = " << uniform_value;
+    sstm << "Neumann --- g = " << uniform_value;
     return sstm.str();
 }
 
-string UniformSinusoidalIsothermalBC::GetInitString() const
+string UniformSinusoidalDirichletBC::GetInitString() const
 {
     stringstream sstm;
-    sstm << "Sinusoidal Isothermal --- T = " << amplitude << "*sin(" << ang_freq << "t + " << phase << ") + " << vert_shift;
+    sstm << "Sinusoidal Dirichlet --- u = " << amplitude << "*sin(" << ang_freq << "t + " << phase << ") + " << vert_shift;
     return sstm.str();
 }
 
-string UniformSinusoidalHeatFluxBC::GetInitString() const
+string UniformSinusoidalNeumannBC::GetInitString() const
 {
     stringstream sstm;
-    sstm << "Sinusoidal Heat Flux --- q_wall = " << amplitude << "*sin(" << ang_freq << "t + " << phase << ") + " << vert_shift;
+    sstm << "Sinusoidal Neumann --- g = " << amplitude << "*sin(" << ang_freq << "t + " << phase << ") + " << vert_shift;
     return sstm.str();
 }
 
