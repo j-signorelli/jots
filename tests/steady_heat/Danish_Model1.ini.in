@@ -5,7 +5,7 @@ Use_Restart=No
 Mesh_File=@PROJECT_SOURCE_DIR@/examples/meshes/Danish_1D_bar.mesh
 Serial_Refine=0
 Parallel_Refine=0
-Initial_Temperature=0.5
+Thermal_Initialization=0.5
 
 [MaterialProperties]
 Thermal_Conductivity_k=Polynomial, 50, 1
