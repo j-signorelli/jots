@@ -13,6 +13,7 @@
 #include "linear_conduction_operator.hpp"
 #include "nl_conduction_operator.hpp"
 #include "steady_conduction_operator.hpp"
+#include "boundary_condition.hpp"
 
 class JOTSDriver
 {   

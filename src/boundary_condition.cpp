@@ -1,4 +1,4 @@
-#include "thermal_boundary_condition.hpp"
+#include "boundary_condition.hpp"
 
 using namespace std;
 using namespace mfem;

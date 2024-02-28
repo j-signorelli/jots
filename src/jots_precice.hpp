@@ -3,7 +3,7 @@
 #include "mfem/mfem.hpp"
 #include "precice/SolverInterface.hpp"
 
-#include "thermal_boundary_condition.hpp"
+#include "boundary_condition.hpp"
 #include "material_property.hpp"
 
 class JOTSSolverInterface : public precice::SolverInterface

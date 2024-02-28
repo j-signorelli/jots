@@ -1,7 +1,7 @@
 #pragma once
 
 #include "mfem/mfem.hpp"
-#include "thermal_boundary_condition.hpp"
+#include "boundary_condition.hpp"
 #include "option_structure.hpp"
 
 class JOTSIterator

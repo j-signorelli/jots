@@ -4,7 +4,7 @@
 #include "mfem/mfem.hpp"
 
 #include "config_file.hpp"
-#include "thermal_boundary_condition.hpp"
+#include "boundary_condition.hpp"
 #include "material_property.hpp"
 #include "jots_iterator.hpp"
 #include "jots_common.hpp"
