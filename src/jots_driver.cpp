@@ -497,56 +497,58 @@ void JOTSDriver::ProcessBoundaryConditions()
         vector<int> precice_bc_indices;
 
         PHYSICS_TYPE phys = Physics_Type_Map.at(type);
-        boundary_conditions[phys] = new BoundaryCondition*[pmesh->bdr_attributes.Size()];
+        // size = (#bdr attributes)*(FESpace dimension)
+        boundary_conditions[phys] = new BoundaryCondition*[pmesh->bdr_attributes.Size()*fespace[phys]->GetVDim()];
         for (int j = 0; j < pmesh->bdr_attributes.Size(); j++)
         {   
             int attr = pmesh->bdr_attributes[j];
             vector<string> bc_info = user_input.GetBCInfo(type, attr);
 
-            // If these are thermal boundary conditions
-            if (phys == PHYSICS_TYPE::THERMAL)
-            {
+            // Declare needed variables before switch statement/s
                 double value;
                 string mesh_name;
                 double amp;
                 double afreq;
                 double phase;
                 double shift;
-                switch (Boundary_Condition_Map.at(bc_info[0]))
+            // If these are thermal boundary conditions
+            if (phys == PHYSICS_TYPE::THERMAL)
                 {
-                    case BOUNDARY_CONDITION::ISOTHERMAL:
+                switch (Thermal_Boundary_Condition_Map.at(bc_info[0]))
+                {
+                    case THERMAL_BOUNDARY_CONDITION::ISOTHERMAL:
                         value = stod(bc_info[1].c_str());
-                        boundary_conditions[phys][j] =  new UniformConstantIsothermalBC(attr, value);
+                        boundary_conditions[phys][j] =  new UniformConstantDirichletBC(attr, value);
                         break;
-                    case BOUNDARY_CONDITION::HEATFLUX:
+                    case THERMAL_BOUNDARY_CONDITION::HEATFLUX:
                         value = stod(bc_info[1].c_str());
-                        boundary_conditions[phys][j] =  new UniformConstantHeatFluxBC(attr, value);
+                        boundary_conditions[phys][j] =  new UniformConstantNeumannBC(attr, value);
                         break;
-                    case BOUNDARY_CONDITION::PRECICE_ISOTHERMAL:
+                    case THERMAL_BOUNDARY_CONDITION::PRECICE_ISOTHERMAL:
                         mesh_name = bc_info[1];
                         value = stod(bc_info[2].c_str());
                         boundary_conditions[phys][j] =  new PreciceIsothermalBC(attr, *fespace[PHYSICS_TYPE::THERMAL], mesh_name, value, *mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY]);
                         precice_bc_indices.push_back(j);
                         break;
-                    case BOUNDARY_CONDITION::PRECICE_HEATFLUX:
+                    case THERMAL_BOUNDARY_CONDITION::PRECICE_HEATFLUX:
                         mesh_name = bc_info[1];
                         value = stod(bc_info[2].c_str());
                         boundary_conditions[phys][j] =  new PreciceHeatFluxBC(attr, *fespace[PHYSICS_TYPE::THERMAL], mesh_name, value);
                         precice_bc_indices.push_back(j);
                         break;
-                    case BOUNDARY_CONDITION::SINUSOIDAL_ISOTHERMAL:
+                    case THERMAL_BOUNDARY_CONDITION::SINUSOIDAL_ISOTHERMAL:
                         amp = stod(bc_info[1].c_str());
                         afreq = stod(bc_info[2].c_str());
                         phase = stod(bc_info[3].c_str());
                         shift = stod(bc_info[4].c_str());
-                        boundary_conditions[phys][j] = new UniformSinusoidalIsothermalBC(attr, amp, afreq, phase, shift);
+                        boundary_conditions[phys][j] = new UniformSinusoidalDirichletBC(attr, amp, afreq, phase, shift);
                         break;
-                    case BOUNDARY_CONDITION::SINUSOIDAL_HEATFLUX:
+                    case THERMAL_BOUNDARY_CONDITION::SINUSOIDAL_HEATFLUX:
                         amp = stod(bc_info[1].c_str());
                         afreq = stod(bc_info[2].c_str());
                         phase = stod(bc_info[3].c_str());
                         shift = stod(bc_info[4].c_str());
-                        boundary_conditions[phys][j] = new UniformSinusoidalHeatFluxBC(attr, amp, afreq, phase, shift);
+                        boundary_conditions[phys][j] = new UniformSinusoidalNeumannBC(attr, amp, afreq, phase, shift);
                         break;
                     default:
                         MFEM_ABORT("Invalid/Unknown boundary condition specified: '" + bc_info[0] + "'");

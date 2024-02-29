@@ -64,7 +64,7 @@ static const std::map<std::string, TIME_SCHEME> Time_Scheme_Map = {{"Euler_Impli
                                                                                  {"Euler_Explicit", TIME_SCHEME::EULER_EXPLICIT},
                                                                                  {"RK4", TIME_SCHEME::RK4}};
 
-enum class BOUNDARY_CONDITION
+enum class THERMAL_BOUNDARY_CONDITION
 {
   HEATFLUX,
   ISOTHERMAL,
@@ -74,10 +74,10 @@ enum class BOUNDARY_CONDITION
   PRECICE_ISOTHERMAL
 };
 
-static const std::map<std::string, BOUNDARY_CONDITION> Boundary_Condition_Map = {{"HeatFlux", BOUNDARY_CONDITION::HEATFLUX},
-                                                                                            {"Isothermal", BOUNDARY_CONDITION::ISOTHERMAL},
-                                                                                            {"Sinusoidal_Isothermal", BOUNDARY_CONDITION::SINUSOIDAL_ISOTHERMAL},
-                                                                                            {"Sinusoidal_HeatFlux", BOUNDARY_CONDITION::SINUSOIDAL_HEATFLUX},
+static const std::map<std::string, THERMAL_BOUNDARY_CONDITION> Thermal_Boundary_Condition_Map = {{"HeatFlux", THERMAL_BOUNDARY_CONDITION::HEATFLUX},
+                                                                                            {"Isothermal", THERMAL_BOUNDARY_CONDITION::ISOTHERMAL},
+                                                                                            {"Sinusoidal_Isothermal", THERMAL_BOUNDARY_CONDITION::SINUSOIDAL_ISOTHERMAL},
+                                                                                            {"Sinusoidal_HeatFlux", THERMAL_BOUNDARY_CONDITION::SINUSOIDAL_HEATFLUX},
                                                                                             {"preCICE_HeatFlux",  BOUNDARY_CONDITION::PRECICE_HEATFLUX},
                                                                                             {"preCICE_Isothermal", BOUNDARY_CONDITION::PRECICE_ISOTHERMAL}};
 
