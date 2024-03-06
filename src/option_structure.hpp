@@ -45,11 +45,15 @@ enum MATERIAL_PROPERTY : int
 {
   DENSITY=0,
   SPECIFIC_HEAT=1,
-  THERMAL_CONDUCTIVITY=2
+  THERMAL_CONDUCTIVITY=2,
+  LAMES_FIRST_PARAMETER=3,
+  LAMES_SECOND_PARAMETER=4
 };
 static const std::map<std::string, MATERIAL_PROPERTY>::value_type Material_Property_Pairs[] = {{"Density_rho", MATERIAL_PROPERTY::DENSITY},
                                                                                                {"Specific_Heat_C", MATERIAL_PROPERTY::SPECIFIC_HEAT},
-                                                                                               {"Thermal_Conductivity_k", MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY}};
+                                                                                               {"Thermal_Conductivity_k", MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY},
+                                                                                               {"Lames_First_Parameter_lambda", MATERIAL_PROPERTY::LAMES_FIRST_PARAMETER},
+                                                                                               {"Lames_Second_Parameter_mu", MATERIAL_PROPERTY::LAMES_SECOND_PARAMETER}};
 static const int MATERIAL_PROPERTY_SIZE = end(Material_Property_Pairs) - begin(Material_Property_Pairs);
 static const std::map<std::string, MATERIAL_PROPERTY> Material_Property_Map(begin(Material_Property_Pairs), end(Material_Property_Pairs));
 
