@@ -30,13 +30,15 @@ static const std::map<PHYSICS_TYPE, std::string> Solution_Names_Map = {{PHYSICS_
 
 enum class SIMULATION_TYPE
 {
-  LINEARIZED_UNSTEADY,
-  NONLINEAR_UNSTEADY,
-  STEADY
+  LINEARIZED_UNSTEADY_HEAT,
+  NONLINEAR_UNSTEADY_HEAT,
+  STEADY_HEAT,
+  EQUILIBRIUM_LINEAR_ELASTIC
 };
-static const std::map<std::string, SIMULATION_TYPE> Simulation_Type_Map = {{"Linearized_Unsteady", SIMULATION_TYPE::LINEARIZED_UNSTEADY},
-                                                                        {"Nonlinear_Unsteady", SIMULATION_TYPE::NONLINEAR_UNSTEADY},
-                                                                        {"Steady", SIMULATION_TYPE::STEADY}};
+static const std::map<std::string, SIMULATION_TYPE> Simulation_Type_Map = {{"Linearized_Unsteady_Heat", SIMULATION_TYPE::LINEARIZED_UNSTEADY_HEAT},
+                                                                        {"Nonlinear_Unsteady_Heat", SIMULATION_TYPE::NONLINEAR_UNSTEADY_HEAT},
+                                                                        {"Steady_Heat", SIMULATION_TYPE::STEADY_HEAT},
+                                                                        {"Equilibrium_Linear_Elastic", SIMULATION_TYPE::EQUILIBRIUM_LINEAR_ELASTIC}};
 
 
 enum MATERIAL_PROPERTY : int
