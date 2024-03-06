@@ -554,11 +554,41 @@ void JOTSDriver::ProcessBoundaryConditions()
                         MFEM_ABORT("Invalid/Unknown boundary condition specified: '" + bc_info[0] + "'");
                         return;
                 }
+                // Print BC info
+                if (rank == 0)
+                {
+                    cout << "Boundary Attribute " << boundary_conditions[phys][j]->GetBdrAttr() << ": " << boundary_conditions[phys][j]->GetInitString() << endl;
+                }
             }
             else if (phys == PHYSICS_TYPE::STRUCTURAL)
             {
-                MFEM_ABORT("Structural BCs not yet implemented");
+                switch (Structural_Boundary_Condition_Map.at(bc_info[0]))
+                {
+                    case STRUCTURAL_BOUNDARY_CONDITION::DISPLACEMENT:
+                        for (int k = 0; k < dim; k++)
+                        {
+                            value = stod(bc_info[k].c_str());
+                            boundary_conditions[phys][j*dim+k] = new UniformConstantDirichletBC(attr, value);
+                        }
+                        break;
+                    case STRUCTURAL_BOUNDARY_CONDITION::TRACTION:
+                        for (int k = 0; k < dim; k++)
+                        {
+                            value = stod(bc_info[k].c_str());
+                            boundary_conditions[phys][j*dim+k] = new UniformConstantNeumannBC(attr, value);
+                        }
+                        break;
+                    default:
+                        MFEM_ABORT("Invalid/Unknown boundary condition specified: '" + bc_info[0] + "'");
                 return;
+                }
+
+                // Print BC info
+                if (rank == 0)
+                {
+                    for (int k = 0; k < dim; k++)
+                        cout << "Boundary Attribute " << boundary_conditions[phys][j*dim+k]->GetBdrAttr() << ", Component " << k+1 << ":" << boundary_conditions[phys][j*dim+k]->GetInitString() << endl;
+                }
             }
             else
             {
@@ -572,16 +602,6 @@ void JOTSDriver::ProcessBoundaryConditions()
             precice_interface->SetPreciceBCs(boundary_conditions[phys], precice_bc_indices);
         
         //----------------------------------------------------------------------
-        // Print BCs
-        for (int i = 0; i < pmesh->bdr_attributes.Size(); i++)
-        {   
-            BoundaryCondition* bc = boundary_conditions[phys][i];
-
-            if (rank == 0)
-            {
-                cout << "Boundary Attribute " << bc->GetBdrAttr() << ": " << bc->GetInitString() << endl;
-            }
-        }
     }
 
     // Prepare BC attr arrays for applying coefficients

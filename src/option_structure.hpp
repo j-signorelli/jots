@@ -83,6 +83,16 @@ static const std::map<std::string, THERMAL_BOUNDARY_CONDITION> Thermal_Boundary_
                                                                                             {"preCICE_HeatFlux",  BOUNDARY_CONDITION::PRECICE_HEATFLUX},
                                                                                             {"preCICE_Isothermal", BOUNDARY_CONDITION::PRECICE_ISOTHERMAL}};
 
+enum class STRUCTURAL_BOUNDARY_CONDITION
+{
+    DISPLACEMENT,
+    TRACTION, 
+    //NORMAL_TRACTION
+};
+
+static const std::map<std::string, STRUCTURAL_BOUNDARY_CONDITION> Structural_Boundary_Condition_Map = {{"Displacement", STRUCTURAL_BOUNDARY_CONDITION::DISPLACEMENT},
+                                                                                                       {"Traction", STRUCTURAL_BOUNDARY_CONDITION::TRACTION}};
+
 enum class BINARY_CHOICE
 {
   NO,
