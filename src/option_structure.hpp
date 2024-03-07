@@ -84,8 +84,8 @@ static const std::map<std::string, THERMAL_BOUNDARY_CONDITION> Thermal_Boundary_
                                                                                             {"Isothermal", THERMAL_BOUNDARY_CONDITION::ISOTHERMAL},
                                                                                             {"Sinusoidal_Isothermal", THERMAL_BOUNDARY_CONDITION::SINUSOIDAL_ISOTHERMAL},
                                                                                             {"Sinusoidal_HeatFlux", THERMAL_BOUNDARY_CONDITION::SINUSOIDAL_HEATFLUX},
-                                                                                            {"preCICE_HeatFlux",  BOUNDARY_CONDITION::PRECICE_HEATFLUX},
-                                                                                            {"preCICE_Isothermal", BOUNDARY_CONDITION::PRECICE_ISOTHERMAL}};
+                                                                                            {"preCICE_HeatFlux",  THERMAL_BOUNDARY_CONDITION::PRECICE_HEATFLUX},
+                                                                                            {"preCICE_Isothermal", THERMAL_BOUNDARY_CONDITION::PRECICE_ISOTHERMAL}};
 
 enum class STRUCTURAL_BOUNDARY_CONDITION
 {
