@@ -12,7 +12,7 @@ using namespace std;
  *
  *  Class LinearConductionOperator represents the right-hand side of the above ODE.
  */
-LinearConductionOperator::LinearConductionOperator(const Config &in_config, const BoundaryCondition* const* in_bcs, mfem::Array<int>* all_bdr_attr_markers, const MaterialProperty &rho_prop, const MaterialProperty &C_prop, const MaterialProperty &k_prop, ParFiniteElementSpace &f, double &t_ref, double &dt_ref)
+LinearConductionOperator::LinearConductionOperator(ParFiniteElementSpace &f, const Config &in_config, const BoundaryCondition* const* in_bcs, mfem::Array<int>* all_bdr_attr_markers, const MaterialProperty &rho_prop, const MaterialProperty &C_prop, const MaterialProperty &k_prop, double &t_ref, double &dt_ref)
 :  TimeDependentOperator(f.GetTrueVSize(), t_ref),
    JOTSIterator(f, in_bcs, all_bdr_attr_markers, f.GetParMesh()->bdr_attributes.Size()),
    time(t_ref),

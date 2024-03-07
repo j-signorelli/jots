@@ -1,6 +1,6 @@
 #include "steady_conduction_operator.hpp"
 
-SteadyConductionOperator::SteadyConductionOperator(const Config& in_config, const BoundaryCondition* const* in_bcs, mfem::Array<int>* all_bdr_attr_markers, MaterialProperty& k_prop, ParFiniteElementSpace& f_)
+SteadyConductionOperator::SteadyConductionOperator(ParFiniteElementSpace& f_, const Config& in_config, const BoundaryCondition* const* in_bcs, mfem::Array<int>* all_bdr_attr_markers, MaterialProperty& k_prop)
 : JOTSIterator(f_, in_bcs, all_bdr_attr_markers, f_.GetParMesh()->bdr_attributes.Size()),
   k(&f_),
   lin_solver(nullptr),

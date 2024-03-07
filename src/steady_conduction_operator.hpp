@@ -17,7 +17,7 @@ class SteadyConductionOperator : public JOTSIterator
         JOTSNewtonSolver newton;
         
     public:
-        SteadyConductionOperator(const Config& in_config, const BoundaryCondition* const* in_bcs, mfem::Array<int>* all_bdr_attr_markers, MaterialProperty& k_prop, ParFiniteElementSpace& f_);
+        SteadyConductionOperator(ParFiniteElementSpace& f_, const Config& in_config, const BoundaryCondition* const* in_bcs, mfem::Array<int>* all_bdr_attr_markers, MaterialProperty& k_prop);
         void Iterate(Vector& u);
 
 

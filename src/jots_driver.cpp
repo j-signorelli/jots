@@ -109,34 +109,37 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
 
     switch (Simulation_Type_Map.at(user_input.GetSimTypeLabel()))
     {
-        case SIMULATION_TYPE::LINEARIZED_UNSTEADY:
-            jots_iterator[PHYSICS_TYPE::THERMAL] = new LinearConductionOperator(user_input,
+        case SIMULATION_TYPE::LINEARIZED_UNSTEADY_HEAT:
+            jots_iterator[PHYSICS_TYPE::THERMAL] = new LinearConductionOperator(
+                                            *fespace[PHYSICS_TYPE::THERMAL],
+                                            user_input,
                                              boundary_conditions[PHYSICS_TYPE::THERMAL],
                                              all_bdr_attr_markers,
                                              *mat_props[MATERIAL_PROPERTY::DENSITY],
                                              *mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT],
                                              *mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY],
-                                             *fespace[PHYSICS_TYPE::THERMAL],
                                              time,
                                              dt);
             break;
-        case SIMULATION_TYPE::NONLINEAR_UNSTEADY:
-            jots_iterator[PHYSICS_TYPE::THERMAL] = new NonlinearConductionOperator(user_input,
+        case SIMULATION_TYPE::NONLINEAR_UNSTEADY_HEAT:
+            jots_iterator[PHYSICS_TYPE::THERMAL] = new NonlinearConductionOperator(
+                                            *fespace[PHYSICS_TYPE::THERMAL],
+                                            user_input,
                                              boundary_conditions[PHYSICS_TYPE::THERMAL],
                                              all_bdr_attr_markers,
                                              *mat_props[MATERIAL_PROPERTY::DENSITY],
                                              *mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT],
                                              *mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY],
-                                             *fespace[PHYSICS_TYPE::THERMAL],
                                              time,
                                              dt);
             break;
-        case SIMULATION_TYPE::STEADY:
-            jots_iterator[PHYSICS_TYPE::THERMAL] = new SteadyConductionOperator(user_input, 
+        case SIMULATION_TYPE::STEADY_HEAT:
+            jots_iterator[PHYSICS_TYPE::THERMAL] = new SteadyConductionOperator(
+                                                    *fespace[PHYSICS_TYPE::THERMAL],
+                                                    user_input,
                                                     boundary_conditions[PHYSICS_TYPE::THERMAL],
                                                     all_bdr_attr_markers,
-                                                    *mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY],
-                                                    *fespace[PHYSICS_TYPE::THERMAL]);
+                                                    *mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY]);
             break;
     }
     //----------------------------------------------------------------------

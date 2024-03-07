@@ -133,7 +133,7 @@ class NonlinearConductionOperator : public TimeDependentOperator, public JOTSIte
 
         public:
             // Note: bdr attributes array cannot be constant. May move into BoundaryCondition class in future
-            NonlinearConductionOperator(const Config& in_config, const BoundaryCondition* const* in_bcs, mfem::Array<int>* all_bdr_attr_markers, MaterialProperty& rho_prop, MaterialProperty& C_prop, MaterialProperty& k_prop, ParFiniteElementSpace &f, double &time_, double &dt_);
+            NonlinearConductionOperator(ParFiniteElementSpace &f, const Config& in_config, const BoundaryCondition* const* in_bcs, mfem::Array<int>* all_bdr_attr_markers, MaterialProperty& rho_prop, MaterialProperty& C_prop, MaterialProperty& k_prop, double &time_, double &dt_);
 
             //--------------------------------------------------------------------------------------
             // TimeDependentOperator Function implementations:
