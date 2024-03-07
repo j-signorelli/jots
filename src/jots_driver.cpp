@@ -113,25 +113,25 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
             jots_iterator[PHYSICS_TYPE::THERMAL] = new LinearConductionOperator(
                                             *fespace[PHYSICS_TYPE::THERMAL],
                                             user_input,
-                                             boundary_conditions[PHYSICS_TYPE::THERMAL],
-                                             all_bdr_attr_markers,
-                                             *mat_props[MATERIAL_PROPERTY::DENSITY],
-                                             *mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT],
-                                             *mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY],
-                                             time,
-                                             dt);
+                                            boundary_conditions[PHYSICS_TYPE::THERMAL],
+                                            all_bdr_attr_markers,
+                                            *mat_props[MATERIAL_PROPERTY::DENSITY],
+                                            *mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT],
+                                            *mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY],
+                                            time,
+                                            dt);
             break;
         case SIMULATION_TYPE::NONLINEAR_UNSTEADY_HEAT:
             jots_iterator[PHYSICS_TYPE::THERMAL] = new NonlinearConductionOperator(
                                             *fespace[PHYSICS_TYPE::THERMAL],
                                             user_input,
-                                             boundary_conditions[PHYSICS_TYPE::THERMAL],
-                                             all_bdr_attr_markers,
-                                             *mat_props[MATERIAL_PROPERTY::DENSITY],
-                                             *mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT],
-                                             *mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY],
-                                             time,
-                                             dt);
+                                            boundary_conditions[PHYSICS_TYPE::THERMAL],
+                                            all_bdr_attr_markers,
+                                            *mat_props[MATERIAL_PROPERTY::DENSITY],
+                                            *mat_props[MATERIAL_PROPERTY::SPECIFIC_HEAT],
+                                            *mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY],
+                                            time,
+                                            dt);
             break;
         case SIMULATION_TYPE::STEADY_HEAT:
             jots_iterator[PHYSICS_TYPE::THERMAL] = new SteadyConductionOperator(
@@ -141,6 +141,16 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
                                                     all_bdr_attr_markers,
                                                     *mat_props[MATERIAL_PROPERTY::THERMAL_CONDUCTIVITY]);
             break;
+        case SIMULATION_TYPE::EQUILIBRIUM_LINEAR_ELASTIC:
+            jots_iterator[PHYSICS_TYPE::STRUCTURAL] = new EquilibriumLinearElasticOperator(
+                                                    *fespace[PHYSICS_TYPE::STRUCTURAL],
+                                                    user_input,
+                                                    boundary_conditions[PHYSICS_TYPE::STRUCTURAL],
+                                                    all_bdr_attr_markers,
+                                                    *mat_props[MATERIAL_PROPERTY::LAMES_FIRST_PARAMETER],
+                                                    *mat_props[MATERIAL_PROPERTY::LAMES_SECOND_PARAMETER]);
+            break;
+        
     }
     //----------------------------------------------------------------------
     if (rank == 0)
@@ -508,15 +518,15 @@ void JOTSDriver::ProcessBoundaryConditions()
             vector<string> bc_info = user_input.GetBCInfo(type, attr);
 
             // Declare needed variables before switch statement/s
-                double value;
-                string mesh_name;
-                double amp;
-                double afreq;
-                double phase;
-                double shift;
+            double value;
+            string mesh_name;
+            double amp;
+            double afreq;
+            double phase;
+            double shift;
             // If these are thermal boundary conditions
             if (phys == PHYSICS_TYPE::THERMAL)
-                {
+            {
                 switch (Thermal_Boundary_Condition_Map.at(bc_info[0]))
                 {
                     case THERMAL_BOUNDARY_CONDITION::ISOTHERMAL:
@@ -583,7 +593,7 @@ void JOTSDriver::ProcessBoundaryConditions()
                         break;
                     default:
                         MFEM_ABORT("Invalid/Unknown boundary condition specified: '" + bc_info[0] + "'");
-                return;
+                        return;
                 }
 
                 // Print BC info

@@ -268,7 +268,7 @@ Newton iterations must now be employed to solve this generally nonlinear system.
 
 $$\dfrac{\partial R(\vec{k}_{n+1})}{\partial \vec{k}}=\mathbf{M} - \Delta t \left.\dfrac{\partial A}{\partial \vec{u}}\right|_{n+1}=\mathbf{M}+\Delta t\left.\dfrac{\partial \kappa}{\partial \vec{u}}\right|_{n+1}+\Delta t\left.\dfrac{\partial B}{\partial \vec{u}}\right|_{n+1}-\Delta t\left.\dfrac{\partial N}{\partial \vec{u}}\right|_{n+1}$$
 
-## Approximations for Non-Constant Dirichlet + Neumann BCs
+# Approximations for Non-Constant Dirichlet + Neumann BCs
 
 
 Nonhomogeneous time-varying Dirichlet boundary conditions involve fixing some values of $\dfrac{d \vec{u}}{dt}$ **in time**, $\dfrac{d\vec{u}_D}{dt}$, since values of $u$ on $\partial \Omega_D$ may change in time. Currently, JOTS assumes that $\dfrac{d\vec{u}_D}{dt}\approx 0$. This is a source of error as solutions to the derivatives of the free DOFs depend on derivatives of the essential DOFs (See [here](https://github.com/mfem/mfem/issues/1720)).
@@ -324,6 +324,55 @@ $$\mathbf{K}\vec{u} = \vec{N}$$
 where generally this is a nonlinear problem as $\mathbf{K}=\mathbf{K}(\vec{u})$, so:
 
 $$K(\vec{u})=\vec{N}$$
+
+# Static Linear Elasticity
+
+Sources:
+- The Linearized Theory of Elasticity by William S. Slaughter
+- ChatGPT
+- Theory and Practice of Finite Elements by Ern and Guermond
+
+## Weak Formulation Derivation
+
+The following assumptions are made:
+
+1. Steady
+2. No body forces
+3. No inertial forces
+4. **Isotropic material properties**
+
+Without any body forces, the linear equation of motion for tensor stress field $\mathbf{\sigma}$ becomes very simply
+
+$$\partial_i\sigma_{ij}= 0$$
+
+The most general constitutive equation for a linear elastic material is
+
+$$\sigma_{ij}=C_{ijkl}\epsilon_{kl}$$
+
+where $\epsilon(\vec{u})$ is the strain tensor,  $\epsilon(\vec{u})=\epsilon_{ij}=\dfrac{1}{2}\left[\partial_i u_j + \partial_ju_i \right]$, for displacement vector (at a given point) $\vec{u}$ of size equal to the physical dimension, and $\lambda$, $\mu$ are Lamé constants.
+
+
+
+
+For an isotropic material, stiffness tensor $\mathbf{C}$ becomes
+
+$$C_{ijkl}=\lambda\delta_{ij}\delta_{kl} + \mu(\delta_{ik}\delta_{jl} + \delta_{il}\delta_{jk})$$
+
+Plugging this into the linear relation for stress-strain, the constitutive equation for an isotropic material under a linear elastic model becomes
+
+$$\sigma_{ij}=2\mu\epsilon_{ij} + \lambda\epsilon_{kk}\delta_{ij}$$
+
+The Young's modulus $E$ and Poisson's ratio $\nu$ determined in *uniaxial tension* are related to the Lamé constants by
+
+$$E=\dfrac{\mu(3\lambda + 2\mu)}{\lambda+\mu}$$
+$$\nu=\dfrac{\lambda}{2(\lambda + \mu)}$$
+
+such that the constitutive relation can then be rewritten as
+
+$$\sigma_{ij}=\dfrac{E}{1+\nu}\epsilon_{ij} + \dfrac{\nu E}{(1+\nu)(1-2\nu)}\epsilon_{kk}\delta_{ij}$$
+
+
+**The derivation can be found in *Theory and Practice of Finite Elements* by Ern and Guermond in Section 3.4**
 
 # JOTS Nonlinear Form Integrators
 
