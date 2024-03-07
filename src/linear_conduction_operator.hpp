@@ -23,12 +23,6 @@ protected:
 
 	mfem::ODESolver* ode_solver;
 
-	IterativeSolver *expl_solver;    // Solver for explicit time integration
-	HypreSmoother expl_prec; // Preconditioner for the mass matrix M
-	IterativeSolver *impl_solver;   // Solver for implicit time integration
-	HypreSmoother impl_prec; // Preconditioner for the implicit solver
-
-	
 	ParBilinearForm M;
 	ParBilinearForm K;
 

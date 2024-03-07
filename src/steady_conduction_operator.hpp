@@ -12,8 +12,6 @@ class SteadyConductionOperator : public JOTSIterator
     private:
     protected:
         ParNonlinearForm k;
-        IterativeSolver* lin_solver;
-        HypreSmoother lin_prec;
         JOTSNewtonSolver newton;
         
     public:
@@ -23,6 +21,4 @@ class SteadyConductionOperator : public JOTSIterator
 
         // No updates mid run -- steady just completes inner iterations in Iterate and closes
         void ProcessMatPropUpdate(MATERIAL_PROPERTY mp) {};
-
-        ~SteadyConductionOperator() { delete lin_solver; };
 };

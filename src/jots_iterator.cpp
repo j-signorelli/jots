@@ -2,13 +2,26 @@
 
 using namespace mfem;
 
-JOTSIterator::JOTSIterator(ParFiniteElementSpace& f_, const BoundaryCondition* const* in_bcs, Array<int>* all_bdr_attr_markers, int bc_count)
+JOTSIterator::JOTSIterator(ParFiniteElementSpace& f_, const Config &in_config, const BoundaryCondition* const* in_bcs, Array<int>* all_bdr_attr_markers, int bc_count)
 : fespace(f_),
   b(&f_),
   b_vec(f_.GetTrueVSize()),
-  neumann_coeff(fespace.GetVDim())
+  neumann_coeff(fespace.GetVDim()),
+  lin_solver(nullptr)
 {
     int dim = fespace.GetVDim();
+
+    // Set linear solver + preconditioner
+    lin_solver = Factory::GetSolver(in_config.GetSolverLabel(), fespace.GetComm());
+    lin_solver->iterative_mode = false;
+    lin_prec.SetType(Factory::GetPrec(in_config.GetPrecLabel()));
+    lin_solver->SetPreconditioner(lin_prec);
+    lin_solver->SetAbsTol(in_config.GetAbsTol());
+    lin_solver->SetRelTol(in_config.GetRelTol());
+    lin_solver->SetMaxIter(in_config.GetMaxIter());
+    lin_solver->SetPrintLevel(Factory::CreatePrintLevel(in_config.GetLinSolPrintLevel()));
+
+
     // Get the essential DOFs component-wise
     // Set Neumann coefficient component-wise
     for (int comp = 0; comp < dim; comp++)

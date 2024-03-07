@@ -165,11 +165,10 @@ double NonlinearConductionOperator::dBetaCoefficient::Eval(ElementTransformation
 
 NonlinearConductionOperator::NonlinearConductionOperator(ParFiniteElementSpace &f, const Config& in_config, const BoundaryCondition* const* in_bcs, Array<int>* all_bdr_attr_markers, MaterialProperty& rho_prop, MaterialProperty& C_prop, MaterialProperty& k_prop, double& time_, double& dt_)
 :  TimeDependentOperator(f.GetTrueVSize(), time_),
-   JOTSIterator(f, in_bcs, all_bdr_attr_markers, f.GetParMesh()->bdr_attributes.Size()),
+   JOTSIterator(f, in_config, in_bcs, all_bdr_attr_markers, f.GetParMesh()->bdr_attributes.Size()),
    time(time_),
    dt(dt_),
    ode_solver(nullptr),
-   lin_solver(nullptr),
    newton(f.GetComm()),
    diffusivity(k_prop, rho_prop, C_prop),
    d_diffusivity(k_prop, rho_prop, C_prop),
@@ -233,25 +232,6 @@ NonlinearConductionOperator::NonlinearConductionOperator(ParFiniteElementSpace &
         // Prepare ReducedSystemOperatorA with linear Neumann term
         A = new ReducedSystemOperatorA(K, &b_vec);
     }
-    
-
-	//----------------------------------------------------------------
-	double abs_tol = in_config.GetAbsTol();
-	double rel_tol = in_config.GetRelTol();
-	int max_iter = in_config.GetMaxIter();
-	//----------------------------------------------------------------
-	// Prepare linear solver
-	lin_solver = Factory::GetSolver(in_config.GetSolverLabel(), fespace.GetComm());
-
-	// Set up the linear solver
-	lin_solver->iterative_mode = false; // If true, would use second argument of Mult() as initial guess; here it is set to false
-	lin_solver->SetRelTol(rel_tol); // Sets "relative tolerance" of iterative solver
-	lin_solver->SetAbsTol(abs_tol); // Sets "absolute tolerance" of iterative solver
-	lin_solver->SetMaxIter(max_iter); // Sets maximum number of iterations
-	lin_solver->SetPrintLevel(0); // Print all information about detected issues
-	lin_prec.SetType(Factory::GetPrec(in_config.GetPrecLabel())); // Set type of preconditioning (relaxation type) 
-	lin_solver->SetPreconditioner(lin_prec); // Set preconditioner to matrix inversion solver
-    lin_solver->SetPrintLevel(Factory::CreatePrintLevel(in_config.GetLinSolPrintLevel()));
 
 	//----------------------------------------------------------------
 	// Prepare the NewtonSolver
@@ -325,7 +305,6 @@ void NonlinearConductionOperator::Iterate(Vector& u)
 NonlinearConductionOperator::~NonlinearConductionOperator()
 {
    delete ode_solver;
-   delete lin_solver;
 
    delete K;
    delete A;

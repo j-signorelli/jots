@@ -109,8 +109,6 @@ class NonlinearConductionOperator : public TimeDependentOperator, public JOTSIte
         double &dt;
         mfem::ODESolver* ode_solver;
 
-        IterativeSolver *lin_solver;    // Linear solver
-        HypreSmoother lin_prec; // Preconditioner for linear solver
         JOTSNewtonSolver newton;
         
         DiffusivityCoefficient diffusivity;

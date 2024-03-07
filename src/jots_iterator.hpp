@@ -3,6 +3,7 @@
 #include "mfem/mfem.hpp"
 #include "boundary_condition.hpp"
 #include "option_structure.hpp"
+#include "config_file.hpp"
 
 class JOTSIterator
 {
@@ -14,11 +15,13 @@ class JOTSIterator
         mfem::VectorArrayCoefficient neumann_coeff;
         mfem::Array<int> ess_tdof_list; // list of essential true dofs
 
+        mfem::IterativeSolver *lin_solver;    // Linear solver
+        mfem::HypreSmoother lin_prec; // Preconditioner for linear solver
     public:
-        JOTSIterator(mfem::ParFiniteElementSpace& f_, const BoundaryCondition* const* in_bcs, mfem::Array<int>* all_bdr_attr_markers, int bc_count);
+        JOTSIterator(mfem::ParFiniteElementSpace& f_, const Config &in_config, const BoundaryCondition* const* in_bcs, mfem::Array<int>* all_bdr_attr_markers, int bc_count);
         virtual void UpdateNeumann();
 
         virtual void Iterate(mfem::Vector& u) = 0;
         virtual void ProcessMatPropUpdate(MATERIAL_PROPERTY mp) = 0;
-        virtual ~JOTSIterator() = default; // Explicitly define destructor as virtual, so derived types can have their own destructors
+        virtual ~JOTSIterator() { delete lin_solver; }; // Explicitly define destructor as virtual, so derived types can have their own destructors
 };

@@ -14,13 +14,11 @@ using namespace std;
  */
 LinearConductionOperator::LinearConductionOperator(ParFiniteElementSpace &f, const Config &in_config, const BoundaryCondition* const* in_bcs, mfem::Array<int>* all_bdr_attr_markers, const MaterialProperty &rho_prop, const MaterialProperty &C_prop, const MaterialProperty &k_prop, double &t_ref, double &dt_ref)
 :  TimeDependentOperator(f.GetTrueVSize(), t_ref),
-   JOTSIterator(f, in_bcs, all_bdr_attr_markers, f.GetParMesh()->bdr_attributes.Size()),
+   JOTSIterator(f, in_config, in_bcs, all_bdr_attr_markers, f.GetParMesh()->bdr_attributes.Size()),
    time(t_ref),
    dt(dt_ref), 
    rho_C(rho_prop.GetCoeffRef(), C_prop.GetCoeffRef()),
    ode_solver(nullptr),
-   expl_solver(nullptr),
-   impl_solver(nullptr),
    M(&f), 
    K(&f),
    M_mat(nullptr),
@@ -28,33 +26,7 @@ LinearConductionOperator::LinearConductionOperator(ParFiniteElementSpace &f, con
    A_mat(nullptr),
    rhs(height)
 {
-    double abs_tol = in_config.GetAbsTol();
-    double rel_tol = in_config.GetRelTol();
-    int max_iter = in_config.GetMaxIter();
 
-
-    // Prepare explicit solver
-    expl_solver = Factory::GetSolver(in_config.GetSolverLabel(), fespace.GetComm());
-    expl_solver->iterative_mode = false;
-    expl_solver->SetRelTol(rel_tol);
-    expl_solver->SetAbsTol(abs_tol);
-    expl_solver->SetMaxIter(max_iter);
-    expl_solver->SetPrintLevel(0);
-    expl_prec.SetType(Factory::GetPrec(in_config.GetPrecLabel())); 
-    expl_solver->SetPreconditioner(expl_prec);
-    expl_solver->SetPrintLevel(Factory::CreatePrintLevel(in_config.GetLinSolPrintLevel()));
-
-    // Prepare implicit solver
-    impl_solver = Factory::GetSolver(in_config.GetSolverLabel(), fespace.GetComm());
-    impl_solver->iterative_mode = false;
-    impl_solver->SetRelTol(rel_tol);
-    impl_solver->SetAbsTol(abs_tol);
-    impl_solver->SetMaxIter(max_iter);
-    impl_solver->SetPrintLevel(0);
-    impl_prec.SetType(Factory::GetPrec(in_config.GetPrecLabel()));
-    impl_solver->SetPreconditioner(impl_prec);
-    impl_solver->SetPrintLevel(Factory::CreatePrintLevel(in_config.GetLinSolPrintLevel()));
-    
     // Initialize mass
     M.AddDomainIntegrator(new MassIntegrator(rho_C));
     ReassembleM();
@@ -86,9 +58,6 @@ void LinearConductionOperator::ReassembleM()
     M_mat = M.ParallelAssemble();
 
     M_mat->EliminateBC(ess_tdof_list, Operator::DiagonalPolicy::DIAG_ONE);
-
-    // Reset operator for explicit solver
-    expl_solver->SetOperator(*M_mat);
 }
 
 void LinearConductionOperator::ReassembleK()
@@ -116,7 +85,6 @@ void LinearConductionOperator::ReassembleA()
 
     A_mat->EliminateBC(ess_tdof_list, Operator::DiagonalPolicy::DIAG_ONE);
 
-    impl_solver->SetOperator(*A_mat);
 }
 
 void LinearConductionOperator::CalculateRHS(const Vector &u, Vector &y) const
@@ -143,8 +111,11 @@ void LinearConductionOperator::Mult(const Vector &u, Vector &du_dt) const
     // Zero out essential DOF rows -- as we want du_p/dt = 0
     rhs.SetSubVector(ess_tdof_list, 0.0);
 
+    // Reset operator for explicit solver (if M_mat changed or implicit operator used)
+    lin_solver->SetOperator(*M_mat);
+
     // Solve for M^-1 * rhs
-    expl_solver->Mult(rhs, du_dt);
+    lin_solver->Mult(rhs, du_dt);
 
 }
 
@@ -163,8 +134,11 @@ void LinearConductionOperator::ImplicitSolve(const double dt,
     // Zero out essential DOF rows -- as we want du_p/dt = 0
     rhs.SetSubVector(ess_tdof_list, 0.0);
 
+    // Reset operator for implicit solver (if A_mat changed or explicit operator used)
+    lin_solver->SetOperator(*A_mat);
+
     // Solve for du_dt
-    impl_solver->Mult(rhs, du_dt);
+    lin_solver->Mult(rhs, du_dt);
 
 }
 
@@ -196,8 +170,6 @@ void LinearConductionOperator::ProcessMatPropUpdate(MATERIAL_PROPERTY mp)
 LinearConductionOperator::~LinearConductionOperator()
 {
     delete ode_solver;
-    delete expl_solver;
-    delete impl_solver;
 
     delete M_mat;
     delete K_mat;
