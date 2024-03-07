@@ -108,8 +108,6 @@ class NonlinearConductionOperator : public TimeDependentOperator, public JOTSIte
         double &time;
         double &dt;
         mfem::ODESolver* ode_solver;
-
-        JOTSNewtonSolver newton;
         
         DiffusivityCoefficient diffusivity;
         dDiffusivityCoefficient d_diffusivity;

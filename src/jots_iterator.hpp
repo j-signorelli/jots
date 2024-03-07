@@ -4,6 +4,7 @@
 #include "boundary_condition.hpp"
 #include "option_structure.hpp"
 #include "config_file.hpp"
+#include "jots_common.hpp"
 
 class JOTSIterator
 {
@@ -17,6 +18,8 @@ class JOTSIterator
 
         mfem::IterativeSolver *lin_solver;    // Linear solver
         mfem::HypreSmoother lin_prec; // Preconditioner for linear solver
+        JOTSNewtonSolver newton;
+
     public:
         JOTSIterator(mfem::ParFiniteElementSpace& f_, const Config &in_config, const BoundaryCondition* const* in_bcs, mfem::Array<int>* all_bdr_attr_markers, int bc_count);
         virtual void UpdateNeumann();

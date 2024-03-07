@@ -7,7 +7,8 @@ JOTSIterator::JOTSIterator(ParFiniteElementSpace& f_, const Config &in_config, c
   b(&f_),
   b_vec(f_.GetTrueVSize()),
   neumann_coeff(fespace.GetVDim()),
-  lin_solver(nullptr)
+  lin_solver(nullptr),
+  newton(fespace.GetComm())
 {
     int dim = fespace.GetVDim();
 
@@ -21,6 +22,16 @@ JOTSIterator::JOTSIterator(ParFiniteElementSpace& f_, const Config &in_config, c
     lin_solver->SetMaxIter(in_config.GetMaxIter());
     lin_solver->SetPrintLevel(Factory::CreatePrintLevel(in_config.GetLinSolPrintLevel()));
 
+    // Set up newton solver (if using)
+    if (in_config.UsingNewton())
+    {   
+        newton.iterative_mode = false;
+        newton.SetSolver(*lin_solver);
+        newton.SetAbsTol(in_config.GetNewtonAbsTol());
+        newton.SetRelTol(in_config.GetNewtonRelTol());
+        newton.SetMaxIter(in_config.GetNewtonMaxIter());
+        newton.SetPrintLevel(Factory::CreatePrintLevel(in_config.GetNewtonPrintLevel()));
+    }
 
     // Get the essential DOFs component-wise
     // Set Neumann coefficient component-wise

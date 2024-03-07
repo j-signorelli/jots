@@ -169,7 +169,6 @@ NonlinearConductionOperator::NonlinearConductionOperator(ParFiniteElementSpace &
    time(time_),
    dt(dt_),
    ode_solver(nullptr),
-   newton(f.GetComm()),
    diffusivity(k_prop, rho_prop, C_prop),
    d_diffusivity(k_prop, rho_prop, C_prop),
    g_over_rhoC(*neumann_coeff.GetCoeff(0), rho_prop, C_prop),
@@ -237,17 +236,10 @@ NonlinearConductionOperator::NonlinearConductionOperator(ParFiniteElementSpace &
 	// Prepare the NewtonSolver
     // Use same linear solver obj and settings
     R = new ReducedSystemOperatorR(M_mat, *A, ess_tdof_list);
-    newton.iterative_mode = false;
     newton.SetOperator(*R);
     newton.AddMaterialProperty(k_prop); // Register k_prop to be updated with solution vector every Newton iteration
     newton.AddMaterialProperty(C_prop);
     newton.AddMaterialProperty(rho_prop);
-    newton.SetSolver(*lin_solver);
-    newton.SetPrintLevel(1);
-    newton.SetAbsTol(in_config.GetNewtonAbsTol());
-    newton.SetRelTol(in_config.GetNewtonRelTol());
-    newton.SetMaxIter(in_config.GetNewtonMaxIter());
-    newton.SetPrintLevel(Factory::CreatePrintLevel(in_config.GetNewtonPrintLevel()));
 
 	//----------------------------------------------------------------
 	// Instantiate ODESolver

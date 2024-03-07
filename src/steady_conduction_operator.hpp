@@ -12,7 +12,6 @@ class SteadyConductionOperator : public JOTSIterator
     private:
     protected:
         ParNonlinearForm k;
-        JOTSNewtonSolver newton;
         
     public:
         SteadyConductionOperator(ParFiniteElementSpace& f_, const Config& in_config, const BoundaryCondition* const* in_bcs, mfem::Array<int>* all_bdr_attr_markers, MaterialProperty& k_prop);
