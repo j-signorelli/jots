@@ -5,32 +5,42 @@ using namespace mfem;
 JOTSIterator::JOTSIterator(ParFiniteElementSpace& f_, const BoundaryCondition* const* in_bcs, Array<int>* all_bdr_attr_markers, int bc_count)
 : fespace(f_),
   b(&f_),
-  b_vec(f_.GetTrueVSize())
+  b_vec(f_.GetTrueVSize()),
+  neumann_coeff(fespace.GetVDim())
 {
-
-    // Set the list of Dirichlet (essential) DOFs
-    Array<int> dbc_bdr(bc_count);
-    dbc_bdr = 0; // Start w/ all attributes set to non-essential = 0
-
-    for (int i = 0; i < bc_count; i++)
+    int dim = fespace.GetVDim();
+    // Get the essential DOFs component-wise
+    // Set Neumann coefficient component-wise
+    for (int comp = 0; comp < dim; comp++)
     {
-        // Add Neumann BCs
-        if (!in_bcs[i]->IsEssential())
+        PWCoefficient* comp_neumann_coeff = new PWCoefficient();
+
+        // Set the list of Dirichlet (essential) DOFs (for this component)
+        Array<int> dbc_bdr_comp(bc_count);
+        dbc_bdr_comp = 0; // Start w/ all attributes set to non-essential = 0
+
+        for (int i = 0; i < bc_count; i++)
         {
-            neumann_coeff.UpdateCoefficient(in_bcs[i]->GetBdrAttr(), in_bcs[i]->GetCoeffRef());
+            if (in_bcs[i*dim+comp]->IsEssential())
+                dbc_bdr_comp[i] = 1;
+            else
+            {
+                comp_neumann_coeff->UpdateCoefficient(in_bcs[i*dim+comp]->GetBdrAttr(), in_bcs[i*dim+comp]->GetCoeffRef());
+            }
         }
-        else
-        {
-            // Update DBC list if essential
-            dbc_bdr[i] = 1;
-        }
+        // Get the essential true dofs, given the Dirichlet boundaries FOR THIS COMPONENT
+        Array<int> ess_tdof_list_comp;
+        fespace.GetEssentialTrueDofs(dbc_bdr_comp, ess_tdof_list_comp, fespace.GetVDim() == 1 ? -1 : comp);
+        // Add to full list
+        ess_tdof_list.Append(ess_tdof_list_comp);
+
+        // Add this component Neumann coefficient
+        neumann_coeff.Set(comp, comp_neumann_coeff, true); // VectorArrayCoefficient will take ownership of it + delete it
+
     }
 
-    // Get the essential true dofs, given the Dirichlet boundaries. Store in ess_tdof_list
-    fespace.GetEssentialTrueDofs(dbc_bdr, ess_tdof_list);
-
     // Add Neumann term
-    b.AddBoundaryIntegrator(new BoundaryLFIntegrator(neumann_coeff));
+    b.AddBoundaryIntegrator(new VectorBoundaryLFIntegrator(neumann_coeff));
     
     // Initialize Neumann LF and vector
     UpdateNeumann();
