@@ -90,7 +90,7 @@ static const std::map<std::string, THERMAL_BOUNDARY_CONDITION> Thermal_Boundary_
 enum class STRUCTURAL_BOUNDARY_CONDITION
 {
     DISPLACEMENT,
-    TRACTION, 
+    TRACTION
     //NORMAL_TRACTION
 };
 

@@ -237,8 +237,11 @@ void JOTSDriver::ProcessFiniteElementSetup()
             }
             
             u_0_gf[phys] = new ParGridFunction(fespace[phys]);
-            ConstantCoefficient coeff_IC(user_input.GetInitialValue(soln_inits[i]));
-            u_0_gf[phys]->ProjectCoefficient(coeff_IC);
+            *u_0_gf[phys] = user_input.GetInitialValue(soln_inits[i]);
+
+            // Cannot project scalar coefficient onto vector PGF:
+            //ConstantCoefficient coeff_IC(user_input.GetInitialValue(soln_inits[i]));
+            //u_0_gf[phys]->ProjectCoefficient(coeff_IC);
 
             if (rank == 0)
                 cout << "Initial " << solution_name << ": " << user_input.GetInitialValue(soln_inits[i]) << endl;
@@ -580,14 +583,14 @@ void JOTSDriver::ProcessBoundaryConditions()
                     case STRUCTURAL_BOUNDARY_CONDITION::DISPLACEMENT:
                         for (int k = 0; k < dim; k++)
                         {
-                            value = stod(bc_info[k].c_str());
+                            value = stod(bc_info[k+1].c_str());
                             boundary_conditions[phys][j*dim+k] = new UniformConstantDirichletBC(attr, value);
                         }
                         break;
                     case STRUCTURAL_BOUNDARY_CONDITION::TRACTION:
                         for (int k = 0; k < dim; k++)
                         {
-                            value = stod(bc_info[k].c_str());
+                            value = stod(bc_info[k+1].c_str());
                             boundary_conditions[phys][j*dim+k] = new UniformConstantNeumannBC(attr, value);
                         }
                         break;
@@ -600,7 +603,7 @@ void JOTSDriver::ProcessBoundaryConditions()
                 if (rank == 0)
                 {
                     for (int k = 0; k < dim; k++)
-                        cout << "Boundary Attribute " << boundary_conditions[phys][j*dim+k]->GetBdrAttr() << ", Component " << k+1 << ":" << boundary_conditions[phys][j*dim+k]->GetInitString() << endl;
+                        cout << "Boundary Attribute " << boundary_conditions[phys][j*dim+k]->GetBdrAttr() << ", Component " << k+1 << ": " << boundary_conditions[phys][j*dim+k]->GetInitString() << endl;
                 }
             }
             else
@@ -806,41 +809,52 @@ void JOTSDriver::UpdateAndApplyBCs()
     // Get GF from current solution
 
     // Loop over every physics solver
-    for (int i = 0; i < PHYSICS_TYPE_SIZE; i++)
+    for (int phys = 0; phys < PHYSICS_TYPE_SIZE; phys++)
     {
-        if (!boundary_conditions[i])
+        if (!boundary_conditions[phys])
             continue;
         
         bool n_changed = false;
         bool d_changed = false;
+        int vd = fespace[phys]->GetVDim();
 
-        u_0_gf[i]->SetFromTrueDofs(*u[i]);
+        u_0_gf[phys]->SetFromTrueDofs(*u[phys]);
 
         // Update BCs for this given physics solver
-        for (int j = 0; j < pmesh->bdr_attributes.Size(); j++)
+        for (int i = 0; i < pmesh->bdr_attributes.Size(); i++)
         {   
-            // Update coefficients (could be preCICE calls, could be SetTime calls, etc.)
-            if (!boundary_conditions[i][j]->IsConstant() || !initialized_bcs) // If not constant in time or not yet initialized for first iteration
-            {
-                boundary_conditions[i][j]->UpdateCoeff(time);
+            // Setup Coefficient array for appropriate component projections
+            Coefficient* coeff_array[vd];
 
-                if (boundary_conditions[i][j]->IsEssential())
+            // Loop over individual components
+            for (int j = 0; j < vd; j++)
+            {
+                coeff_array[j] = nullptr;
+                // Update coefficients (could be preCICE calls, could be SetTime calls, etc.)
+                if (!boundary_conditions[phys][i*vd+j]->IsConstant() || !initialized_bcs) // If not constant in time or not yet initialized for first iteration
                 {
-                    // Project correct values on boundary for essential BCs
-                    d_changed = true;
-                    u_0_gf[i]->ProjectBdrCoefficient(boundary_conditions[i][j]->GetCoeffRef(), all_bdr_attr_markers[j]);
-                }
-                else
-                {
-                    n_changed = true; // Flag that Neumann LF must be updated
+                    boundary_conditions[phys][i*vd+j]->UpdateCoeff(time);
+
+                    if (boundary_conditions[phys][i*vd+j]->IsEssential())
+                    {
+                        // Project correct values on boundary for essential BCs
+                        d_changed = true;
+                        coeff_array[j] = &boundary_conditions[phys][i*vd+j]->GetCoeffRef();
+                    }
+                    else
+                    {
+                        n_changed = true; // Flag that Neumann LF must be updated
+                    }
                 }
             }
+
+            u_0_gf[phys]->ProjectBdrCoefficient(coeff_array, all_bdr_attr_markers[i]);
         }
 
         if (d_changed)
         {
             // Apply changed Dirichlet BCs to u
-            u_0_gf[i]->GetTrueDofs(*u[i]);
+            u_0_gf[phys]->GetTrueDofs(*u[phys]);
             // Here is where can set tmp_du_dt to be used if HO wanted
             // For higher-order, need T from n-1 timestep in addition to n timestep? is this worth doing?
             // Need to save previous timestep temperature in restarts
@@ -848,7 +862,7 @@ void JOTSDriver::UpdateAndApplyBCs()
 
         // If any non-constant Neumann terms, update Neumann linear form
         if (n_changed)
-            jots_iterator[i]->UpdateNeumann();
+            jots_iterator[phys]->UpdateNeumann();
     }
     if (!initialized_bcs)
         initialized_bcs = true;
