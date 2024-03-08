@@ -527,6 +527,7 @@ void JOTSDriver::ProcessBoundaryConditions()
             double afreq;
             double phase;
             double shift;
+            string type;
             // If these are thermal boundary conditions
             if (phys == PHYSICS_TYPE::THERMAL)
             {
@@ -592,6 +593,25 @@ void JOTSDriver::ProcessBoundaryConditions()
                         {
                             value = stod(bc_info[k+1].c_str());
                             boundary_conditions[phys][j*dim+k] = new UniformConstantNeumannBC(attr, value);
+                        }
+                        break;
+                    case STRUCTURAL_BOUNDARY_CONDITION::COMPONENT_WISE:
+                        for (int k = 0; k < dim; k++)
+                        {
+                            type = bc_info[2*k+1].c_str();
+                            value = stod(bc_info[2*k+2].c_str());
+                            switch (Structural_Boundary_Condition_Map.at(type))
+                            {
+                                case STRUCTURAL_BOUNDARY_CONDITION::DISPLACEMENT:
+                                    boundary_conditions[phys][j*dim+k] = new UniformConstantDirichletBC(attr, value);
+                                    break;
+                                case STRUCTURAL_BOUNDARY_CONDITION::TRACTION:
+                                    boundary_conditions[phys][j*dim+k] = new UniformConstantNeumannBC(attr, value);
+                                    break;
+                                default:
+                                    MFEM_ABORT("Invalid/Unknown boundary condition specified: '" + bc_info[2*k+1] + "'");
+                                    break;
+                            }
                         }
                         break;
                     default:

@@ -90,12 +90,13 @@ static const std::map<std::string, THERMAL_BOUNDARY_CONDITION> Thermal_Boundary_
 enum class STRUCTURAL_BOUNDARY_CONDITION
 {
     DISPLACEMENT,
-    TRACTION
-    //NORMAL_TRACTION
+    TRACTION,
+    COMPONENT_WISE
 };
 
 static const std::map<std::string, STRUCTURAL_BOUNDARY_CONDITION> Structural_Boundary_Condition_Map = {{"Displacement", STRUCTURAL_BOUNDARY_CONDITION::DISPLACEMENT},
-                                                                                                       {"Traction", STRUCTURAL_BOUNDARY_CONDITION::TRACTION}};
+                                                                                                       {"Traction", STRUCTURAL_BOUNDARY_CONDITION::TRACTION},
+                                                                                                       {"Component_Wise", STRUCTURAL_BOUNDARY_CONDITION::COMPONENT_WISE}};
 
 enum class BINARY_CHOICE
 {
