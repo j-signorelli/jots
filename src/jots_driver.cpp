@@ -77,6 +77,9 @@ JOTSDriver::JOTSDriver(const Config& input, const int myid, const int num_procs,
     // Process BoundaryConditions
     ProcessBoundaryConditions();
     //----------------------------------------------------------------------
+    // Print any SpecificSettings
+    PrintPhysicsSpecificSettings();
+    //----------------------------------------------------------------------
     // Print LinearSolverSettings
     PrintLinearSolverSettings();
     //----------------------------------------------------------------------
@@ -648,6 +651,21 @@ void JOTSDriver::ProcessBoundaryConditions()
         bdr_attr = 0;
         bdr_attr[j] = 1;
         all_bdr_attr_markers[j] = bdr_attr;
+    }
+}
+
+void JOTSDriver::PrintPhysicsSpecificSettings()
+{
+    // Print any given physics-specific settings
+    vector<string> in_specific_types = user_input.GetPhysicsSettingTypes();
+    for (size_t i = 0; i < in_specific_types.size(); i++)
+    {
+        string type = in_specific_types[i];
+        if (rank == 0)
+            cout << "\n" << type << "-Specific Settings" << endl;
+        vector<string> type_settings = user_input.GetPhysicsTypeSettings(type);
+        for (size_t j = 0; j < type_settings.size(); j++)
+            cout << type_settings[j] << ": " << user_input.GetPhysicsSpecificSetting<string>(type, type_settings[j]) << endl;
     }
 }
 

@@ -43,6 +43,14 @@ class Config
         // Final value is vector<string> of individual values separated by commas in input file
         std::map<std::string, std::map<int, std::vector<std::string>>> bc_info_map;
 
+
+        // Additional physics-specific settings
+        // To maintain generality of additional settings, these are not specified as variables;
+        // Prefix is first-level key (________SpecificSettings)
+        // Setting is second-level key
+        // Value is third-level, stored as a string
+        std::map<std::string, std::map<std::string, std::string>> physics_specific_settings;
+
         bool using_time_integration;
         std::string time_scheme_label;      /*!< \brief Time integration scheme to use */
         int max_timesteps;             /*!< \brief Delta time, timestep */
@@ -71,8 +79,8 @@ class Config
         void ReadMatProps();
         void ReadIC();
         void ReadPrecice();
-
         void ReadBCs();
+        void ReadSpecificSettings();
         void ReadTimeInt();
         void ReadLinSolSettings();
         void ReadNewtonSettings();
@@ -154,6 +162,15 @@ class Config
         void SetBCInfo(std::string type, int attr, std::vector<std::string> in_bc) { bc_info_map[type][attr] = in_bc; };
 
         void DeleteBCInfo(std::string type, int attr) { bc_info_map[type].erase(attr); };
+
+        std::vector<std::string> GetPhysicsSettingTypes() const { return Helper::GetKeyVector(physics_specific_settings); };
+
+        std::vector<std::string> GetPhysicsTypeSettings(std::string type) const { return Helper::GetKeyVector(physics_specific_settings.at(type)); };
+
+        bool PhysicsSpecificSettingExists(std::string type, std::string setting) const { return  physics_specific_settings.count(type) && physics_specific_settings.at(type).count(setting); };
+
+        template<typename T>
+        T GetPhysicsSpecificSetting(std::string type, std::string setting) const { return boost::lexical_cast<T>(physics_specific_settings.at(type).at(setting)); };
 
         bool UsingTimeIntegration() const { return using_time_integration; };
 

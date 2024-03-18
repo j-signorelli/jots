@@ -14,6 +14,7 @@ Config::Config(const char* in_file) : input_file(in_file)
     ReadMatProps();
     ReadPrecice();
     ReadBCs();
+    ReadSpecificSettings();
     ReadTimeInt();
     ReadLinSolSettings();
     ReadNewtonSettings();
@@ -129,6 +130,35 @@ void Config::ReadBCs()
         }
     }
 
+}
+
+void Config::ReadSpecificSettings()
+{
+    // Read any section with "SpecificSettings" existing in its header
+    for (bp::ptree::iterator it = property_tree.begin(); it != property_tree.end(); it++)
+    {
+        const string &root = it->first;
+        size_t found = root.find("SpecificSettings");
+
+        if (found == string::npos)
+            continue;
+        
+        string type = root.substr(0, found);
+
+        stringstream label;
+        label << type << "SpecificSettings";
+        // Read "[__type__SpecificSettings]"
+        BOOST_FOREACH(const bp::ptree::value_type &v , property_tree.get_child(label.str()))
+        {   
+            // Get the setting and value
+            string setting = v.first.data();
+            string value = v.second.data();
+
+            // Add to map
+            physics_specific_settings[type][setting] = value;
+            
+        }
+    }
 }
 
 void Config::ReadTimeInt()
