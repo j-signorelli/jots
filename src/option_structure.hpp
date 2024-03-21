@@ -117,21 +117,21 @@ static const std::map<std::string, MATERIAL_MODEL> Material_Model_Map = {{"Unifo
                                                                              {"Polynomial", MATERIAL_MODEL::POLYNOMIAL}};
                                                                     
 
-enum class STRUCTURAL_SETTING
+enum class ADDITIONAL_SETTING
 {
     PLANE_MODEL
 };
-static const std::map<STRUCTURAL_SETTING, std::string> Structural_Setting_String_Map = {{STRUCTURAL_SETTING::PLANE_MODEL, "2D_Plane_Model"}};
+static const std::map<ADDITIONAL_SETTING, std::string> Additional_Setting_String_Map = {{ADDITIONAL_SETTING::PLANE_MODEL, "2D_Plane_Model"}};
 
-enum class STRUCTURAL_OPTION
+enum class ADDITIONAL_OPTION
 {
     OFF,
     PLANE_STRESS,
     PLANE_STRAIN
 };
-static const std::map<STRUCTURAL_OPTION, std::string> Structural_Option_String_Map = {{STRUCTURAL_OPTION::OFF, "Off"},
-                                                                                      {STRUCTURAL_OPTION::PLANE_STRESS, "Plane_Stress"},
-                                                                                      {STRUCTURAL_OPTION::PLANE_STRAIN, "Plane_Strain"}};
+static const std::map<ADDITIONAL_OPTION, std::string> Additional_Option_String_Map = {{ADDITIONAL_OPTION::OFF, "Off"},
+                                                                                      {ADDITIONAL_OPTION::PLANE_STRESS, "Plane_Stress"},
+                                                                                      {ADDITIONAL_OPTION::PLANE_STRAIN, "Plane_Strain"}};
 
 enum class LINEAR_SOLVER
 {

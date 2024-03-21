@@ -25,7 +25,7 @@ class JOTSDriver
         void ProcessTimeIntegration();
         void ProcessPrecice();
         void ProcessBoundaryConditions();
-        void PrintPhysicsSpecificSettings();
+        void PrintAdditionalSettings();
         void PrintLinearSolverSettings();
         void PrintNewtonSolverSettings();
         void PrintOutput();
