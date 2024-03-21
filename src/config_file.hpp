@@ -165,9 +165,12 @@ class Config
         std::vector<std::string> GetAdditionalSettings() const { return Helper::GetKeyVector(additional_settings); };
 
         bool AdditionalSettingExists(std::string setting) const { return  additional_settings.count(setting); };
-
+        bool AdditionalSettingExists(ADDITIONAL_SETTING setting) const { return AdditionalSettingExists(Additional_Setting_String_Map.at(setting)); };
+        
         template<typename T>
         T GetAdditionalSetting(std::string setting) const { return boost::lexical_cast<T>(additional_settings.at(setting)); };
+        template<typename T>
+        T GetAdditionalSetting(ADDITIONAL_SETTING setting) const { return GetAdditionalSetting<T>(Additional_Setting_String_Map.at(setting)); };
 
         bool UsingTimeIntegration() const { return using_time_integration; };
 
