@@ -119,19 +119,17 @@ static const std::map<std::string, MATERIAL_MODEL> Material_Model_Map = {{"Unifo
 
 enum class ADDITIONAL_SETTING
 {
-    PLANE_MODEL
+    PLANE_STRESS
 };
-static const std::map<ADDITIONAL_SETTING, std::string> Additional_Setting_String_Map = {{ADDITIONAL_SETTING::PLANE_MODEL, "2D_Plane_Model"}};
+static const std::map<ADDITIONAL_SETTING, std::string> Additional_Setting_String_Map = {{ADDITIONAL_SETTING::PLANE_STRESS, "2D_Plane_Stress"}};
 
-enum class ADDITIONAL_OPTION
+enum ADDITIONAL_OPTION : int
 {
     OFF,
-    PLANE_STRESS,
-    PLANE_STRAIN
+    ON
 };
 static const std::map<ADDITIONAL_OPTION, std::string> Additional_Option_String_Map = {{ADDITIONAL_OPTION::OFF, "Off"},
-                                                                                      {ADDITIONAL_OPTION::PLANE_STRESS, "Plane_Stress"},
-                                                                                      {ADDITIONAL_OPTION::PLANE_STRAIN, "Plane_Strain"}};
+                                                                                      {ADDITIONAL_OPTION::ON, "On"}};
 
 enum class LINEAR_SOLVER
 {
