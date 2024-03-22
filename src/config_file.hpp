@@ -172,6 +172,8 @@ class Config
         template<typename T>
         T GetAdditionalSetting(ADDITIONAL_SETTING setting) const { return GetAdditionalSetting<T>(Additional_Setting_String_Map.at(setting)); };
 
+        bool AdditionalSettingEquals(ADDITIONAL_SETTING setting, ADDITIONAL_OPTION option) const { return AdditionalSettingExists(setting) && GetAdditionalSetting<std::string>(setting) == Additional_Option_String_Map.at(option); }; 
+
         bool UsingTimeIntegration() const { return using_time_integration; };
 
         void EnableTimeIntegration(bool in_using) { using_time_integration = in_using; };
