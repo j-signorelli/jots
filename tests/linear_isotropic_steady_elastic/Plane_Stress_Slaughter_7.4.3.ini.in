@@ -1,0 +1,34 @@
+[FiniteElementSetup]
+Simulation_Type=Equilibrium_Linear_Elastic
+FE_Order= 2
+Restart_Prefix=restart
+Use_Restart= No
+
+; Bar ranges from x=0 to 1, y=0 to 0.1
+Mesh_File=@PROJECT_SOURCE_DIR@/examples/meshes/bar.mesh
+Serial_Refine=0
+Parallel_Refine=0
+Structural_Initialization=0
+
+[MaterialProperties]
+Lames_First_Parameter_lambda=Uniform, 1
+Lames_Second_Parameter_mu=Uniform, 1
+
+[StructuralBoundaryConditions]
+; Top + Bottom
+Boundary_Attr_1=Traction, 0, 0
+; Left:
+Boundary_Attr_2=Traction, 0, -1e-3
+; Right:
+Boundary_Attr_3=Displacement, 0, 0
+
+[AdditionalSettings]
+2D_Plane_Stress=On
+
+[LinearSolverSettings]
+Solver=CG
+Preconditioner=Chebyshev
+Max_Iterations=10000
+Absolute_Tolerance=1e-16
+Relative_Tolerance=1e-10
+Print_Level=Errors, Warnings, Iterations
