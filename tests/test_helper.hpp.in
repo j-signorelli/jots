@@ -104,7 +104,7 @@ int Analytical_Parametric_dt_Error(string input_file, std::function<double(const
 }
 
 // Run to end with comparison against analytical solution at end
-int Analytical_Reg_Test(string input_file, std::function<double(const Vector &, double)> Analytical, const double EPSILON=1e-10)
+int Analytical_Reg_Test(string input_file, std::function<double(const Vector &, double)> Analytical_Scalar, std::function<void(const Vector &, double, Vector &)> Analytical_Vector, const string field, const double EPSILON=1e-10)
 {
     // Initialize MPI and HYPRE.
     Mpi::Init();
@@ -121,17 +121,29 @@ int Analytical_Reg_Test(string input_file, std::function<double(const Vector &, 
     // Run driver
     driver->Run();
 
-    // Define exact solution coefficient
-    FunctionCoefficient u_exact_coeff(Analytical);
-    u_exact_coeff.SetTime(input.GetMaxTimesteps()*input.Getdt());
-
-    ParGridFunction u_h = *(driver->GetOutputManager()->GetVectorPGF("Temperature"));
+    // Get numerical solution
+    ParGridFunction u_h = *(driver->GetOutputManager()->GetVectorPGF(field));
     ParGridFunction u_exact(u_h);
-    u_exact.ProjectCoefficient(u_exact_coeff);
+
+    // Define exact solution coefficient
+    double l2error = 0;
+    if (Analytical_Scalar)
+    {
+        FunctionCoefficient u_exact_coeff(Analytical_Scalar);
+        u_exact_coeff.SetTime(input.GetMaxTimesteps()*input.Getdt());
+        u_exact.ProjectCoefficient(u_exact_coeff);
+        l2error = u_h.ComputeL2Error(u_exact_coeff);
+    }else
+    {
+        VectorFunctionCoefficient u_exact_coeff(u_exact.VectorDim(), Analytical_Vector);
+        u_exact_coeff.SetTime(input.GetMaxTimesteps()*input.Getdt());
+        u_exact.ProjectCoefficient(u_exact_coeff);
+        l2error = u_h.ComputeL2Error(u_exact_coeff);
+    }
 
     // Get the finite-element approximation solution
     // Compute relative forward error
-    double error = u_h.ComputeL2Error(u_exact_coeff) / GlobalLpNorm(2.0, u_exact.Norml2(), MPI_COMM_WORLD);
+    double error = l2error / GlobalLpNorm(2.0, u_exact.Norml2(), MPI_COMM_WORLD);
 
     if (myid == 0)
         cout << "Error: " << error;
@@ -156,6 +168,16 @@ int Analytical_Reg_Test(string input_file, std::function<double(const Vector &, 
     delete driver;
 
     return 0;
+}
+
+int Analytical_Thermal_Reg_Test(string input_file, std::function<double(const Vector &, double)> Analytical_Scalar, const double EPSILON=1e-10)
+{
+    return Analytical_Reg_Test(input_file, Analytical_Scalar, nullptr, Solution_Names_Map.at(PHYSICS_TYPE::THERMAL), EPSILON);
+}
+
+int Analytical_Structural_Reg_Test(string input_file, std::function<void(const Vector &, double, Vector &)> Analytical_Vector, const double EPSILON=1e-10)
+{
+    return Analytical_Reg_Test(input_file, nullptr, Analytical_Vector, Solution_Names_Map.at(PHYSICS_TYPE::STRUCTURAL), EPSILON);
 }
 
 // Adapted from ajaust/precice-parallel-solverdummies
